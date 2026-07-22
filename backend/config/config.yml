@@ -1,0 +1,7 @@
+mcp_server:
+  url: ""
+  api_key: ""
+
+ai_agent:
+  url: ""
+  api_key: ""
