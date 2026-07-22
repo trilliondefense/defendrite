@@ -1,0 +1,16 @@
+services:
+  defendrite:
+    image: ghcr.io/trilliondefense/defendrite:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+
+    container_name: defendrite
+
+    ports:
+      - "8080:8080"
+
+    restart: unless-stopped
+
+    env_file:
+      - .env
