@@ -16,9 +16,9 @@
 			href: '/settings'
 		},
 		{
-			name: 'Support',
+			name: 'Reports',
 			icon: LifeBuoy,
-			href: '/support'
+			href: '/reports'
 		}
 	];
 

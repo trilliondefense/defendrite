@@ -32,7 +32,7 @@ COPY backend/ .
 # Copy Svelte build into Go project
 COPY --from=frontend-builder /app/frontend/build ./frontend/build
 
-RUN go build -o defendrite .
+RUN go build -o defendrite ./cmd/server
 
 
 # ===================================
