@@ -2,13 +2,13 @@
 
 install:
 	cd backend && go mod tidy
-	cd frontend && npm install
+	cd frontend && pnpm install
 
 backend:
 	cd backend && go run ./cmd/server
 
 frontend:
-	cd frontend && npm run dev
+	cd frontend && pnpm run dev
 
 dev:
 	@echo "Start the backend in one terminal:"
@@ -19,11 +19,11 @@ dev:
 
 build:
 	cd backend && go build -o defendrite ./cmd/server
-	cd frontend && npm run build
+	cd frontend && pnpm run build
 
 test:
 	cd backend && go test ./...
-	cd frontend && npm run check
+	cd frontend && pnpm run check
 
 clean:
 	rm -f backend/defendrite
