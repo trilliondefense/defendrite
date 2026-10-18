@@ -1,0 +1,7 @@
+[workspace]
+members = [
+    "apps/desktop/src-tauri",
+    "runtime",
+    "models"
+]
+resolver = "2"
