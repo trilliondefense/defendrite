@@ -30,14 +30,29 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-size: "lts/*"
-          cache: "npm"
-          cache-dependency-path: apps/desktop/package-lock.json
+          node-version: "lts/*"
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Get pnpm store directory
+        shell: bash
+        run: |
+          echo "STORE_PATH=$(pnpm store path)" >> $GITHUB_ENV
+
+      - name: Cache pnpm modules
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('apps/desktop/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
 
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
         with:
-          # Targets required for macOS universal build if specified
           targets: ${{ matrix.platform == 'macos-latest' && 'x86_64-apple-darwin,aarch64-apple-darwin' || '' }}
 
       - name: Cargo Cache
@@ -60,7 +75,7 @@ jobs:
       - name: Install frontend dependencies
         run: |
           cd apps/desktop
-          npm ci
+          pnpm install --frozen-lockfile
 
       - name: Build frontend and Tauri application
         uses: tauri-apps/tauri-action@v0
@@ -69,7 +84,7 @@ jobs:
           HARNESS_MODEL_API_KEY: ${{ secrets.HARNESS_MODEL_API_KEY }}
           HARNESS_MODEL_NAME: ${{ secrets.HARNESS_MODEL_NAME }}
         with:
-          tagName: app-v__VERSION__ # tauri-action automatically replaces this with package.json version
+          tagName: app-v__VERSION__
           releaseName: "Security AI Workbench v__VERSION__"
           releaseBody: "Automated release from GitHub Actions."
           releaseDraft: true
