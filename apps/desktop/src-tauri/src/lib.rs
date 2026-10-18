@@ -4,7 +4,13 @@ async fn ask_agent(
     prompt: String,
     app_handle: tauri::AppHandle,
 ) -> Result<(), String> {
-    runtime::handle_agent_request(&prompt, &app_handle).await;
+    let result =
+        runtime::handle_agent_request(&prompt, &app_handle).await;
+
+    if result.starts_with("Error:") {
+        return Err(result);
+    }
+
     Ok(())
 }
 
