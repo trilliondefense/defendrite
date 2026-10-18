@@ -29,7 +29,7 @@ Because this desktop application acts as an orchestrator with local file access 
 
 ### Our Disclosure Process
 
-1. **Submit Your Report:** Send a detailed security report via email to **[INSERT SECURITY EMAIL]**.
+1. **Submit Your Report:** Send a detailed security report via email to **defendrite@trilliondefense.com**.
 2. **What to Include:**
    - A clear description of the vulnerability or threat model.
    - Step-by-step instructions (or a proof-of-concept script) to reproduce the issue.

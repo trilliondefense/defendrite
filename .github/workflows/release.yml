@@ -85,7 +85,7 @@ jobs:
           HARNESS_MODEL_NAME: ${{ secrets.HARNESS_MODEL_NAME }}
         with:
           tagName: app-v__VERSION__
-          releaseName: "Security AI Workbench v__VERSION__"
+          releaseName: "Defendrite Workbench v__VERSION__"
           releaseBody: "Automated release from GitHub Actions."
           releaseDraft: true
           prerelease: false
