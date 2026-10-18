@@ -80,12 +80,10 @@ lerna-debug.log*
 # 6. RUNTIME CATE (LOCAL DATABASES & APPLICATION STORAGE)
 # ==============================================================================
 # Blocks local app-state directories inside the runtime folder
-/runtime/storage/
 /runtime/data/
 /runtime/.data/
 
 # Prevents raw database files from hitting the repo
-storage/
 *.sqlite
 *.sqlite3
 *.db
