@@ -98,18 +98,7 @@
   box-sizing: border-box;
 }
 
-html,
-body {
-  width: 100%;
-  min-width: 320px;
-  min-height: 100%;
-  margin: 0;
-}
 
-body {
-  min-height: 100vh;
-  background: #f8f8f6;
-}
 
 button,
 input {

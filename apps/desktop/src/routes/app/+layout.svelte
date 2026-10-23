@@ -9,7 +9,7 @@
   let paletteOpen = $state(false);
   let query = $state("");
   let selectedIndex = $state(0);
-  let searchInput: HTMLInputElement;
+  let searchInput: HTMLInputElement | undefined= $state(undefined);
 
   const navItems = [
     { label: "New Chat", href: "/app/newchat", icon: "＋", keywords: "create conversation",shortcut:"n" },
