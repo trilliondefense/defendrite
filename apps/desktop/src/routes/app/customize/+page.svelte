@@ -51,22 +51,7 @@
     }
   }
 
-  async function executeAgent() {
-    if (!currentPrompt.trim()) return;
-    
-    isProcessing = true;
-    streamingOutput = '';
-    statusLog = 'Orchestrating agent run...';
-
-    try {
-      await invoke('ask_agent', { prompt: currentPrompt });
-      statusLog = 'Agent execution completed.';
-    } catch (err) {
-      statusLog = `Invocation rejected: ${err}`;
-    } finally {
-      isProcessing = false;
-    }
-  }
+  
   onMount(() => {
     try {
       theme = (localStorage.getItem("workspace-theme") as Theme) || "light";
@@ -144,7 +129,7 @@
       localStorage.setItem("workspace-sound", String(soundEnabled));
       localStorage.setItem("workspace-enter-send", String(enterToSend));
       localStorage.setItem("workspace-startup", String(launchAtStartup));
-
+      saveConfig();
       applyTheme();
       saved = true;
       window.setTimeout(() => (saved = false), 1800);
@@ -350,12 +335,21 @@
             placeholder="AIzaSy..." 
             style="flex: 1; padding: 0.5rem 0.75rem; border-radius: 4px; border: 1px solid #ccc; font-family: monospace; font-size: 0.9rem;"
           />
-          <button 
-            onclick={saveConfig}
-            style="padding: 0.5rem 1rem; border-radius: 4px; cursor: pointer; font-weight: 500;"
-          >
-            Save
-          </button>
+        </div>
+      </div>
+       <div class="setting-row credentials-row" style="flex-direction: column; align-items: flex-start; gap: 0.75rem;">
+        <div class="setting-copy">
+          <h3>Model Name</h3>
+          <p>Configure your personal developer key to authenticate with Gemini model runtimes locally.</p>
+        </div>
+        
+        <div style="display: flex; gap: 0.5rem; width: 100%;">
+          <input 
+            type="text" 
+            bind:value={modelName} 
+            placeholder="AIzaSy..." 
+            style="flex: 1; padding: 0.5rem 0.75rem; border-radius: 4px; border: 1px solid #ccc; font-family: monospace; font-size: 0.9rem;"
+          />
         </div>
       </div>
 

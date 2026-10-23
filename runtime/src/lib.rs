@@ -27,10 +27,9 @@ pub async fn handle_agent_request(prompt: &str, app_handle: &AppHandle) -> Strin
             );
         }
     };
-
-    // 3. Extract the Google AI Studio Key string value
+    // 3. Extract the Google AI Studio Key string value by navigating the { value: ... } object wrapper
     let api_key = match store.get("HARNESS_MODEL_API_KEY") {
-        Some(value) => match value.as_str() {
+        Some(value) => match value.get("value").and_then(|v| v.as_str()) {
             Some(s) if !s.trim().is_empty() => s.to_string(),
             _ => {
                 return emit_error(
@@ -47,11 +46,11 @@ pub async fn handle_agent_request(prompt: &str, app_handle: &AppHandle) -> Strin
         }
     };
 
-    // 4. Extract the active target Model name string profile
+    // 4. Extract the active target Model name string profile by navigating the { value: ... } object wrapper
     let model = match store.get("HARNESS_MODEL_NAME") {
-        Some(value) => match value.as_str() {
+        Some(value) => match value.get("value").and_then(|v| v.as_str()) {
             Some(s) if !s.trim().is_empty() => s.to_string(),
-            _ => "gemini-1.5-flash".to_string(), // Fallback if entry is malformed
+            _ => "gemini-1.5-flash".to_string(), // Fallback if entry is malformed or structural string conversion fails
         },
         None => "gemini-1.5-flash".to_string(), // Default baseline profile
     };

@@ -7,13 +7,13 @@ async fn ask_agent(prompt: String, app_handle: tauri::AppHandle) -> Result<(), S
         .store("settings.json")
         .map_err(|e| format!("Error: Configuration store failed to access or initialize: {e}"))?;
 
-    // 2. Inspect the verified store object for the credential token
+    // 2. Inspect the verified store object for the credential token, unpacking the { value: ... } object wrapper
     let key_is_missing = match store.get("HARNESS_MODEL_API_KEY") {
-        Some(value) => match value.as_str() {
+        Some(value) => match value.get("value").and_then(|v| v.as_str()) {
             Some(s) => s.trim().is_empty(),
-            None => true,
+            None => true, // Value field is missing or not a string
         },
-        None => true,
+        None => true, // HARNESS_MODEL_API_KEY key is missing entirely
     };
 
     if key_is_missing {
