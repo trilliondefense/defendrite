@@ -116,51 +116,69 @@
       window.removeEventListener("keydown", handleGlobalKeydown);
     };
   });
+async function handleSendMessage(event: SubmitEvent) {
+  event.preventDefault();
 
-  async function handleSendMessage(event: SubmitEvent) {
-    event.preventDefault();
+  const prompt = input.trim();
 
-    const prompt = input.trim();
+  // Guard loop to protect execution boundaries
+  if (!prompt || isLoading) return;
 
-    if (!prompt || isLoading) return;
-
-    messages.push({
+  // Svelte 5 Rune-safe state array updating
+  messages = [
+    ...messages,
+    {
       id: crypto.randomUUID(),
       sender: "user",
       text: prompt
-    });
+    }
+  ];
 
-    const agentMessageId = crypto.randomUUID();
+  const agentMessageId = crypto.randomUUID();
 
-    messages.push({
+  // Initialize placeholder for real-time streaming tokens
+  messages = [
+    ...messages,
+    {
       id: agentMessageId,
       sender: "agent",
       text: ""
-    });
-
-    activeAgentMsgId = agentMessageId;
-    input = "";
-    isLoading = true;
-
-    void scrollToBottom();
-
-    try {
-      await invoke("ask_agent", { prompt });
-    } catch (error) {
-      const activeMessage = messages.find(
-        (message) => message.id === agentMessageId
-      );
-
-      if (activeMessage) {
-        activeMessage.text = `Error: ${String(error)}`;
-      }
-    } finally {
-      isLoading = false;
-      activeAgentMsgId = null;
-      void scrollToBottom();
-      focusInput();
     }
+  ];
+
+  activeAgentMsgId = agentMessageId;
+  input = "";
+  isLoading = true;
+
+  void scrollToBottom();
+
+  try {
+    // Dispatches the background Tokio runtime agent runner
+    await invoke("ask_agent", { prompt });
+  } catch (error) {
+    const errorString = String(error);
+    
+    // Find the message index to trigger Svelte 5 fine-grained array reactivity
+    const targetIdx = messages.findIndex((m) => m.id === agentMessageId);
+
+    if (targetIdx !== -1) {
+      if (errorString.includes("SETUP_REQUIRED")) {
+        messages[targetIdx].text = "⚠️ Workspace Configuration Required: Please navigate to Settings and specify your Google AI Studio API Key to communicate with local models.";
+        
+        // Hook: Proactively launch your configuration UI here if desired
+        // showWorkspaceSettingsModal = true;
+      } else {
+        messages[targetIdx].text = `Runtime Execution Failure: ${errorString}`;
+      }
+    }
+  } finally {
+    isLoading = false;
+    activeAgentMsgId = null;
+    void scrollToBottom();
+    focusInput();
   }
+}
+
 </script>
 <div class="chat-page">
   <header class="chat-header">

@@ -1,17 +1,11 @@
-use std::{env, fs, path::PathBuf, time::Duration};
+use std::{fs, path::PathBuf, time::Duration};
 mod storage;
 use serde_json::{json, Value};
-use tauri::{Emitter, Manager};
+use tauri::{Emitter, Manager,AppHandle};
+use tauri_plugin_store::StoreExt;
 
-pub async fn handle_agent_request(prompt: &str, app_handle: &tauri::AppHandle) -> String {
-    // Load .env from the monorepo root.
-    let env_path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../.env");
-
-    if let Err(error) = dotenvy::from_path(&env_path) {
-        eprintln!("Could not load root .env: {error}");
-    }
-
-    // Initialize application storage.
+pub async fn handle_agent_request(prompt: &str, app_handle: &AppHandle) -> String {
+    // 1. Initialize application local data layout folders
     let mut storage_path = app_handle
         .path()
         .app_data_dir()
@@ -23,26 +17,45 @@ pub async fn handle_agent_request(prompt: &str, app_handle: &tauri::AppHandle) -
         eprintln!("Failed to create storage directory: {error}");
     }
 
-    // Read Gemini configuration.
-    let api_key = match env::var("HARNESS_MODEL_API_KEY") {
-        Ok(value) if !value.trim().is_empty() => value,
-        _ => {
+    // 2. Read Configuration from the Tauri v2 Store instance
+    let store = match app_handle.store("settings.json") {
+        Ok(s) => s,
+        Err(e) => {
             return emit_error(
                 app_handle,
-                "HARNESS_MODEL_API_KEY is missing from the root .env",
+                &format!("Failed to access application settings store: {e}"),
+            );
+        }
+    };
+    // 3. Extract the Google AI Studio Key string value by navigating the { value: ... } object wrapper
+    let api_key = match store.get("HARNESS_MODEL_API_KEY") {
+        Some(value) => match value.get("value").and_then(|v| v.as_str()) {
+            Some(s) if !s.trim().is_empty() => s.to_string(),
+            _ => {
+                return emit_error(
+                    app_handle,
+                    "HARNESS_MODEL_API_KEY is empty in application settings.",
+                );
+            }
+        },
+        None => {
+            return emit_error(
+                app_handle,
+                "HARNESS_MODEL_API_KEY is missing from application settings.",
             );
         }
     };
 
-    let model = match env::var("HARNESS_MODEL_NAME") {
-        Ok(value) if !value.trim().is_empty() => value,
-        _ => {
-            return emit_error(
-                app_handle,
-                "HARNESS_MODEL_NAME is missing from the root .env",
-            );
-        }
+    // 4. Extract the active target Model name string profile by navigating the { value: ... } object wrapper
+    let model = match store.get("HARNESS_MODEL_NAME") {
+        Some(value) => match value.get("value").and_then(|v| v.as_str()) {
+            Some(s) if !s.trim().is_empty() => s.to_string(),
+            _ => "gemini-1.5-flash".to_string(), // Fallback if entry is malformed or structural string conversion fails
+        },
+        None => "gemini-1.5-flash".to_string(), // Default baseline profile
     };
+
+    // --- rest of your network streaming and tool execution loop goes here ---
 
     // Create the HTTP client.
     let client: reqwest::Client = match reqwest::Client::builder()

@@ -1,6 +1,11 @@
 
 <script lang="ts">
   import { onMount } from "svelte";
+  
+  import { Store } from '@tauri-apps/plugin-store';
+  import { invoke } from '@tauri-apps/api/core';
+  import { listen } from '@tauri-apps/api/event';
+
 
   type Theme = "light" | "dark" | "system";
 
@@ -12,6 +17,17 @@
   let launchAtStartup = $state(false);
   let saved = $state(false);
 
+
+
+  let apiKey = $state('');
+  let modelName = $state('gemini-1.5-flash');
+  let currentPrompt = $state('');
+  let streamingOutput = $state('');
+  let statusLog = $state('');
+  let isProcessing = $state(false);
+
+    let store: Store | null = null;
+
   const accents = [
     { name: "Terracotta", value: "#d78261" },
     { name: "Blue", value: "#6488c7" },
@@ -20,6 +36,22 @@
     { name: "Rose", value: "#ce7890" }
   ];
 
+
+
+  async function saveConfig() {
+    try {
+      if (store){
+        await store.set('HARNESS_MODEL_API_KEY', { value: apiKey });
+        await store.set('HARNESS_MODEL_NAME', { value: modelName });
+        await store.save(); // Permanently flushes settings cache to disk
+      }
+      statusLog = "Configuration saved successfully.";
+    } catch (err) {
+      statusLog = `Failed to save configuration: ${err}`;
+    }
+  }
+
+  
   onMount(() => {
     try {
       theme = (localStorage.getItem("workspace-theme") as Theme) || "light";
@@ -33,6 +65,47 @@
     }
 
     applyTheme();
+
+    let unlistenFunctions: Array<() => void> = [];
+
+    // 1. Move all asynchronous initializations into an inner async execution block
+    async function initStoreAndListeners() {
+      try {
+        // Load the store instance safely
+        store = await Store.load('settings.json');
+
+        // Read persisted values from disk
+        const savedKey = await store.get<{ value: string }>('HARNESS_MODEL_API_KEY');
+        const savedModel = await store.get<{ value: string }>('HARNESS_MODEL_NAME');
+        
+        if (savedKey) apiKey = savedKey.value;
+        if (savedModel) modelName = savedModel.value;
+
+        // Listen to token-by-token stream emissions from Rust runtime
+        const unlistenToken = await listen<{ token: string }>('agent-token', (event) => {
+          streamingOutput += event.payload.token;
+        });
+        unlistenFunctions.push(unlistenToken);
+
+        // Listen to runtime generation exceptions
+        const unlistenError = await listen<{ error: string }>('agent-error', (event) => {
+          statusLog = `Runtime Error: ${event.payload.error}`;
+          isProcessing = false;
+        });
+        unlistenFunctions.push(unlistenError);
+
+      } catch (err) {
+        statusLog = `Initialization error: ${err}`;
+      }
+    }
+
+    // Fire off the asynchronous initializations without making onMount async
+    initStoreAndListeners();
+
+    // 2. Return a clean, synchronous function that runs perfectly on component unmount
+    return () => {
+      unlistenFunctions.forEach((unlisten) => unlisten());
+    };
   });
 
   function applyTheme() {
@@ -56,7 +129,7 @@
       localStorage.setItem("workspace-sound", String(soundEnabled));
       localStorage.setItem("workspace-enter-send", String(enterToSend));
       localStorage.setItem("workspace-startup", String(launchAtStartup));
-
+      saveConfig();
       applyTheme();
       saved = true;
       window.setTimeout(() => (saved = false), 1800);
@@ -242,38 +315,73 @@
         </div>
       </section>
 
-      <section id="workspace" class="settings-section">
-        <div class="section-heading">
-          <h2>Workspace</h2>
-          <p>Manage desktop application preferences.</p>
+     <section id="workspace" class="settings-section">
+      <div class="section-heading">
+        <h2>Workspace</h2>
+        <p>Manage desktop application preferences.</p>
+      </div>
+
+      <!-- API Credentials Row -->
+      <div class="setting-row credentials-row" style="flex-direction: column; align-items: flex-start; gap: 0.75rem;">
+        <div class="setting-copy">
+          <h3>Google AI Studio Key</h3>
+          <p>Configure your personal developer key to authenticate with Gemini model runtimes locally.</p>
+        </div>
+        
+        <div style="display: flex; gap: 0.5rem; width: 100%;">
+          <input 
+            type="password" 
+            bind:value={apiKey} 
+            placeholder="AIzaSy..." 
+            style="flex: 1; padding: 0.5rem 0.75rem; border-radius: 4px; border: 1px solid #ccc; font-family: monospace; font-size: 0.9rem;"
+          />
+        </div>
+      </div>
+       <div class="setting-row credentials-row" style="flex-direction: column; align-items: flex-start; gap: 0.75rem;">
+        <div class="setting-copy">
+          <h3>Model Name</h3>
+          <p>Configure your personal developer key to authenticate with Gemini model runtimes locally.</p>
+        </div>
+        
+        <div style="display: flex; gap: 0.5rem; width: 100%;">
+          <input 
+            type="text" 
+            bind:value={modelName} 
+            placeholder="AIzaSy..." 
+            style="flex: 1; padding: 0.5rem 0.75rem; border-radius: 4px; border: 1px solid #ccc; font-family: monospace; font-size: 0.9rem;"
+          />
+        </div>
+      </div>
+
+      <!-- App Preferences Toggle Row -->
+      <div class="setting-row">
+        <div class="setting-copy">
+          <h3>Launch at startup</h3>
+          <p>Remember this preference for launching the application at login.</p>
         </div>
 
-        <div class="setting-row">
-          <div class="setting-copy">
-            <h3>Launch at startup</h3>
-            <p>Remember this preference for launching the application at login.</p>
-          </div>
+        <button
+          class="toggle"
+          class:enabled={launchAtStartup}
+          role="switch"
+          aria-checked={launchAtStartup}
+          aria-label="Launch at startup"
+          onclick={() => (launchAtStartup = !launchAtStartup)}
+        >
+          <span></span>
+        </button>
+      </div>
 
-          <button
-            class="toggle"
-            class:enabled={launchAtStartup}
-            role="switch"
-            aria-checked={launchAtStartup}
-            aria-label="Launch at startup"
-            onclick={() => (launchAtStartup = !launchAtStartup)}
-          >
-            <span></span>
-          </button>
+      <!-- About System Meta Row -->
+      <div class="setting-row about-row">
+        <div class="setting-copy">
+          <h3>Golden Hour Workspace</h3>
+          <p>Desktop workspace · Local engine</p>
         </div>
+        <span class="version">Preferences v1</span>
+      </div>
+    </section>
 
-        <div class="setting-row about-row">
-          <div class="setting-copy">
-            <h3>Golden Hour Workspace</h3>
-            <p>Desktop workspace · Local engine</p>
-          </div>
-          <span class="version">Preferences v1</span>
-        </div>
-      </section>
 
       <p class="keyboard-hint">
         <kbd>⌘ S</kbd> Save preferences
