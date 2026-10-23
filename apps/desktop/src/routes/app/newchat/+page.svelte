@@ -1,6 +1,5 @@
 
 <script lang="ts">
-  import "./local.css";
 
   import { invoke } from "@tauri-apps/api/core";
   import { listen } from "@tauri-apps/api/event";
@@ -26,7 +25,7 @@
   let viewportElement = $state<HTMLElement | null>(null);
   let inputElement = $state<HTMLInputElement | null>(null);
 
-  let activeAgentMsgId: string | null = null;
+  let activeAgentMsgId: string | null = $state(null);
 
   async function scrollToBottom() {
     await tick();
@@ -163,11 +162,6 @@
     }
   }
 </script>
-
-<svelte:head>
-  <title>New Chat · Golden Hour</title>
-</svelte:head>
-
 <div class="chat-page">
   <header class="chat-header">
     <div class="header-left">
