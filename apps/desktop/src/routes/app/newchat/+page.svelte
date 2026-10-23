@@ -13,28 +13,28 @@
   }
 
   let messages = $state<Message[]>([
-    {
-      id: "welcome",
-      sender: "agent",
-      text: "Hello! I'm your AI agent. What would you like to work on today?"
-    }
+   
   ]);
+
+  let bottomElement: HTMLDivElement | undefined = $state(undefined);
 
   let input = $state("");
   let isLoading = $state(false);
   let viewportElement = $state<HTMLElement | null>(null);
-  let inputElement = $state<HTMLInputElement | null>(null);
+  let inputElement = $state<HTMLTextAreaElement | null>(null);
 
   let activeAgentMsgId: string | null = $state(null);
 
   async function scrollToBottom() {
-    await tick();
+  await tick();
 
-    viewportElement?.scrollTo({
-      top: viewportElement.scrollHeight,
-      behavior: "smooth"
+  requestAnimationFrame(() => {
+    bottomElement?.scrollIntoView({
+      behavior: "smooth",
+      block: "end"
     });
-  }
+  });
+}
 
   function focusInput() {
     inputElement?.focus();
@@ -180,474 +180,506 @@ async function handleSendMessage(event: SubmitEvent) {
 }
 
 </script>
+
+
 <div class="chat-page">
-  <header class="chat-header">
-    <div class="header-left">
-      <button
-        class="icon-button mobile-back"
-        aria-label="Back to workspace"
-        onclick={() => goto("/app")}
-      >
-        ←
-      </button>
-
-      <div class="header-title">
-                            <img src="/favicon.png" alt="Brand icon" class="brand-mark" />
-
-        <div>
-          <h1>New Chat</h1>
-          <p>AI workspace</p>
-        </div>
-      </div>
-    </div>
-
-    <div class="header-actions">
-      <div class="engine-status">
-        <span class="status-dot"></span>
-        Local Engine
+  {#if messages.length === 0}
+    <main class="chat-home">
+      <div class="upgrade">
+        Free plan · <a href="/upgrade">Upgrade</a>
       </div>
 
-      <button
-        class="header-button"
-        onclick={newChat}
-        disabled={isLoading}
-        title="New chat (Ctrl/⌘ N)"
-      >
-        <span>＋</span>
-        <span>New chat</span>
-        <kbd>⌘ N</kbd>
-      </button>
-    </div>
-  </header>
+      <section class="welcome">
+        <h1>
+          <span class="brand-star">✳</span>
+          Golden hour thinking
+        </h1>
 
-  <main class="chat-viewport" bind:this={viewportElement}>
-    <div class="message-list">
-      {#each messages as msg (msg.id)}
-        <div class="message-row" class:user={msg.sender === "user"} class:agent={msg.sender === "agent"}>
-          {#if msg.sender === "agent"}
-                    <img src="/favicon.png" alt="Brand icon" class="message-avatar" />
+        <form class="composer" onsubmit={handleSendMessage}>
+          <textarea
+            bind:this={inputElement}
+            bind:value={input}
+            placeholder="How can I help you today?"
+            rows="2"
+            aria-label="Message your AI assistant"
+            disabled={isLoading}
+            onkeydown={(event) => {
+              if (
+                event.key === "Enter" &&
+                !event.shiftKey &&
+                !event.isComposing
+              ) {
+                event.preventDefault();
+                event.currentTarget.form?.requestSubmit();
+              }
+            }}
+          ></textarea>
 
-            
-          {/if}
+          <div class="composer-bottom">
+            <button
+              class="add-button"
+              type="button"
+              aria-label="Add attachment"
+              title="Add attachment"
+              onclick={() => {
+                // Connect your existing attachment handler here.
+              }}
+            >+</button>
 
-          <div class="message-content">
-            <div class="sender-label">
-              {msg.sender === "user" ? "You" : "Assistant"}
-            </div>
+            <div class="composer-actions">
+              <select aria-label="Select model" value="Sonnet 4.6">
+                <option>Sonnet 4.6</option>
+                <option>Opus</option>
+                <option>Haiku</option>
+              </select>
 
-            <div class="message-text">
-              {#if msg.text}
-                {msg.text}
-              {:else if isLoading && msg.id === activeAgentMsgId}
-                <span class="thinking-indicator">
-                  <span></span>
-                  <span></span>
-                  <span></span>
-                </span>
-              {/if}
+              <button
+                class="mic-button"
+                type="button"
+                aria-label="Voice input"
+                title="Voice input"
+                onclick={() => {
+                  // Connect your existing voice input handler here.
+                }}
+              >
+                <svg viewBox="0 0 24 24" width="17" height="17"
+                  fill="none" stroke="currentColor" stroke-width="1.6"
+                  stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="9" y="3" width="6" height="12" rx="3" />
+                  <path d="M5.5 11a6.5 6.5 0 0 0 13 0" />
+                  <path d="M12 17.5V21M9 21h6" />
+                </svg>
+              </button>
             </div>
           </div>
-        </div>
-      {/each}
-    </div>
-  </main>
-
-  <footer class="chat-footer">
-    <form onsubmit={handleSendMessage} class="input-form">
-      <input
-        bind:this={inputElement}
-        bind:value={input}
-        placeholder="Ask anything, or describe what you're building..."
-        disabled={isLoading}
-        class="text-input"
-        aria-label="Message your AI agent"
-        autocomplete="off"
-      />
-
-      <div class="input-toolbar">
-        <div class="input-hints">
-          <span>↵ Send</span>
-          <span>⌘ N New chat</span>
-        </div>
+        </form>
 
         <button
-          type="submit"
-          disabled={isLoading || !input.trim()}
-          class="send-button"
-          aria-label="Send message"
+          class="connect-tools"
+          type="button"
+          onclick={() => goto("/settings/tools")}
         >
-          {#if isLoading}
-            <span class="spinner"></span>
-          {:else}
-            <span>↑</span>
-          {/if}
+          <span>Connect your tools to Claude</span>
+          <span class="tool-icons">▣ G M A ◈</span>
+          <span class="chevron">›</span>
         </button>
-      </div>
-    </form>
+      </section>
+    </main>
+  {:else}
+    <main class="chat-conversation" bind:this={viewportElement}>
+      <div class="message-list">
+        {#each messages as msg (msg.id)}
+          <div
+            class="message-row"
+            class:user={msg.sender === "user"}
+            class:agent={msg.sender === "agent"}
+          >
+            {#if msg.sender === "agent"}
+              <img src="/favicon.png" alt="" class="message-avatar" />
+            {/if}
 
-    <p class="disclaimer">
-      AI can make mistakes. Review important information.
-    </p>
-  </footer>
+            <div class="message-content">
+              <div class="sender-label">
+                {msg.sender === "user" ? "You" : "Assistant"}
+              </div>
+
+              <div class="message-text">
+                {#if msg.text}
+                  {msg.text}
+                {:else if isLoading && msg.id === activeAgentMsgId}
+                  <span class="thinking-indicator">
+                    <span></span><span></span><span></span>
+                  </span>
+                {/if}
+              </div>
+            </div>
+          </div>
+        {/each}
+          <div bind:this={bottomElement} class="scroll-anchor"></div>
+      </div>
+
+      <footer class="conversation-footer">
+        <form class="composer" onsubmit={handleSendMessage}>
+            <textarea
+      bind:value={input}
+      placeholder="How can I help you today?"
+      rows="2"
+      aria-label="Message your AI assistant"
+      disabled={isLoading}
+      onkeydown={(event) => {
+  if (
+    event.key === "Enter" &&
+    !event.shiftKey &&
+    !event.isComposing
+  ) {
+    event.preventDefault();
+
+    if (!isLoading && input.trim()) {
+      event.currentTarget.form?.requestSubmit();
+    }
+  }
+}}
+    ></textarea>
+
+          <div class="composer-bottom">
+            <button class="add-button" type="button" aria-label="Add attachment">
+              +
+            </button>
+
+            <button
+              type="submit"
+              class="send-button"
+              disabled={isLoading || !input.trim()}
+              aria-label="Send message"
+            >
+              {#if isLoading}…{:else}↑{/if}
+            </button>
+          </div>
+        </form>
+
+        <p class="disclaimer">
+          AI can make mistakes. Review important information.
+        </p>
+      </footer>
+    </main>
+  {/if}
 </div>
 
 <style>
-  :global(*) {
-    box-sizing: border-box;
-  }
 
-  .chat-page {
-    display: flex;
-    flex-direction: column;
-    height: 100%;
-    min-height: 0;
-    background: #fbfaf7;
-    color: #302f2a;
-  }
+.chat-page {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  color: #383731;
+  background: #faf9f6;
+}
 
-  .chat-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 16px;
-    flex-shrink: 0;
-    min-height: 70px;
-    padding: 12px 25px;
-    border-bottom: 1px solid #eae7df;
-  }
+.chat-home {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
+  padding: clamp(75px, 25.5vh, 135px) 24px 36px;
+}
 
-  .header-left,
-  .header-title,
-  .header-actions {
-    display: flex;
-    align-items: center;
-  }
+.upgrade {
+  padding: 5px 8px;
+  border-radius: 5px;
+  background: #f1f0eb;
+  color: #77766f;
+  font-size: 10px;
+  line-height: 1.2;
+}
 
-  .header-title {
-    gap: 11px;
-  }
+.upgrade a {
+  color: inherit;
+  text-decoration: none;
+}
 
-  .brand-mark {
-  width: 36px;
-  height: 36px;
+.upgrade a:hover {
+  text-decoration: underline;
+}
+
+.welcome {
+  width: 100%;
+  max-width: 444px;
+  margin-top: 25px;
+}
+
+.welcome h1 {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  margin: 0 0 25px;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(22px, 3vw, 28px);
+  font-weight: 400;
+  letter-spacing: -1px;
+  white-space: nowrap;
+}
+
+.brand-star {
+  flex-shrink: 0;
+  color: #d78362;
+  font-family: Arial, sans-serif;
+  font-size: 29px;
+}
+
+.composer {
+  padding: 12px 13px 9px;
+  border: 1px solid #e5e3dc;
+  border-radius: 17px;
+  background: #fff;
+  box-shadow: 0 4px 12px #00000008;
+  transition: border-color 160ms, box-shadow 160ms;
+}
+
+.composer:focus-within {
+  border-color: #d9b8a7;
+  box-shadow: 0 0 0 3px #d7836210, 0 4px 12px #00000008;
+}
+
+.composer textarea {
+  display: block;
+  width: 100%;
+  min-height: 35px;
+  max-height: 220px;
+  resize: vertical;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: #383731;
+  font-family: inherit;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.composer textarea::placeholder {
+  color: #89877f;
+  opacity: 1;
+}
+
+.composer-bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 25px;
+}
+
+.composer-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.composer button {
+  display: grid;
+  place-items: center;
+  padding: 3px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: #65645d;
+  cursor: pointer;
+}
+
+.composer button:hover {
+  background: #f4f2ed;
+}
+
+.add-button {
+  font-size: 19px;
+  line-height: 1;
+}
+
+.composer-actions select {
+  max-width: 110px;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: #55544e;
+  font-size: 10px;
+  cursor: pointer;
+}
+
+.mic-button {
+  width: 22px;
+  height: 24px;
+}
+
+.connect-tools {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  width: 100%;
+  margin-top: 3px;
+  padding: 3px 14px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: #55544e;
+  font-size: 10px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.connect-tools:hover {
+  background: #f1f0eb;
+}
+
+.tool-icons {
+  margin-left: auto;
+  color: #77766f;
+  font-size: 9px;
+  letter-spacing: 1px;
+}
+
+.chevron {
+  color: #89877f;
+  font-size: 17px;
+}
+
+/* Existing chat after sending a message */
+
+.chat-conversation {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.message-list {
+  flex: 1;
+  width: min(100% - 40px, 700px);
+  margin: 0 auto;
+  padding: 28px 0;
+  overflow-y: auto;
+}
+
+.message-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+  margin-bottom: 25px;
+}
+
+.message-row.user {
+  justify-content: flex-end;
+}
+
+.message-avatar {
+  width: 27px;
+  height: 27px;
   object-fit: contain;
 }
-  .header-title h1 {
-    margin: 0;
-    font-size: 13px;
-    font-weight: 600;
+
+.message-content {
+  max-width: 85%;
+  min-width: 0;
+}
+
+.sender-label {
+  margin-bottom: 6px;
+  color: #89877f;
+  font-size: 11px;
+}
+
+.message-text {
+  color: #383731;
+  font-size: 13px;
+  line-height: 1.75;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.message-row.user .message-text {
+  padding: 10px 13px;
+  border-radius: 13px 13px 3px 13px;
+  background: #f0eee7;
+}
+
+.conversation-footer {
+  width: min(100%, 700px);
+  margin: 0 auto;
+  padding: 12px 20px 18px;
+}
+
+.disclaimer {
+  margin: 11px 0 0;
+  color: #a09b91;
+  font-size: 10px;
+  text-align: center;
+}
+
+.send-button {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px !important;
+  background: #ce876b !important;
+  color: white !important;
+  font-size: 20px;
+}
+
+.send-button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.thinking-indicator {
+  display: inline-flex;
+  gap: 5px;
+  padding: 8px 0;
+}
+
+.thinking-indicator span {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #d18b6e;
+  animation: thinking 1s infinite ease-in-out;
+}
+
+.thinking-indicator span:nth-child(2) {
+  animation-delay: 150ms;
+}
+
+.thinking-indicator span:nth-child(3) {
+  animation-delay: 300ms;
+}
+
+@keyframes thinking {
+  0%, 60%, 100% {
+    opacity: 0.4;
+    transform: translateY(0);
+  }
+  30% {
+    opacity: 1;
+    transform: translateY(-4px);
+  }
+}
+
+@media (max-width: 560px) {
+  .chat-home {
+    padding: 70px 16px 30px;
   }
 
-  .header-title p {
-    margin: 4px 0 0;
-    color: #89867e;
-    font-size: 10px;
+  .welcome {
+    margin-top: 23px;
   }
 
-  .header-actions {
-    gap: 16px;
+  .welcome h1 {
+    gap: 6px;
+    font-size: clamp(19px, 5vw, 25px);
+    white-space: normal;
   }
 
-  .engine-status {
-    display: flex;
-    align-items: center;
-    gap: 7px;
-    color: #77746d;
-    font-size: 10px;
+  .brand-star {
+    font-size: 25px;
   }
 
-  .status-dot {
-    width: 7px;
-    height: 7px;
-    border-radius: 50%;
-    background: #4b9c70;
-  }
-
-  .header-button,
-  .icon-button {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    padding: 8px 10px;
-    border: 1px solid #e5e2db;
-    border-radius: 7px;
-    background: #fff;
-    color: #55534d;
-    font-size: 11px;
-    cursor: pointer;
-  }
-
-  .header-button:hover,
-  .icon-button:hover {
-    background: #f1efe9;
-  }
-
-  .header-button:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-
-  kbd {
-    color: #99958c;
-    font-family: inherit;
-    font-size: 10px;
-  }
-
-  .mobile-back {
+  .tool-icons {
     display: none;
   }
 
-  .chat-viewport {
-    flex: 1;
-    min-height: 0;
-    overflow-y: auto;
-    overscroll-behavior: contain;
-    scroll-behavior: smooth;
-  }
-
   .message-list {
-    display: flex;
-    flex-direction: column;
-    gap: 30px;
-    width: 100%;
-    max-width: 780px;
-    min-height: 100%;
-    margin: 0 auto;
-    padding: 36px 32px;
+    width: calc(100% - 24px);
   }
 
-  .message-row {
-    display: flex;
-    align-items: flex-start;
-    gap: 12px;
-    width: 100%;
+  .conversation-footer {
+    padding: 10px 12px max(12px, env(safe-area-inset-bottom));
   }
+}
 
-  .message-row.user {
-    justify-content: flex-end;
-  }
-
-  .message-avatar {
-    display: grid;
-    flex-shrink: 0;
-    width: 29px;
-    height: 29px;
-    place-items: center;
-    border: 1px solid #e9dfd4;
-    border-radius: 9px;
-    color: #d78261;
-    font-size: 18px;
-  }
-
-  .message-content {
-    max-width: min(85%, 620px);
-    min-width: 0;
-  }
-
-  .sender-label {
-    margin-bottom: 8px;
-    color: #89867e;
-    font-size: 10px;
-    font-weight: 550;
-  }
-
-  .message-text {
-    color: #45433d;
-    font-size: 13px;
-    line-height: 1.8;
-    overflow-wrap: anywhere;
-    white-space: pre-wrap;
-  }
-
-  .message-row.user .message-content {
-    padding: 12px 15px;
-    border: 1px solid #e9e5dc;
-    border-radius: 12px 12px 3px 12px;
-    background: #f2f0e9;
-  }
-
-  .message-row.user .sender-label {
-    text-align: right;
-  }
-
-  .thinking-indicator {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    padding: 5px 0;
-  }
-
-  .thinking-indicator span {
-    width: 5px;
-    height: 5px;
-    border-radius: 50%;
-    background: #d78261;
-    animation: thinking 1s infinite ease-in-out;
-  }
-
-  .thinking-indicator span:nth-child(2) {
-    animation-delay: 0.15s;
-  }
-
-  .thinking-indicator span:nth-child(3) {
-    animation-delay: 0.3s;
-  }
-
-  @keyframes thinking {
-    0%, 60%, 100% {
-      opacity: 0.35;
-      transform: translateY(0);
-    }
-
-    30% {
-      opacity: 1;
-      transform: translateY(-3px);
-    }
-  }
-
-  .chat-footer {
-    flex-shrink: 0;
-    width: 100%;
-    max-width: 780px;
-    margin: 0 auto;
-    padding: 12px 32px 16px;
-  }
-
-  .input-form {
-    padding: 13px;
-    border: 1px solid #e3e0d8;
-    border-radius: 13px;
-    background: #fff;
-    box-shadow: 0 4px 16px rgb(40 35 25 / 3%);
-    transition: border-color 150ms;
-  }
-
-  .input-form:focus-within {
-    border-color: #cfc6b7;
-  }
-
-  .text-input {
-    display: block;
-    width: 100%;
-    padding: 4px 3px 16px;
-    border: 0;
-    outline: 0;
-    background: transparent;
-    color: #302f2a;
-    font-size: 12px;
-  }
-
-  .text-input::placeholder {
-    color: #a09c93;
-  }
-
-  .text-input:disabled {
-    opacity: 0.65;
-  }
-
-  .input-toolbar {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-  }
-
-  .input-hints {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 12px;
-    color: #969188;
-    font-size: 10px;
-  }
-
-  .send-button {
-    display: grid;
-    flex-shrink: 0;
-    width: 31px;
-    height: 31px;
-    place-items: center;
-    border: 0;
-    border-radius: 8px;
-    background: #d78261;
-    color: white;
-    font-size: 22px;
-    line-height: 1;
-    cursor: pointer;
-    transition: background 120ms;
-  }
-
-  .send-button:hover:not(:disabled) {
-    background: #c47150;
-  }
-
-  .send-button:disabled {
-    background: #e5e1d9;
-    color: #aaa69d;
-    cursor: not-allowed;
-  }
-
-  .spinner {
-    width: 13px;
-    height: 13px;
-    border: 2px solid rgb(255 255 255 / 45%);
-    border-top-color: white;
-    border-radius: 50%;
-    animation: spin 0.7s linear infinite;
-  }
-
-  @keyframes spin {
-    to {
-      transform: rotate(360deg);
-    }
-  }
-
-  .disclaimer {
-    margin: 10px 0 0;
-    color: #a09c93;
-    text-align: center;
-    font-size: 9px;
-  }
-
-  @media (max-width: 650px) {
-    .chat-header {
-      min-height: 60px;
-      padding: 10px 14px;
-    }
-
-    .mobile-back {
-      display: flex;
-    }
-
-    .header-left {
-      gap: 10px;
-    }
-
-    .engine-status {
-      display: none;
-    }
-
-    .header-button kbd {
-      display: none;
-    }
-
-    .message-list {
-      padding: 24px 16px;
-    }
-
-    .chat-footer {
-      padding: 10px 14px 12px;
-    }
-
-    .message-content {
-      max-width: 90%;
-    }
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    .thinking-indicator span,
-    .spinner {
-      animation: none;
-    }
-  }
 </style>
