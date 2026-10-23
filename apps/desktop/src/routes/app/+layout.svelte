@@ -140,7 +140,7 @@
 <div class:collapsed class="app-layout">
   <aside class="sidebar" aria-label="Main navigation">
     <div class="sidebar-header">
-      <a class="brand" href="/app" title="Home">
+      <a class="brand" href="/app/newchat" title="Home">
         <img src="/favicon.png" alt="Brand icon" class="brand-mark" />
         {#if !collapsed}
           <span class="brand-name">Workspace</span>
