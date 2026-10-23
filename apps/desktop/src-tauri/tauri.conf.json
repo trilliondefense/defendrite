@@ -12,8 +12,8 @@
   "app": {
     "windows": [
       {
-        "title": "Defendrite Workbench",
-        "width": 800,
+        "title": "",
+        "width": 1080,
         "height": 600
       }
     ],
