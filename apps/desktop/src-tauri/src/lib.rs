@@ -2,25 +2,25 @@ use tauri_plugin_store::StoreExt;
 
 #[tauri::command]
 async fn ask_agent(prompt: String, app_handle: tauri::AppHandle) -> Result<(), String> {
-    // 1. Pre-flight check: Verify the API key exists before triggering the runtime agent
-    if let Some(store) = app_handle.get_store("settings.json") {
-        let key_is_missing = match store.get("HARNESS_MODEL_API_KEY") {
-            Some(value) => match value.as_str() {
-                Some(s) => s.trim().is_empty(),
-                None => true,
-            },
-            None => true,
-        };
+    // 1. Pre-flight check: In Tauri v2, .store() automatically loads the file safely if it's not already in memory
+    let store = app_handle
+        .store("settings.json")
+        .map_err(|e| format!("Error: Configuration store failed to access or initialize: {e}"))?;
 
-        if key_is_missing {
-            // This error matches the Result type and goes straight to the frontend's catch block
-            return Err("SETUP_REQUIRED: Google AI Studio API key is missing. Please add your key in the Workspace settings.".into());
-        }
-    } else {
-        return Err("Error: Configuration store failed to initialize.".into());
+    // 2. Inspect the verified store object for the credential token
+    let key_is_missing = match store.get("HARNESS_MODEL_API_KEY") {
+        Some(value) => match value.as_str() {
+            Some(s) => s.trim().is_empty(),
+            None => true,
+        },
+        None => true,
+    };
+
+    if key_is_missing {
+        return Err("SETUP_REQUIRED: Google AI Studio API key is missing. Please add your key in the Workspace settings.".into());
     }
 
-    // 2. Key is present; proceed to run the background agent execution loop
+    // 3. Dispatch to runtime worker pool
     let result = runtime::handle_agent_request(&prompt, &app_handle).await;
 
     if result.starts_with("Error:") {
