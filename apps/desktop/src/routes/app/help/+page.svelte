@@ -52,14 +52,6 @@
   );
 </script>
 
-<svelte:head>
-  <title>Keyboard shortcuts · Workspace Help</title>
-  <meta
-    name="description"
-    content="Keyboard shortcuts for navigating and using Workspace on Mac and Windows."
-  />
-</svelte:head>
-
 <div class="help-page">
   <header class="page-header">
     <div class="eyebrow">HELP CENTER</div>
@@ -161,7 +153,6 @@
 
   .help-page {
     width: 100%;
-    max-width: 820px;
     margin: 0 auto;
     padding: 20px 12px 48px;
     color: #292824;

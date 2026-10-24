@@ -256,7 +256,7 @@ async function handleSendMessage(event: SubmitEvent) {
         <button
           class="connect-tools"
           type="button"
-          onclick={() => goto("/settings/tools")}
+          onclick={() => goto("/app/customize")}
         >
           <span>Connect your tools</span>
           <span class="tool-icons"></span>

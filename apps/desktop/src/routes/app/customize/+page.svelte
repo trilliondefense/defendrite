@@ -403,7 +403,6 @@
     --muted: #89867e;
     --ink: #302f2a;
     --panel: #fff;
-    max-width: 1100px;
     min-height: 100%;
     margin: 0 auto;
     padding: 42px 36px 28px;
