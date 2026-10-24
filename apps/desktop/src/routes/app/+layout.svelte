@@ -13,7 +13,7 @@
 
   const navItems = [
     { label: "Investigations", href: "/app/investigations", icon: "▤", keywords: "history conversations" ,shortcut:"p"},
-    { label: "Evidence Vault", href: "/app/evidences", icon: "▤", keywords: "history conversations" ,shortcut:"p"},
+    { label: "Evidence Vault", href: "/app/evidence-vault", icon: "▤", keywords: "history conversations" ,shortcut:"y"},
     { label: "Customize", href: "/app/customize", icon: "⚙", keywords: "settings appearance" ,shortcut:"u"},
     { label: "Reports", href: "/app/reports", icon: "▣", keywords: "workspace files" ,shortcut:"o"},
     { label: "Help", href: "/app/help", icon: "▣", keywords: "help" ,shortcut:"i"},
