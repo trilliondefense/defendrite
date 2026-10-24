@@ -32,11 +32,6 @@
   }
 </script>
 
-<svelte:head>
-  <title>Chats · Golden Hour</title>
-  <meta name="description" content="Browse and manage your conversations." />
-</svelte:head>
-
 <div class="chats-page">
   <header class="page-header">
     <div>
