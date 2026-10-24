@@ -1,83 +1,65 @@
-# Contributing to Security AI Workbench
+# Contributing to the DefendRite
 
-We love open-source contributions! Whether you are fixing a rendering bug in the Svelte 5 frontend, optimizing a tool loop in the Rust runtime, or building a new MCP server plugin, this guide will help you get started quickly and safely.
-
----
-
-## 🗺️ Monorepo Contribution Map
-
-Before modifying files, make sure your code goes into the correct workspace layer:
-
-- **UI Changes:** All interface, styling, and design features belong in `apps/desktop/src/` (**Svelte 5 / Runes Mode**).
-- **Orchestration / Storage Logic:** Core system features, async processing, and database work belong in `runtime/`.
-- **Local Inference / Embeddings:** Weight loading or vector handling belongs in `models/`.
-- **Plugins / Custom Tools:** Modifying or adding new tool features belongs in `mcp-servers/`.
+Thank you for your interest in contributing. This platform is built to provide investigators with open-weights models, local tools, and remote APIs to instantly classify illicit material and generate courtroom-ready reports. Because this tool handles highly sensitive child safety datasets (CSAM/CP) and generates legal evidence, all contributions must adhere to strict security, isolation, and verification guidelines.
 
 ---
 
-## 🛠️ Development Setup
+## Code of Conduct & Development Safety
+
+1. **Zero Asset Retention:** Never commit test media, live hashes, or real case metadata to this repository. All testing must be performed using synthetic, structurally valid placeholder data.
+2. **Local Privacy First:** The workbench is designed to default to strict local data containment. Features or custom tools that introduce unauthorized external network egress, background telemetry, or unencrypted caching will be rejected.
+3. **Responsible Disclosure:** If you discover a security vulnerability during development, do not open a public GitHub issue. Refer strictly to our [Security Policy](Security.md) and report it privately to `defendrite@trilliondefense.com`.
+
+---
+
+## Getting Started (Pre-Release Desktop Workspace)
+
+The workbench is currently in a **pre-v1 pre-release phase**.
 
 ### 1. Prerequisites
 
-Ensure you have the following installed locally:
+- **Rust Engine Toolchain:** Latest stable version installed locally.
+- **Node.js:** Version 18+ (modern alternatives like `pnpm` or `bun` are fully supported).
 
-- [Rust Toolchain](https://rust-lang.org) (Stable channel)
-- [Node.js](https://nodejs.org) (v18+ or modern packagers like `pnpm`/`bun`)
+### 2. Setup & Local Dev Loop
 
-### 2. Fork & Clone
-
-```bash
-git clone https://github.com
-cd security-ai-workbench
-```
-
-### 3. Bootstrap the Workspace
-
-Install the frontend dependencies and build your local MCP tools:
+Fork the repository, clone it locally, and run the following commands to spin up your environment:
 
 ```bash
-# Set up the Svelte 5 desktop app
+# 1. Install dependencies
 cd apps/desktop && npm install
 
-# Set up the core system tool server
-cd ../../mcp-servers/basic-system-server && npm install
-```
-
-### 4. Run the Dev Loop
-
-To start the compilation chain and open the application window, run this command from the `apps/desktop/` directory:
-
-```bash
+# 2. Launch the desktop development environment
 npm run tauri dev
 ```
 
 ---
 
-## 📝 Code Styles & Best Practices
+## Development Guidelines
 
-### Frontend (Svelte 5)
+### Local Data Ingestion & Tool Sandboxing
 
-- **Use Runes Mode:** Do not use legacy Svelte 2/3/4 state mechanics. State must be declared explicitly using `$state`, `$derived`, or `$effect`.
-- **Streaming Compatibility:** Never block the main thread. Push incoming chunks directly into active state arrays using `.push()` to take advantage of Svelte 5's fine-grained reactivity.
-- **TypeScript:** All components must use `<script lang="ts">`. Ensure structural types match backend mappings.
+- **Defensive Parsing:** All classification tools, cross-case engines, and ingestion workflows must treat incoming directories and metadata arrays as completely untrusted input. Use strict validation schemas before running extraction workflows.
+- **Tauri Core Isolation:** Avoid exposing unconstrained IPC commands from the frontend to the Rust backend. Keep system interactions scoped down to the minimum necessary file handles.
 
-### Backend (Rust Crate Ecosystem)
+### Developing Custom Tools & Model Connectors
 
-- **Non-Blocking Loops:** AI agent loops and network executions must be spawned off the main Tauri thread via `tokio::spawn`.
-- **Cross-Platform Paths:** Never hardcode paths (`/` or `\`). Always resolve paths safely using Tauri’s `app_handle.path().app_data_dir()` to support macOS, Windows, and Linux simultaneously.
-- **Run Lints:** Always verify your backend changes pass standard lints before pushing:
-  ```bash
-  cargo clippy --all-targets
-  cargo fmt --check
-  ```
+- If you are building custom modules to generate courtroom reports, ensure all string interpolations and document renders are deterministic and fully guarded against cross-case leakage.
+- Remote API integrations must utilize secure local environment variables or standard, encrypted operating system keystores for token management.
 
 ---
 
-## 🚀 Submitting Your Changes
+## 📬 Pull Request (PR) Checklist
 
-1.  **Create a Feature Branch:** `git checkout -b feature/amazing-new-tool`
-2.  **Commit with Context:** Make clear, descriptive commit messages (e.g., `feat(runtime): integrate gemini function call router`).
-3.  **Test Locally:** Ensure both the SvelteKit app runs cleanly and your Rust workspaces compile without compiler diagnostics or crashes.
-4.  **Open a Pull Request:** Describe your changes, identify the target workspace, and link any relevant open issues.
+Before submitting a PR for review, ensure your branch satisfies the following criteria:
 
-Thank you for helping build a lighter, faster, and completely secure open-source AI desktop client!
+- [ ] All code conforms to standard formatting rules (`cargo fmt` for Rust, `npm run format`/`lint` for frontend assets).
+- [ ] No local configuration paths, debug tokens, or hardcoded execution flags are committed.
+- [ ] Your changes do not introduce unintended tracking, logging, or third-party analytical phone-homes.
+- [ ] All automated tests pass locally, and any additions to the reporting engine include valid mock data tests.
+
+---
+
+## ⚖️ Legal Note
+
+By contributing to this repository, you agree that your contributions will be licensed under the project's open-source license terms. All submitted code must be original work or explicitly cleared for distribution under these boundaries.
