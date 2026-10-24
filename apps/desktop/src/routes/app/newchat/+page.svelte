@@ -370,23 +370,6 @@ async function handleSendMessage(event: SubmitEvent) {
   padding: clamp(75px, 25.5vh, 135px) 24px 36px;
 }
 
-.upgrade {
-  padding: 5px 8px;
-  border-radius: 5px;
-  background: #f1f0eb;
-  color: #77766f;
-  font-size: 10px;
-  line-height: 1.2;
-}
-
-.upgrade a {
-  color: inherit;
-  text-decoration: none;
-}
-
-.upgrade a:hover {
-  text-decoration: underline;
-}
 
 
 
@@ -407,13 +390,6 @@ async function handleSendMessage(event: SubmitEvent) {
   font-weight: 400;
   letter-spacing: -1px;
   white-space: nowrap;
-}
-
-.brand-star {
-  flex-shrink: 0;
-  color: #d78362;
-  font-family: Arial, sans-serif;
-  font-size: 29px;
 }
 
 .composer {
