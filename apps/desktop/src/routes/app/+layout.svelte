@@ -12,10 +12,10 @@
   let searchInput: HTMLInputElement | undefined= $state(undefined);
 
   const navItems = [
-    { label: "Investigations", href: "/app/newchat", icon: "▤", keywords: "history conversations" ,shortcut:"p"},
-    { label: "Evidence Vault", href: "/app/chats", icon: "▤", keywords: "history conversations" ,shortcut:"p"},
+    { label: "Investigations", href: "/app/investigations", icon: "▤", keywords: "history conversations" ,shortcut:"p"},
+    { label: "Evidence Vault", href: "/app/evidences", icon: "▤", keywords: "history conversations" ,shortcut:"p"},
     { label: "Customize", href: "/app/customize", icon: "⚙", keywords: "settings appearance" ,shortcut:"u"},
-    { label: "Reports", href: "/app/cases", icon: "▣", keywords: "workspace files" ,shortcut:"o"},
+    { label: "Reports", href: "/app/reports", icon: "▣", keywords: "workspace files" ,shortcut:"o"},
     { label: "Help", href: "/app/help", icon: "▣", keywords: "help" ,shortcut:"i"},
   ];
 
