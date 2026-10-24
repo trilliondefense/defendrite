@@ -1,47 +1,30 @@
-# Security Policy
+# Security
 
-We take the security and privacy of our users, their local environments, and private codebases very seriously. As a desktop agent harness with the capability to execute local system tools and process workspace data, maintaining a rigorous security posture is our highest priority.
+## Reporting a Vulnerability
 
-## Supported Versions
+**Do not open a GitHub issue.** Issues are public, and a report filed there is an immediate public disclosure.
 
-We actively provide security patches and updates to the latest release channel of the workbench.
+Email **defendrite@trilliondefense.com** with enough detail to reproduce the issue. We will acknowledge receipt within three working days and keep you updated until it is resolved. If you would like credit in the fix, please let us know in your email.
 
-| Version | Supported        |
-| ------- | ---------------- |
-| 2.x     | ✅ Yes (Current) |
-| 1.x     | ❌ No            |
+## Pre-Release Status & Scope
 
----
+This software is currently in a **pre-release phase (pre-v1)**. While it is under active development and not yet an official v1.0.0 release, we take security vulnerabilities seriously.
 
-## 🔒 Security Best Practices for Users
+### In Scope
 
-Because this desktop application acts as an orchestrator with local file access and terminal capabilities, please follow these rules to safeguard your environment:
+The core Workbench platform, local ingestion architecture, and custom tool runtime. We prioritize vulnerabilities that compromise the local runtime sandbox, leak sensitive case data across judicial boundaries, compromise remote API credential storage, or allow execution escape during automated classification and report generation.
 
-1. **Guard Your API Keys:** Never paste raw API tokens (e.g., Google AI Studio, Anthropic) into public text files or your application frontend layouts. The workbench compiles your secrets safely inside the Rust system layer (`runtime/`), keeping them away from public webview execution paths.
-2. **Review Third-Party MCP Servers:** Only connect your desktop interface to trusted Model Context Protocol (MCP) servers. A rogue or malicious MCP server could exploit its Standard I/O channel permissions to run unauthorized commands on your machine.
-3. **Verify Open Weights:** When configuring custom weights via the `/models` directory, ensure you download GGUF/Safetensors profiles from verified publishers on Hugging Face.
+## Forensic Workbench Boundaries & Threat Model
 
----
+As a specialized investigation application running open-weights models, local tools, and remote APIs, the platform operates under distinct security assumptions:
 
-## 🐛 Reporting a Vulnerability
+- **Ingestion and Classifier Integrity:** Because the workbench performs local data ingestion to instantly classify illicit material, parsing engines must be entirely resilient. Memory corruption, buffer overflows, or arbitrary code execution triggered by analyzing hostile media or maliciously crafted metadata are critical vulnerabilities.
+- **API Credential & Remote Tool Isolation:** The workbench coordinates local orchestration with remote APIs. Any flaw that exposes configured API tokens, leaks telemetry to unauthorized external endpoints, or permits cross-case data contamination during correlation is strictly in scope.
+- **Courtroom Report & Artifact Tampering:** Generated outputs must be deterministic and structurally secure to maintain evidentiary weight for global jurisdictions. Flaws allowing local privilege escalation, unauthorized modification of cross-case logs, or silent manipulation of generated report payloads represent high-severity boundary breaches.
 
-**Please do not open public GitHub issues for security vulnerabilities or bugs.** Instead, help us keep the community safe by following our private disclosure process.
+## For Implementers and Tool Developers
 
-### Our Disclosure Process
+If you are developing custom tools, model connectors, or extensions for the workbench, you must adhere to these compliance obligations:
 
-1. **Submit Your Report:** Send a detailed security report via email to **defendrite@trilliondefense.com**.
-2. **What to Include:**
-   - A clear description of the vulnerability or threat model.
-   - Step-by-step instructions (or a proof-of-concept script) to reproduce the issue.
-   - An assessment of the potential impact (e.g., local file leakage, remote code execution bypass).
-3. **Acknowledgment:** A project maintainer will acknowledge your email within **48 hours** and provide a timeline for investigation and patching.
-4. **Coordination:** We will work closely with you to fix the vulnerability and will credit you for your discovery upon public release, unless you prefer to remain anonymous.
-
----
-
-## 🛡️ Dependency Audit Policy
-
-Our monorepo workspace utilizes automated scanning to ensure malicious upstream dependencies do not compromise the desktop bundle layer:
-
-- **Rust Backend:** All underlying crates inside `runtime/` and `models/` are periodically verified using `cargo-audit` to screen for vulnerabilities reported in the Rust Sec Advisory Database.
-- **Frontend:** Node.js package dependency trees inside `apps/desktop/` and `mcp-servers/` are monitored using automated lockfile integrity checkers.
+- **Data Containment:** Never cache, mirror, or leak ingested media, hashes, or investigator metadata outside the explicitly defined local sandbox or intended remote API payloads.
+- **Strict Input Validation:** Treat all ingested directory paths, foreign forensic packages, and external model responses as completely untrusted inputs. They must be validated, allowlisted, and sandboxed before execution.
