@@ -654,10 +654,6 @@ async function handleSendMessage(event: SubmitEvent) {
     white-space: normal;
   }
 
-  .brand-star {
-    font-size: 25px;
-  }
-
   .tool-icons {
     display: none;
   }
