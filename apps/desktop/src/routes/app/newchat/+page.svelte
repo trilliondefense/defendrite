@@ -15,6 +15,7 @@
   let messages = $state<Message[]>([
    
   ]);
+  let modelName : string|null = $state("")
 
   let bottomElement: HTMLDivElement | undefined = $state(undefined);
 
@@ -84,6 +85,7 @@
   onMount(() => {
     let disposed = false;
     let unlisten: (() => void) | undefined;
+    modelName = localStorage.getItem("modelName")
 
     listen<string>("agent-token", (event) => {
       if (disposed || !activeAgentMsgId) return;
@@ -224,11 +226,11 @@ async function handleSendMessage(event: SubmitEvent) {
             >+</button>
 
             <div class="composer-actions">
-              <select aria-label="Select model" value="Sonnet 4.6">
-                <option>Sonnet 4.6</option>
-                <option>Opus</option>
-                <option>Haiku</option>
-              </select>
+              {#if modelName && modelName !==""}
+                <select aria-label="Select model" value="{modelName}">
+                  <option>{modelName}</option>
+                </select>
+              {/if}
 
               <button
                 class="mic-button"
@@ -386,6 +388,8 @@ async function handleSendMessage(event: SubmitEvent) {
   text-decoration: underline;
 }
 
+
+
 .welcome {
   width: 100%;
   max-width: 444px;
@@ -487,7 +491,19 @@ async function handleSendMessage(event: SubmitEvent) {
   color: #55544e;
   font-size: 10px;
   cursor: pointer;
+  padding: 2px 14px 2px 2px;
+  appearance: auto;
 }
+
+/* Styles the actual dropdown overlay menu */
+.composer-actions select option {
+  background-color: #ffffff; /* Prevents transparent/see-through menus */
+  color: #333332;            /* Darker, high-contrast text for small font sizes */
+  font-size: 11px;           /* Slightly larger for readability inside the list */
+  padding: 4px;              /* Gives options breathing room (supported in Chromium) */
+}
+
+
 
 .mic-button {
   width: 22px;
