@@ -14,7 +14,7 @@ This software is currently in a **pre-release phase (pre-v1)**. While it is unde
 
 The core Workbench platform, local ingestion architecture, and custom tool runtime. We prioritize vulnerabilities that compromise the local runtime sandbox, leak sensitive case data across judicial boundaries, compromise remote API credential storage, or allow execution escape during automated classification and report generation.
 
-## Forensic Workbench Boundaries & Threat Model
+## DefendRite Boundaries & Threat Model
 
 As a specialized investigation application running open-weights models, local tools, and remote APIs, the platform operates under distinct security assumptions:
 
