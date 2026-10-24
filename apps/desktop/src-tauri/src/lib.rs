@@ -1,5 +1,5 @@
 use tauri_plugin_store::StoreExt;
-
+use tauri::Manager; 
 #[tauri::command]
 async fn ask_agent(prompt: String, app_handle: tauri::AppHandle) -> Result<(), String> {
     // 1. Pre-flight check: In Tauri v2, .store() automatically loads the file safely if it's not already in memory
@@ -33,6 +33,17 @@ async fn ask_agent(prompt: String, app_handle: tauri::AppHandle) -> Result<(), S
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        // 1. Initialize the single-instance plugin
+        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+            // Find your main window by its label (default is "main")
+            if let Some(window) = app.get_webview_window("main") {
+                // Unminimize the window if it was minimized
+                let _ = window.unminimize();
+                // Bring it to the front and focus it
+                let _ = window.show();
+                let _ = window.set_focus();
+            }
+        }))
         .plugin(tauri_plugin_store::Builder::new().build())
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![ask_agent])
