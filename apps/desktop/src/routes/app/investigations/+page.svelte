@@ -114,678 +114,564 @@
 </script>
 
 <svelte:head>
-  <title>Cases | Digital Forensics</title>
+  <title>Investigations | Forensic Workspace</title>
 </svelte:head>
 
-<section class="cases-page">
+<div class="investigations-page">
   <header class="page-header">
-    <div>
-      <p class="eyebrow">INVESTIGATION MANAGEMENT</p>
-      <h1>Cases</h1>
-      <p class="description">
-        Manage investigations, track evidence, and review case activity.
-      </p>
-    </div>
-
-    <button class="primary-button" onclick={() => (showCreateForm = !showCreateForm)}>
-      + New case
-    </button>
+    <div class="eyebrow">FORENSIC WORKSPACE</div>
+    <h1>Investigations</h1>
+    <p>
+      Manage forensic cases, track examination progress, and organize
+      digital evidence in one workspace.
+    </p>
   </header>
 
-  <section class="stats">
-    <article class="stat-card">
-      <div class="stat-heading">
-        <span>Total cases</span>
-        <span class="stat-icon">▤</span>
-      </div>
-      <h2>{cases.length}</h2>
-      <p>All investigations</p>
-    </article>
+  <div class="toolbar">
+    <label class="search-box">
+      <span>⌕</span>
+      <input
+        type="search"
+        placeholder="Search investigations..."
+        aria-label="Search investigations"
+      />
+    </label>
 
-    <article class="stat-card">
-      <div class="stat-heading">
-        <span>Active investigations</span>
-        <span class="stat-icon green">◉</span>
-      </div>
-      <h2>{activeCases}</h2>
-      <p>Currently in progress</p>
-    </article>
+    <button class="primary-button">+ New investigation</button>
+  </div>
 
-    <article class="stat-card">
-      <div class="stat-heading">
-        <span>Pending review</span>
-        <span class="stat-icon amber">◷</span>
-      </div>
-      <h2>{reviewCases}</h2>
-      <p>Awaiting review</p>
-    </article>
-
-    <article class="stat-card">
-      <div class="stat-heading">
-        <span>Evidence records</span>
-        <span class="stat-icon violet">⬡</span>
-      </div>
-      <h2>{evidenceCount}</h2>
-      <p>Across all cases</p>
-    </article>
-  </section>
-
-  {#if showCreateForm}
-    <form
-      class="create-form"
-      onsubmit={(event) => {
-        event.preventDefault();
-        createCase();
-      }}
-    >
-      <div class="form-heading">
-        <div>
-          <h2>Create investigation</h2>
-          <p>Enter the basic details for the new case.</p>
-        </div>
-
-        <button
-          type="button"
-          class="close-button"
-          onclick={() => (showCreateForm = false)}
-        >
-          ×
-        </button>
-      </div>
-
-      <div class="form-grid">
-        <label>
-          Case title
-          <input bind:value={title} required placeholder="Enter case title" />
-        </label>
-
-        <label>
-          Investigation type
-          <select bind:value={type}>
-            <option>Computer Forensics</option>
-            <option>Mobile Forensics</option>
-            <option>Network Forensics</option>
-            <option>Incident Response</option>
-            <option>Malware Analysis</option>
-            <option>Data Recovery</option>
-            <option>Cloud Forensics</option>
-          </select>
-        </label>
-
-        <label>
-          Assigned investigator
-          <input
-            bind:value={investigator}
-            required
-            placeholder="Investigator name"
-          />
-        </label>
-      </div>
-
-      <div class="form-actions">
-        <button
-          type="button"
-          class="secondary-button"
-          onclick={() => (showCreateForm = false)}
-        >
-          Cancel
-        </button>
-        <button type="submit" class="primary-button">Create case</button>
-      </div>
-    </form>
-  {/if}
-
-  <section class="case-section">
-    <header class="section-header">
-      <div>
-        <h2>Investigation register</h2>
-        <p>Browse and manage forensic investigations.</p>
-      </div>
-
-      <div class="filters">
-        <label class="search-box">
-          <span>⌕</span>
-          <input
-            bind:value={search}
-            placeholder="Search cases..."
-            aria-label="Search cases"
-          />
-        </label>
-
-        <select bind:value={statusFilter} aria-label="Filter by status">
-          <option>All</option>
-          <option>Active</option>
-          <option>Review</option>
-          <option>Closed</option>
-        </select>
-      </div>
-    </header>
-
-    <div class="table-wrapper">
-      <table>
-        <thead>
-          <tr>
-            <th>CASE / INVESTIGATION</th>
-            <th>STATUS</th>
-            <th>INVESTIGATOR</th>
-            <th>EVIDENCE</th>
-            <th>CREATED</th>
-            <th></th>
-          </tr>
-        </thead>
-
-        <tbody>
-          {#each filteredCases as item (item.id)}
-            <tr>
-              <td>
-                <div class="case-cell">
-                  <div class="case-icon">▤</div>
-                  <div>
-                    <strong>{item.title}</strong>
-                    <p>{item.reference} · {item.type}</p>
-                  </div>
-                </div>
-              </td>
-
-              <td>
-                <span class={`status status-${item.status.toLowerCase()}`}>
-                  <span class="status-dot"></span>
-                  {item.status}
-                </span>
-              </td>
-
-              <td>
-                <div class="investigator-cell">
-                  <span class="avatar">
-                    {item.investigator
-                      .split(' ')
-                      .map((part) => part[0])
-                      .join('')}
-                  </span>
-                  {item.investigator}
-                </div>
-              </td>
-
-              <td>
-                <span class="evidence-count">⬡ {item.evidence}</span>
-              </td>
-
-              <td>{item.createdAt}</td>
-
-              <td>
-                <button
-                  class="row-button"
-                  title="Case reference"
-                  aria-label={`Reference ${item.reference}`}
-                  onclick={() => navigator.clipboard?.writeText(item.reference)}
-                >
-                  ···
-                </button>
-              </td>
-            </tr>
-          {:else}
-            <tr>
-              <td colspan="6">
-                <div class="empty-state">
-                  <span>⌕</span>
-                  <strong>No cases found</strong>
-                  <p>Try changing your search or status filter.</p>
-                </div>
-              </td>
-            </tr>
-          {/each}
-        </tbody>
-      </table>
+  <section class="overview">
+    <div class="stat-card">
+      <span>Total investigations</span>
+      <strong>32</strong>
+      <small>Across your workspace</small>
     </div>
 
-    <footer class="table-footer">
-      <span>Showing {filteredCases.length} of {cases.length} cases</span>
-      <span>Local session · Sample data</span>
+    <div class="stat-card">
+      <span>Active</span>
+      <strong>12</strong>
+      <small>Currently under examination</small>
+    </div>
+
+    <div class="stat-card">
+      <span>Completed</span>
+      <strong>20</strong>
+      <small>Investigations closed</small>
+    </div>
+  </section>
+
+  <section class="investigation-section">
+    <div class="section-header">
+      <div>
+        <h2>All investigations</h2>
+        <p>Review cases and their current progress</p>
+      </div>
+
+      <button class="filter-button">All cases⌄</button>
+    </div>
+
+    <div class="investigation-list">
+      <div class="investigation-row table-header">
+        <span>Investigation</span>
+        <span>Case ID</span>
+        <span>Priority</span>
+        <span>Status</span>
+        <span>Updated</span>
+        <span></span>
+      </div>
+
+      <div class="investigation-row">
+        <div class="case-name">
+          <div class="case-icon">01</div>
+          <div>
+            <strong>Mobile Device Examination</strong>
+            <small>Device acquisition and artifact analysis</small>
+          </div>
+        </div>
+        <span class="case-id">CASE-024</span>
+        <span class="priority high">High</span>
+        <span class="status active">In progress</span>
+        <span class="date">Oct 24, 2026</span>
+        <button class="more-button" aria-label="Case options">···</button>
+      </div>
+
+      <div class="investigation-row">
+        <div class="case-name">
+          <div class="case-icon">02</div>
+          <div>
+            <strong>Unauthorized Data Access</strong>
+            <small>System logs and access timeline</small>
+          </div>
+        </div>
+        <span class="case-id">CASE-023</span>
+        <span class="priority high">High</span>
+        <span class="status review">Under review</span>
+        <span class="date">Oct 23, 2026</span>
+        <button class="more-button" aria-label="Case options">···</button>
+      </div>
+
+      <div class="investigation-row">
+        <div class="case-name">
+          <div class="case-icon">03</div>
+          <div>
+            <strong>Deleted File Recovery</strong>
+            <small>Disk image and file system analysis</small>
+          </div>
+        </div>
+        <span class="case-id">CASE-021</span>
+        <span class="priority medium">Medium</span>
+        <span class="status active">In progress</span>
+        <span class="date">Oct 22, 2026</span>
+        <button class="more-button" aria-label="Case options">···</button>
+      </div>
+
+      <div class="investigation-row">
+        <div class="case-name">
+          <div class="case-icon">04</div>
+          <div>
+            <strong>Browser Activity Analysis</strong>
+            <small>Browser artifacts and browsing history</small>
+          </div>
+        </div>
+        <span class="case-id">CASE-019</span>
+        <span class="priority low">Low</span>
+        <span class="status active">In progress</span>
+        <span class="date">Oct 20, 2026</span>
+        <button class="more-button" aria-label="Case options">···</button>
+      </div>
+
+      <div class="investigation-row">
+        <div class="case-name">
+          <div class="case-icon">05</div>
+          <div>
+            <strong>Endpoint Forensic Review</strong>
+            <small>Evidence validation and final reporting</small>
+          </div>
+        </div>
+        <span class="case-id">CASE-017</span>
+        <span class="priority medium">Medium</span>
+        <span class="status completed">Completed</span>
+        <span class="date">Oct 18, 2026</span>
+        <button class="more-button" aria-label="Case options">···</button>
+      </div>
+    </div>
+
+    <footer class="list-footer">
+      <span>Showing 5 of 32 investigations</span>
+      <div class="pagination">
+        <button disabled>Previous</button>
+        <button class="current-page">1</button>
+        <button>2</button>
+        <button>3</button>
+        <button>Next</button>
+      </div>
     </footer>
   </section>
-</section>
+
+  <section class="workspace-note">
+    <div class="note-icon">i</div>
+    <div>
+      <strong>Investigation workspace</strong>
+      <p>
+        Keep case records, evidence references, examination notes, and
+        generated reports linked to the same investigation.
+      </p>
+    </div>
+  </section>
+
+  <footer class="page-footer">
+    <span>Forensic Workspace</span>
+    <span>Investigation management · Local workspace</span>
+  </footer>
+</div>
 
 <style>
   :global(*) {
     box-sizing: border-box;
   }
 
-  .cases-page {
+  :global(body) {
+    margin: 0;
+    background: #faf9f6;
+    color: #292824;
+    font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  }
+
+  .investigations-page {
     width: 100%;
-    min-width: 0;
-    padding: 30px;
-    color: #30342f;
-    background: #fafaf8;
+    margin: 0 auto;
+    padding: 32px;
   }
 
   .page-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 20px;
     margin-bottom: 28px;
   }
 
   .eyebrow {
-    margin: 0 0 8px;
-    color: #85877f;
+    margin-bottom: 10px;
+    color: #b4775c;
     font-size: 10px;
-    letter-spacing: 1.2px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
   }
 
   h1 {
-    margin: 0 0 8px;
-    font-family: Georgia, serif;
+    margin: 0;
+    font-family: Georgia, "Times New Roman", serif;
     font-size: 34px;
     font-weight: 400;
-    letter-spacing: -0.8px;
+    letter-spacing: -0.7px;
   }
 
-  .description,
-  .section-header p,
-  .form-heading p {
-    margin: 0;
-    color: #7c7f77;
-    font-size: 12px;
-    line-height: 1.6;
+  .page-header p {
+    max-width: 560px;
+    margin: 10px 0 0;
+    color: #77746c;
+    font-size: 13px;
+    line-height: 1.8;
   }
 
-  button,
-  input,
-  select {
-    font: inherit;
-  }
-
-  button {
-    cursor: pointer;
-  }
-
-  .primary-button,
-  .secondary-button {
-    min-height: 36px;
-    padding: 0 14px;
-    border: 1px solid #405d49;
-    border-radius: 6px;
-    background: #405d49;
-    color: white;
-    font-size: 11px;
-    white-space: nowrap;
-  }
-
-  .primary-button:hover {
-    background: #304b39;
-  }
-
-  .secondary-button {
-    border-color: #e3e2dc;
-    background: white;
-    color: #444840;
-  }
-
-  .stats {
-    display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+  .toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
     gap: 14px;
-    margin-bottom: 32px;
-  }
-
-  .stat-card {
-    min-width: 0;
-    padding: 17px;
-    border: 1px solid #e8e7e1;
-    border-radius: 8px;
-    background: white;
-  }
-
-  .stat-heading {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 8px;
-    color: #73766e;
-    font-size: 11px;
-  }
-
-  .stat-icon {
-    display: grid;
-    width: 30px;
-    height: 30px;
-    flex-shrink: 0;
-    place-items: center;
-    border-radius: 7px;
-    background: #f1f1ed;
-    color: #74776f;
-    font-size: 16px;
-  }
-
-  .stat-icon.green {
-    background: #eaf1e9;
-    color: #4b7855;
-  }
-
-  .stat-icon.amber {
-    background: #f7f0e4;
-    color: #a37c3c;
-  }
-
-  .stat-icon.violet {
-    background: #efedf7;
-    color: #7971a2;
-  }
-
-  .stat-card h2 {
-    margin: 15px 0 8px;
-    font-family: Georgia, serif;
-    font-size: 32px;
-    font-weight: 400;
-  }
-
-  .stat-card p {
-    margin: 0;
-    color: #85877f;
-    font-size: 10px;
-  }
-
-  .case-section,
-  .create-form {
-    overflow: hidden;
-    border: 1px solid #e8e7e1;
-    border-radius: 8px;
-    background: white;
-  }
-
-  .section-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 20px;
-    padding: 18px;
-  }
-
-  .section-header h2,
-  .form-heading h2 {
-    margin: 0 0 6px;
-    font-size: 14px;
-    font-weight: 600;
-  }
-
-  .filters {
-    display: flex;
-    align-items: center;
-    gap: 10px;
+    margin-bottom: 24px;
   }
 
   .search-box {
     display: flex;
-    width: 230px;
-    height: 35px;
     align-items: center;
-    gap: 8px;
-    padding: 0 10px;
-    border: 1px solid #e3e2dc;
-    border-radius: 5px;
-    color: #85877f;
-  }
-
-  .search-box span {
-    font-size: 19px;
+    gap: 10px;
+    width: 340px;
+    max-width: 100%;
+    padding: 10px 12px;
+    border: 1px solid #e5e2db;
+    border-radius: 7px;
+    background: #fffefa;
+    color: #89867d;
   }
 
   .search-box input {
     width: 100%;
     min-width: 0;
     border: 0;
-    outline: 0;
+    outline: none;
     background: transparent;
-    font-size: 11px;
+    color: #292824;
+    font-size: 12px;
   }
 
-  .filters select,
-  .form-grid input,
-  .form-grid select {
-    min-height: 35px;
-    padding: 8px 10px;
-    border: 1px solid #e3e2dc;
-    border-radius: 5px;
-    background: white;
-    color: #444840;
-    font-size: 11px;
+  button {
+    font: inherit;
+    cursor: pointer;
   }
 
-  .table-wrapper {
-    width: 100%;
-    overflow-x: auto;
-  }
-
-  table {
-    width: 100%;
-    border-collapse: collapse;
-    text-align: left;
+  .primary-button {
+    padding: 10px 14px;
+    border: 1px solid #34332e;
+    border-radius: 7px;
+    background: #34332e;
+    color: #fffefa;
+    font-size: 12px;
     white-space: nowrap;
   }
 
-  thead {
-    background: #f8f8f5;
-  }
-
-  th {
-    height: 40px;
-    color: #81837b;
-    font-size: 9px;
-    font-weight: 600;
-    letter-spacing: 0.5px;
-  }
-
-  th,
-  td {
-    padding: 12px 15px;
-    border-top: 1px solid #eeede8;
-  }
-
-  td {
-    color: #555950;
-    font-size: 11px;
-  }
-
-  .case-cell {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-  }
-
-  .case-icon {
-    display: grid;
-    width: 34px;
-    height: 36px;
-    flex-shrink: 0;
-    place-items: center;
-    border: 1px solid #e8e7e1;
-    border-radius: 6px;
-    background: #f8f8f4;
-    color: #6d786c;
-    font-size: 15px;
-  }
-
-  .case-cell strong {
-    color: #30342f;
-    font-size: 11px;
-    font-weight: 600;
-  }
-
-  .case-cell p {
-    margin: 5px 0 0;
-    color: #85877f;
-    font-size: 10px;
-  }
-
-  .status {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 5px 8px;
-    border-radius: 5px;
-    font-size: 10px;
-  }
-
-  .status-dot {
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background: currentColor;
-  }
-
-  .status-active {
-    background: #edf5ec;
-    color: #426f48;
-  }
-
-  .status-review {
-    background: #faf3e5;
-    color: #936d2d;
-  }
-
-  .status-closed {
-    background: #f0f0ec;
-    color: #70736c;
-  }
-
-  .investigator-cell {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-
-  .avatar {
-    display: grid;
-    width: 27px;
-    height: 27px;
-    flex-shrink: 0;
-    place-items: center;
-    border-radius: 50%;
-    background: #f0f0eb;
-    color: #62675e;
-    font-size: 9px;
-  }
-
-  .evidence-count {
-    color: #555950;
-  }
-
-  .row-button,
-  .close-button {
-    border: 0;
-    background: transparent;
-    color: #777a73;
-    font-size: 17px;
-  }
-
-  .row-button:hover,
-  .close-button:hover {
-    color: #30342f;
-  }
-
-  .table-footer {
-    display: flex;
-    justify-content: space-between;
-    gap: 10px;
-    padding: 14px 17px;
-    border-top: 1px solid #eeede8;
-    color: #85877f;
-    font-size: 10px;
-  }
-
-  .create-form {
-    margin-bottom: 24px;
-    padding: 20px;
-  }
-
-  .form-heading {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    margin-bottom: 18px;
-  }
-
-  .close-button {
-    font-size: 23px;
-  }
-
-  .form-grid {
+  .overview {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 14px;
+    margin-bottom: 32px;
   }
 
-  .form-grid label {
-    display: grid;
-    gap: 7px;
-    color: #555950;
+  .stat-card {
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+    padding: 18px;
+    border: 1px solid #e8e5de;
+    border-radius: 9px;
+    background: #fffefa;
+  }
+
+  .stat-card > span {
+    color: #77746c;
+    font-size: 12px;
+  }
+
+  .stat-card strong {
+    font-size: 27px;
+    font-weight: 500;
+  }
+
+  .stat-card small {
+    color: #969187;
     font-size: 11px;
   }
 
-  .form-actions {
+  .section-header {
     display: flex;
-    justify-content: flex-end;
-    gap: 9px;
-    margin-top: 18px;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 14px;
   }
 
-  .empty-state {
+  .section-header h2 {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 600;
+  }
+
+  .section-header p {
+    margin: 5px 0 0;
+    color: #77746c;
+    font-size: 12px;
+  }
+
+  .filter-button {
+    padding: 8px 11px;
+    border: 1px solid #e5e2db;
+    border-radius: 6px;
+    background: #fffefa;
+    color: #555249;
+    font-size: 11px;
+  }
+
+  .investigation-list {
+    overflow-x: auto;
+    border: 1px solid #e8e5de;
+    border-radius: 9px;
+    background: #fffefa;
+  }
+
+  .investigation-row {
+    display: grid;
+    grid-template-columns: minmax(230px, 2fr) minmax(90px, 0.7fr)
+      minmax(80px, 0.6fr) minmax(105px, 0.8fr)
+      minmax(100px, 0.8fr) 28px;
+    align-items: center;
+    gap: 12px;
+    min-width: 900px;
+    padding: 14px 18px;
+    border-bottom: 1px solid #efede7;
+  }
+
+  .investigation-row:last-child {
+    border-bottom: 0;
+  }
+
+  .table-header {
+    min-height: 42px;
+    background: #f8f7f3;
+    color: #858177;
+    font-size: 10px;
+    font-weight: 600;
+  }
+
+  .case-name {
     display: flex;
-    min-height: 180px;
+    align-items: center;
+    gap: 11px;
+    min-width: 0;
+  }
+
+  .case-icon {
+    display: flex;
     align-items: center;
     justify-content: center;
-    flex-direction: column;
-    gap: 8px;
-    color: #85877f;
-    white-space: normal;
-    text-align: center;
+    flex-shrink: 0;
+    width: 36px;
+    height: 36px;
+    border: 1px solid #e7e1d7;
+    border-radius: 6px;
+    background: #f7f4ed;
+    color: #8d725c;
+    font-size: 10px;
+    font-weight: 600;
   }
 
-  .empty-state > span {
-    font-size: 25px;
+  .case-name strong {
+    display: block;
+    overflow: hidden;
+    color: #393832;
+    font-size: 12px;
+    font-weight: 550;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
-  .empty-state strong {
-    color: #30342f;
+  .case-name small {
+    display: block;
+    margin-top: 5px;
+    color: #89867d;
+    font-size: 10px;
   }
 
-  .empty-state p {
-    margin: 0;
+  .case-id,
+  .date {
+    color: #69665e;
     font-size: 11px;
   }
 
-  @media (max-width: 1050px) {
-    .stats {
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
+  .priority,
+  .status {
+    justify-self: start;
+    padding: 5px 8px;
+    border-radius: 5px;
+    font-size: 10px;
+    white-space: nowrap;
+  }
 
-    .form-grid {
-      grid-template-columns: 1fr;
-    }
+  .high {
+    background: #f7e9e4;
+    color: #a45d48;
+  }
+
+  .medium {
+    background: #f8f0df;
+    color: #97743a;
+  }
+
+  .low {
+    background: #efeee9;
+    color: #77746c;
+  }
+
+  .active {
+    background: #edf1e8;
+    color: #5d7652;
+  }
+
+  .review {
+    background: #f8f0df;
+    color: #97743a;
+  }
+
+  .completed {
+    background: #edf3eb;
+    color: #54744f;
+  }
+
+  .more-button {
+    border: 0;
+    background: transparent;
+    color: #77746c;
+    font-size: 19px;
+  }
+
+  .list-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-top: 14px;
+    color: #89867d;
+    font-size: 11px;
+  }
+
+  .pagination {
+    display: flex;
+    gap: 5px;
+  }
+
+  .pagination button {
+    padding: 7px 9px;
+    border: 1px solid #e5e2db;
+    border-radius: 5px;
+    background: #fffefa;
+    color: #69665e;
+    font-size: 10px;
+  }
+
+  .pagination button:disabled {
+    opacity: 0.45;
+    cursor: default;
+  }
+
+  .pagination .current-page {
+    border-color: #34332e;
+    background: #34332e;
+    color: white;
+  }
+
+  .workspace-note {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    margin-top: 28px;
+    padding: 18px;
+    border: 1px solid #e8e2d6;
+    border-radius: 9px;
+    background: #f5f1e8;
+  }
+
+  .note-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 24px;
+    height: 24px;
+    border: 1px solid #dcd3c2;
+    border-radius: 50%;
+    color: #8d725c;
+    font-size: 12px;
+  }
+
+  .workspace-note strong {
+    font-size: 12px;
+    font-weight: 600;
+  }
+
+  .workspace-note p {
+    margin: 6px 0 0;
+    color: #77746c;
+    font-size: 11px;
+    line-height: 1.8;
+  }
+
+  .page-footer {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    margin-top: 36px;
+    padding-top: 16px;
+    border-top: 1px solid #e8e5de;
+    color: #89867d;
+    font-size: 10px;
   }
 
   @media (max-width: 650px) {
-    .cases-page {
-      padding: 20px 14px;
+    .investigations-page {
+      padding: 24px 16px;
     }
 
-    .page-header,
-    .section-header {
-      align-items: flex-start;
+    .overview {
+      grid-template-columns: 1fr;
+      gap: 10px;
+    }
+
+    .stat-card {
+      padding: 14px;
+    }
+
+    .toolbar {
+      align-items: stretch;
       flex-direction: column;
     }
 
-    .filters {
+    .search-box {
       width: 100%;
     }
 
-    .search-box {
-      flex: 1;
-      width: auto;
+    .primary-button {
+      align-self: flex-start;
     }
 
-    .table-footer {
+    .list-footer,
+    .page-footer {
+      align-items: flex-start;
       flex-direction: column;
     }
   }
