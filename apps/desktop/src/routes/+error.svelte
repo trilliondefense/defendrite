@@ -5,7 +5,7 @@
   let { message = "Something went wrong." }: { message?: string } = $props();
 
   function goHome() {
-    goto("/app");
+    goto("/app/newchat");
   }
 
   function goBack() {

@@ -185,14 +185,11 @@ async function handleSendMessage(event: SubmitEvent) {
 <div class="chat-page">
   {#if messages.length === 0}
     <main class="chat-home">
-      <div class="upgrade">
-        Free plan · <a href="/upgrade">Upgrade</a>
-      </div>
 
       <section class="welcome">
         <h1>
-          <span class="brand-star">✳</span>
-          Golden hour thinking
+          <img src="/favicon.png" alt="" class="message-avatar" />
+          Start new Investigation 
         </h1>
 
         <form class="composer" onsubmit={handleSendMessage}>
@@ -259,8 +256,8 @@ async function handleSendMessage(event: SubmitEvent) {
           type="button"
           onclick={() => goto("/settings/tools")}
         >
-          <span>Connect your tools to Claude</span>
-          <span class="tool-icons">▣ G M A ◈</span>
+          <span>Connect your tools</span>
+          <span class="tool-icons"></span>
           <span class="chevron">›</span>
         </button>
       </section>
