@@ -80,7 +80,8 @@
         
         if (savedKey) apiKey = savedKey.value;
         if (savedModel) modelName = savedModel.value;
-
+        
+        localStorage.setItem("modelName",modelName)
         // Listen to token-by-token stream emissions from Rust runtime
         const unlistenToken = await listen<{ token: string }>('agent-token', (event) => {
           streamingOutput += event.payload.token;

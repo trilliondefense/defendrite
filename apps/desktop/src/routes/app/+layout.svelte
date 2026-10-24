@@ -12,10 +12,10 @@
   let searchInput: HTMLInputElement | undefined= $state(undefined);
 
   const navItems = [
-    { label: "New Chat", href: "/app/newchat", icon: "＋", keywords: "create conversation",shortcut:"n" },
+    { label: "Investigations", href: "/app/newchat", icon: "▤", keywords: "history conversations" ,shortcut:"p"},
+    { label: "Evidence Vault", href: "/app/chats", icon: "▤", keywords: "history conversations" ,shortcut:"p"},
     { label: "Customize", href: "/app/customize", icon: "⚙", keywords: "settings appearance" ,shortcut:"u"},
-    { label: "Chats", href: "/app/chats", icon: "▤", keywords: "history conversations" ,shortcut:"p"},
-    { label: "Cases", href: "/app/cases", icon: "▣", keywords: "workspace files" ,shortcut:"o"},
+    { label: "Reports", href: "/app/cases", icon: "▣", keywords: "workspace files" ,shortcut:"o"},
     { label: "Help", href: "/app/help", icon: "▣", keywords: "help" ,shortcut:"i"},
   ];
 
@@ -160,11 +160,11 @@
     <button
       class="new-chat"
       onclick={() => (window.location.href = "/app/newchat")}
-      title="New Chat"
+      title="New Investigation"
     >
       <span class="nav-icon">＋</span>
       {#if !collapsed}
-        <span>New Chat</span>
+        <span>New Investigation</span>
         <kbd>{isMac ? "⌘" : "Ctrl"} N</kbd>
         {/if}
     </button>

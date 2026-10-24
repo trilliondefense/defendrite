@@ -15,6 +15,7 @@
   let messages = $state<Message[]>([
    
   ]);
+  let modelName : string|null = $state("")
 
   let bottomElement: HTMLDivElement | undefined = $state(undefined);
 
@@ -84,6 +85,7 @@
   onMount(() => {
     let disposed = false;
     let unlisten: (() => void) | undefined;
+    modelName = localStorage.getItem("modelName")
 
     listen<string>("agent-token", (event) => {
       if (disposed || !activeAgentMsgId) return;
@@ -185,14 +187,11 @@ async function handleSendMessage(event: SubmitEvent) {
 <div class="chat-page">
   {#if messages.length === 0}
     <main class="chat-home">
-      <div class="upgrade">
-        Free plan · <a href="/upgrade">Upgrade</a>
-      </div>
 
       <section class="welcome">
         <h1>
-          <span class="brand-star">✳</span>
-          Golden hour thinking
+          <img src="/favicon.png" alt="" class="message-avatar" />
+          Start new Investigation 
         </h1>
 
         <form class="composer" onsubmit={handleSendMessage}>
@@ -227,11 +226,11 @@ async function handleSendMessage(event: SubmitEvent) {
             >+</button>
 
             <div class="composer-actions">
-              <select aria-label="Select model" value="Sonnet 4.6">
-                <option>Sonnet 4.6</option>
-                <option>Opus</option>
-                <option>Haiku</option>
-              </select>
+              {#if modelName && modelName !==""}
+                <select aria-label="Select model" value="{modelName}">
+                  <option>{modelName}</option>
+                </select>
+              {/if}
 
               <button
                 class="mic-button"
@@ -259,8 +258,8 @@ async function handleSendMessage(event: SubmitEvent) {
           type="button"
           onclick={() => goto("/settings/tools")}
         >
-          <span>Connect your tools to Claude</span>
-          <span class="tool-icons">▣ G M A ◈</span>
+          <span>Connect your tools</span>
+          <span class="tool-icons"></span>
           <span class="chevron">›</span>
         </button>
       </section>
@@ -371,23 +370,8 @@ async function handleSendMessage(event: SubmitEvent) {
   padding: clamp(75px, 25.5vh, 135px) 24px 36px;
 }
 
-.upgrade {
-  padding: 5px 8px;
-  border-radius: 5px;
-  background: #f1f0eb;
-  color: #77766f;
-  font-size: 10px;
-  line-height: 1.2;
-}
 
-.upgrade a {
-  color: inherit;
-  text-decoration: none;
-}
 
-.upgrade a:hover {
-  text-decoration: underline;
-}
 
 .welcome {
   width: 100%;
@@ -406,13 +390,6 @@ async function handleSendMessage(event: SubmitEvent) {
   font-weight: 400;
   letter-spacing: -1px;
   white-space: nowrap;
-}
-
-.brand-star {
-  flex-shrink: 0;
-  color: #d78362;
-  font-family: Arial, sans-serif;
-  font-size: 29px;
 }
 
 .composer {
@@ -490,7 +467,19 @@ async function handleSendMessage(event: SubmitEvent) {
   color: #55544e;
   font-size: 10px;
   cursor: pointer;
+  padding: 2px 14px 2px 2px;
+  appearance: auto;
 }
+
+/* Styles the actual dropdown overlay menu */
+.composer-actions select option {
+  background-color: #ffffff; /* Prevents transparent/see-through menus */
+  color: #333332;            /* Darker, high-contrast text for small font sizes */
+  font-size: 11px;           /* Slightly larger for readability inside the list */
+  padding: 4px;              /* Gives options breathing room (supported in Chromium) */
+}
+
+
 
 .mic-button {
   width: 22px;
@@ -663,10 +652,6 @@ async function handleSendMessage(event: SubmitEvent) {
     gap: 6px;
     font-size: clamp(19px, 5vw, 25px);
     white-space: normal;
-  }
-
-  .brand-star {
-    font-size: 25px;
   }
 
   .tool-icons {

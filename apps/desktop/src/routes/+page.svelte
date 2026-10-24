@@ -7,7 +7,7 @@
     const userName = localStorage.getItem("userName");
 
     if (userName?.trim()) {
-      goto("/app", { replaceState: true });
+      goto("/app/newchat", { replaceState: true });
     } else {
       goto("/onboard", { replaceState: true });
     }
