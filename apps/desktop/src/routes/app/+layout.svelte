@@ -18,6 +18,17 @@
     { label: "Reports", href: "/app/reports", icon: "▣", keywords: "workspace files" ,shortcut:"o"},
     { label: "Help", href: "/app/help", icon: "▣", keywords: "help" ,shortcut:"i"},
   ];
+  type CaseStatus = "Active" | "Review" | "Closed";
+  interface RecentCase{
+    label:string, 
+    caseId:string ,
+    status : CaseStatus
+  }
+  let recentCases : RecentCase[]= $state([
+    
+  ])
+  const MAX_RECENT_CASES = 4 
+  let visibleRecentCases = $derived(recentCases.slice(0,MAX_RECENT_CASES)); 
 
   let filteredItems = $derived(
     navItems.filter((item) =>
@@ -205,6 +216,37 @@
       {/each}
     </nav>
 
+    {#if visibleRecentCases.length>0}
+
+    <div class="section-label">
+      {#if !collapsed}
+        <span>RECENT CASES</span>
+      {:else}
+        <span class="section-dot">·</span>
+      {/if}
+    </div>
+
+    <nav class="nav-list">
+      {#each visibleRecentCases as item,index (item.caseId)}
+        <a
+          class="nav-item"
+          href={item.caseId}
+          title={collapsed ? item.label : undefined}
+          aria-label={item.label}
+        >
+          {#if !collapsed}
+            <span class="nav-case-label">{item.label.toLocaleUpperCase()}</span>
+            <span class="nav-case-status" data-status={item.status}>{item.status}</span>
+            <kbd>{isMac ? "⌘" : "Ctrl"} {index+1}</kbd>
+
+          {/if}
+        </a>
+      {/each}
+    </nav>
+
+      
+    {/if}
+
     <div class="sidebar-spacer"></div>
 
     <button class="profile" title="Account settings">
@@ -316,13 +358,15 @@
     display: flex;
     flex-direction: column;
     flex-shrink: 0;
+    
     width: 220px;
     padding: 14px 10px 10px;
     gap: 5px;
     background: #f7f6f2;
     border-right: 1px solid #e9e6df;
     transition: width 160ms ease;
-    overflow: hidden;
+    overflow-y: auto; 
+
   }
 
   .collapsed .sidebar {
@@ -467,6 +511,43 @@
     overflow: hidden;
     text-overflow: ellipsis;
   }
+
+
+
+
+/* "CASE 045" Label Styling */
+.nav-case-label {
+  font-family: monospace; /* Keeps the case numbers perfectly aligned */
+  font-size: 11px;
+  font-weight: 600;
+  color: #333332;
+  letter-spacing: 0.5px;
+}
+
+/* Base Status Badge Styling */
+.nav-case-status {
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+/* Color Coding based on CaseStatus Type */
+.nav-case-status[data-status="Active"] {
+  background-color: #e6f4ea;
+  color: #137333;
+}
+
+.nav-case-status[data-status="Review"] {
+  background-color: #fef7e0;
+  color: #b06000;
+}
+
+.nav-case-status[data-status="Closed"] {
+  background-color: #f1f3f4;
+  color: #5f6368;
+}
 
   .sidebar-spacer {
     flex: 1;
