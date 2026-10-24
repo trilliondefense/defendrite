@@ -161,7 +161,6 @@
 
   .help-page {
     width: 100%;
-    max-width: 820px;
     margin: 0 auto;
     padding: 20px 12px 48px;
     color: #292824;
