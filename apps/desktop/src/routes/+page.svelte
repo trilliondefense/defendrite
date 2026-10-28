@@ -16,7 +16,8 @@
 
 <div class="loading-screen">
   <div class="loading-content">
-    <span class="brand-mark">✳</span>
+    <img src="/favicon.png" alt="" class="message-avatar" />
+
     <p>Loading your workspace...</p>
   </div>
 </div>
@@ -37,10 +38,13 @@
     gap: 12px;
   }
 
-  .brand-mark {
-    color: #d78261;
-    font-size: 32px;
-  }
+  
+
+.message-avatar {
+  width: 27px;
+  height: 27px;
+  object-fit: contain;
+}
 
   p {
     margin: 0;

@@ -96,18 +96,6 @@ input {
   margin: 0;
 }
 
-.brand-mark {
-  width: 30px;
-  height: 30px;
-  color: #d88770;
-  margin-bottom: 19px;
-}
-
-.brand-mark svg {
-  display: block;
-  width: 100%;
-  height: 100%;
-}
 
 .setup-prompt {
   margin: 0 0 11px;
