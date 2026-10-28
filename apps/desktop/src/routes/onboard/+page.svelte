@@ -17,32 +17,7 @@
 
 <main class="setup-screen">
   <section class="setup-card">
-    <div class="brand-mark" aria-label="Welcome">
-      <svg
-        viewBox="0 0 32 32"
-        fill="none"
-        aria-hidden="true"
-      >
-        <g
-          stroke="currentColor"
-          stroke-width="2.4"
-          stroke-linecap="round"
-        >
-          <path d="M16 3v8" />
-          <path d="M16 21v8" />
-          <path d="M3 16h8" />
-          <path d="M21 16h8" />
-          <path d="M6.8 6.8l5.7 5.7" />
-          <path d="M19.5 19.5l5.7 5.7" />
-          <path d="M25.2 6.8l-5.7 5.7" />
-          <path d="M12.5 19.5l-5.7 5.7" />
-          <path d="M10.2 4.7l2.5 6.8" />
-          <path d="M19.3 20.5l2.5 6.8" />
-          <path d="M4.7 10.2l6.8 2.5" />
-          <path d="M20.5 19.3l6.8 2.5" />
-        </g>
-      </svg>
-    </div>
+    <img src="/favicon.png" alt="" class="message-avatar" />
 
     <p class="setup-prompt">
       Before we get started, what should I call you?
@@ -208,6 +183,13 @@ input {
 .name-form button svg {
   width: 18px;
   height: 18px;
+}
+
+
+.message-avatar {
+  width: 27px;
+  height: 27px;
+  object-fit: contain;
 }
 
 .name-form button:disabled {
