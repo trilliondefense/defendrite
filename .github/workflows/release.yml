@@ -76,6 +76,14 @@ jobs:
         run: |
           cd apps/desktop
           pnpm install --frozen-lockfile
+      - name: Verify build (Pull Requests)
+        if: github.event_name == 'pull_request'
+        run: |
+          cd apps/desktop
+          pnpm tauri build ${{ matrix.args }}
+        env:
+          HARNESS_MODEL_API_KEY: ${{ secrets.HARNESS_MODEL_API_KEY }}
+          HARNESS_MODEL_NAME: ${{ secrets.HARNESS_MODEL_NAME }}
 
       - name: Build frontend and Tauri application
         uses: tauri-apps/tauri-action@v0
