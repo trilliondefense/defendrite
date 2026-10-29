@@ -21,6 +21,7 @@
 
   let apiKey = $state('');
   let modelName = $state('gemini-1.5-flash');
+  let dbHistoryKey = $state("")
   let currentPrompt = $state('');
   let streamingOutput = $state('');
   let statusLog = $state('');
@@ -43,6 +44,7 @@
       if (store){
         await store.set('HARNESS_MODEL_API_KEY', { value: apiKey });
         await store.set('HARNESS_MODEL_NAME', { value: modelName });
+        await store.set('HARNESS_HISTORY_DB_KEY', { value: dbHistoryKey });
         await store.save(); // Permanently flushes settings cache to disk
       }
       statusLog = "Configuration saved successfully.";
@@ -77,9 +79,11 @@
         // Read persisted values from disk
         const savedKey = await store.get<{ value: string }>('HARNESS_MODEL_API_KEY');
         const savedModel = await store.get<{ value: string }>('HARNESS_MODEL_NAME');
-        
+        const savedDBKey = await store.get<{ value: string }>('HARNESS_HISTORY_DB_KEY');
+
         if (savedKey) apiKey = savedKey.value;
         if (savedModel) modelName = savedModel.value;
+        if (savedDBKey) dbHistoryKey = savedDBKey.value;
         
         localStorage.setItem("modelName",modelName)
         // Listen to token-by-token stream emissions from Rust runtime
@@ -348,6 +352,21 @@
           <input 
             type="text" 
             bind:value={modelName} 
+            placeholder="AIzaSy..." 
+            style="flex: 1; padding: 0.5rem 0.75rem; border-radius: 4px; border: 1px solid #ccc; font-family: monospace; font-size: 0.9rem;"
+          />
+        </div>
+      </div>
+       <div class="setting-row credentials-row" style="flex-direction: column; align-items: flex-start; gap: 0.75rem;">
+        <div class="setting-copy">
+          <h3>DB Histor Key</h3>
+          <p>Configure your personal developer key to authenticate with to encrypt database history.</p>
+        </div>
+        
+        <div style="display: flex; gap: 0.5rem; width: 100%;">
+          <input 
+            type="password" 
+            bind:value={dbHistoryKey} 
             placeholder="AIzaSy..." 
             style="flex: 1; padding: 0.5rem 0.75rem; border-radius: 4px; border: 1px solid #ccc; font-family: monospace; font-size: 0.9rem;"
           />
