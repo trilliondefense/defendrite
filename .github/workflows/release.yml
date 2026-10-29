@@ -79,6 +79,7 @@ jobs:
 
       - name: Build frontend and Tauri application
         uses: tauri-apps/tauri-action@v0
+        if: github.ref_name == 'main' || github.event_name == 'workflow_dispatch'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           HARNESS_MODEL_API_KEY: ${{ secrets.HARNESS_MODEL_API_KEY }}
