@@ -175,7 +175,7 @@
     >
       <span class="nav-icon">＋</span>
       {#if !collapsed}
-        <span>New Investigation</span>
+        <span>New Chat</span>
         <kbd>{isMac ? "⌘" : "Ctrl"} N</kbd>
         {/if}
     </button>
