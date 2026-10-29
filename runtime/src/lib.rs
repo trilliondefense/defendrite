@@ -1,7 +1,11 @@
-use std::{fs, path::PathBuf, time::Duration};
+use std::{
+    fs,
+    path::{Path, PathBuf},
+    time::Duration,
+};
 mod storage;
 use serde_json::{json, Value};
-use tauri::{Emitter, Manager,AppHandle};
+use tauri::{AppHandle, Emitter, Manager};
 use tauri_plugin_store::StoreExt;
 
 pub async fn handle_agent_request(prompt: &str, app_handle: &AppHandle) -> String {
@@ -55,6 +59,50 @@ pub async fn handle_agent_request(prompt: &str, app_handle: &AppHandle) -> Strin
         None => "gemini-1.5-flash".to_string(), // Default baseline profile
     };
 
+    let db_key = match store
+        .get("HARNESS_HISTORY_DB_KEY")
+        .and_then(|v| v.get("value").and_then(|v| v.as_str()).map(str::to_owned))
+        .filter(|s| !s.trim().is_empty())
+    {
+        Some(key) => key,
+        None => return emit_error(app_handle, "Conversation database key is missing."),
+    };
+
+    let db_path = storage_path.join("conversation.db");
+
+    let db = match storage::open_db(Path::new(&db_path), &db_key) {
+        Ok(db) => db,
+        Err(e) => {
+            eprintln!("Conversation database error: {e}");
+            return emit_error(app_handle, "Could not open conversation history.");
+        }
+    };
+
+    let history = match storage::load_history(&db) {
+        Ok(history) => history,
+        Err(e) => {
+            eprintln!("Could not load history: {e}");
+            return emit_error(app_handle, "Could not load conversation history.");
+        }
+    };
+
+    // Gemini expects "user" and "model" roles.
+    let mut contents: Vec<Value> = history
+        .into_iter()
+        .map(|msg| {
+            json!({
+                "role": msg.role,
+                "parts": [{ "text": msg.content }]
+            })
+        })
+        .collect();
+
+    // Add the current prompt after previous messages.
+    contents.push(json!({
+        "role": "user",
+        "parts": [{ "text": prompt }]
+    }));
+
     // --- rest of your network streaming and tool execution loop goes here ---
 
     // Create the HTTP client.
@@ -77,12 +125,7 @@ pub async fn handle_agent_request(prompt: &str, app_handle: &AppHandle) -> Strin
         .post(&url)
         .header("x-goog-api-key", &api_key)
         .json(&json!({
-            "contents": [{
-                "role": "user",
-                "parts": [{
-                    "text": prompt
-                }]
-            }]
+            "contents": contents
         }))
         .send()
         .await
@@ -138,6 +181,12 @@ pub async fn handle_agent_request(prompt: &str, app_handle: &AppHandle) -> Strin
         eprintln!("Gemini returned no text: {data}");
 
         return emit_error(app_handle, "Gemini returned an empty response.");
+    }
+    if let Err(e) = storage::save_message(&db, "user", prompt)
+        .and_then(|_| storage::save_message(&db, "model", &answer))
+    {
+        eprintln!("Failed to save conversation: {e}");
+        return emit_error(app_handle, "Could not save conversation history.");
     }
 
     // Emit chunks to the Svelte frontend.

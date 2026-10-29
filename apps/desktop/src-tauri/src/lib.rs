@@ -1,5 +1,5 @@
+use tauri::Manager;
 use tauri_plugin_store::StoreExt;
-use tauri::Manager; 
 #[tauri::command]
 async fn ask_agent(prompt: String, app_handle: tauri::AppHandle) -> Result<(), String> {
     // 1. Pre-flight check: In Tauri v2, .store() automatically loads the file safely if it's not already in memory
