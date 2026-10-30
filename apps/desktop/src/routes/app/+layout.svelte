@@ -31,17 +31,6 @@
     { label: "Customize", href: "/app/customize", icon: "⚙️", keywords: "settings appearance" ,shortcut:"u"},
     { label: "Help", href: "/app/help", icon: "❓", keywords: "help" ,shortcut:"i"},
   ];
-  type CaseStatus = "Active" | "Review" | "Closed";
-  interface RecentCase{
-    label:string, 
-    caseId:string ,
-    status : CaseStatus
-  }
-  let recentCases : RecentCase[]= $state([
-    
-  ])
-  const MAX_RECENT_CASES = 4 
-  let visibleRecentCases = $derived(recentCases.slice(0,MAX_RECENT_CASES)); 
   $effect(()=>{
     loadChats()
   })
