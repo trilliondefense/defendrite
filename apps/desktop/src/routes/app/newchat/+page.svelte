@@ -1,32 +1,51 @@
 
 <script lang="ts">
-
-  import { invoke } from "@tauri-apps/api/core";
-  import { listen } from "@tauri-apps/api/event";
-  import { onMount, tick } from "svelte";
   import { goto } from "$app/navigation";
 
-  interface Message {
-    id: string;
-    sender: "user" | "agent";
-    text: string;
+
+import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
+import { onMount, tick } from "svelte";
+
+interface Message {
+  id: string;
+  sender: "user" | "agent";
+  text: string;
+}
+
+interface Conversation {
+  id: string;
+  title: string;
+  chatNumber: number;
+  createdAt: number;
+  updatedAt: number;
+}
+
+let messages = $state<Message[]>([
+  {
+    id: crypto.randomUUID(),
+    sender: "agent",
+    text: "Hello! I'm your AI agent. What would you like to work on today?"
   }
+]);
 
-  let messages = $state<Message[]>([
-   
-  ]);
-  let modelName : string|null = $state("")
+let conversationId = $state<string | null>(null);
+let modelName = $state<string | null>(null);
 
-  let bottomElement: HTMLDivElement | undefined = $state(undefined);
-
-  let input = $state("");
-  let isLoading = $state(false);
+let bottomElement = $state<HTMLDivElement>();
+let input = $state("");
+let isLoading = $state(false);
   let viewportElement = $state<HTMLElement | null>(null);
-  let inputElement = $state<HTMLTextAreaElement | null>(null);
 
-  let activeAgentMsgId: string | null = $state(null);
+let inputElement = $state<HTMLTextAreaElement>();
+let activeAgentMsgId = $state<string | null>(null);
+  
 
-  async function scrollToBottom() {
+// --------------------------------------------------
+// SCROLLING
+// --------------------------------------------------
+
+async function scrollToBottom() {
   await tick();
 
   requestAnimationFrame(() => {
@@ -37,110 +56,153 @@
   });
 }
 
-  function focusInput() {
-    inputElement?.focus();
+// --------------------------------------------------
+// INPUT FOCUS
+// --------------------------------------------------
+
+function focusInput() {
+  inputElement?.focus();
+}
+
+// --------------------------------------------------
+// NEW CHAT
+// --------------------------------------------------
+
+function newChat() {
+  if (isLoading) return;
+
+  conversationId = null;
+
+  messages = [
+    
+  ];
+
+  activeAgentMsgId = null;
+  input = "";
+
+  focusInput();
+}
+
+// --------------------------------------------------
+// GLOBAL KEYBOARD SHORTCUTS
+// --------------------------------------------------
+
+function handleGlobalKeydown(event: KeyboardEvent) {
+  const modifier = event.metaKey || event.ctrlKey;
+  const target = event.target;
+
+  const typing =
+    target instanceof HTMLInputElement ||
+    target instanceof HTMLTextAreaElement ||
+    (target instanceof HTMLElement && target.isContentEditable);
+
+  if (modifier && event.key.toLowerCase() === "n") {
+    event.preventDefault();
+    newChat();
+    return;
   }
 
-  function newChat() {
-    if (isLoading) return;
-
-    messages = [
-      {
-        id: crypto.randomUUID(),
-        sender: "agent",
-        text: "Hello! I'm your AI agent. What would you like to work on today?"
-      }
-    ];
-
-    activeAgentMsgId = null;
-    input = "";
+  if (event.key === "Escape" && !typing) {
     focusInput();
   }
 
-  function handleGlobalKeydown(event: KeyboardEvent) {
-    const modifier = event.metaKey || event.ctrlKey;
-    const target = event.target;
-
-    const typing =
-      target instanceof HTMLInputElement ||
-      target instanceof HTMLTextAreaElement ||
-      (target instanceof HTMLElement && target.isContentEditable);
-
-    if (modifier && event.key.toLowerCase() === "n") {
-      event.preventDefault();
-      newChat();
-      return;
-    }
-
-    if (event.key === "Escape" && !typing) {
-      focusInput();
-    }
-
-    if (event.key === "/" && !modifier && !event.altKey && !typing) {
-      event.preventDefault();
-      focusInput();
-    }
+  if (
+    event.key === "/" &&
+    !modifier &&
+    !event.altKey &&
+    !typing
+  ) {
+    event.preventDefault();
+    focusInput();
   }
+}
 
-  onMount(() => {
-    let disposed = false;
-    let unlisten: (() => void) | undefined;
-    modelName = localStorage.getItem("modelName")
+// --------------------------------------------------
+// EVENT LISTENER INITIALIZATION
+// --------------------------------------------------
 
-    listen<string>("agent-token", (event) => {
-      if (disposed || !activeAgentMsgId) return;
+onMount(() => {
+  let disposed = false;
+  let unlisten: (() => void) | undefined;
 
-      const activeMessage = messages.find(
-        (message) => message.id === activeAgentMsgId
-      );
+  // Read model preference safely in the browser.
+  modelName = localStorage.getItem("modelName");
 
-      if (activeMessage) {
-        activeMessage.text += event.payload;
-        void scrollToBottom();
-      }
-    }).then((unsubscribe) => {
+  listen<string>("agent-token", (event) => {
+    if (disposed || !activeAgentMsgId) return;
+
+    const activeMessage = messages.find(
+      (message) => message.id === activeAgentMsgId
+    );
+
+    if (activeMessage) {
+      activeMessage.text += event.payload;
+      void scrollToBottom();
+    }
+  })
+    .then((unsubscribe) => {
       if (disposed) {
         unsubscribe();
       } else {
         unlisten = unsubscribe;
       }
-    }).catch((error) => {
-      console.error("Failed to register agent event listener:", error);
+    })
+    .catch((error) => {
+      console.error("Failed to register agent listener:", error);
     });
 
-    window.addEventListener("keydown", handleGlobalKeydown);
+  window.addEventListener("keydown", handleGlobalKeydown);
 
-    focusInput();
+  focusInput();
 
-    return () => {
-      disposed = true;
-      unlisten?.();
-      window.removeEventListener("keydown", handleGlobalKeydown);
-    };
-  });
+  return () => {
+    disposed = true;
+    unlisten?.();
+    window.removeEventListener("keydown", handleGlobalKeydown);
+  };
+});
+
+// --------------------------------------------------
+// CREATE CONVERSATION WHEN NEEDED
+// --------------------------------------------------
+
+async function ensureConversation(): Promise<string> {
+  if (conversationId) {
+    return conversationId;
+  }
+
+  const chat = await invoke<Conversation>("create_chat");
+
+  conversationId = chat.id;
+
+  return chat.id;
+}
+
+// --------------------------------------------------
+// SEND MESSAGE
+// --------------------------------------------------
+
 async function handleSendMessage(event: SubmitEvent) {
   event.preventDefault();
 
   const prompt = input.trim();
 
-  // Guard loop to protect execution boundaries
   if (!prompt || isLoading) return;
 
-  // Svelte 5 Rune-safe state array updating
-  messages = [
-    ...messages,
-    {
-      id: crypto.randomUUID(),
-      sender: "user",
-      text: prompt
-    }
-  ];
+  isLoading = true;
+  input = "";
+
+  const userMessage: Message = {
+    id: crypto.randomUUID(),
+    sender: "user",
+    text: prompt
+  };
 
   const agentMessageId = crypto.randomUUID();
 
-  // Initialize placeholder for real-time streaming tokens
   messages = [
     ...messages,
+    userMessage,
     {
       id: agentMessageId,
       sender: "agent",
@@ -149,33 +211,36 @@ async function handleSendMessage(event: SubmitEvent) {
   ];
 
   activeAgentMsgId = agentMessageId;
-  input = "";
-  isLoading = true;
 
   void scrollToBottom();
 
   try {
-    // Dispatches the background Tokio runtime agent runner
-    await invoke("ask_agent", { prompt });
+    // Create a conversation only for the first message.
+    const chatId = await ensureConversation();
+
+    // Send the prompt to the selected conversation.
+    await invoke("ask_agent", {
+      prompt,
+      conversationId: chatId
+    });
+
   } catch (error) {
     const errorString = String(error);
-    
-    // Find the message index to trigger Svelte 5 fine-grained array reactivity
-    const targetIdx = messages.findIndex((m) => m.id === agentMessageId);
+
+    const targetIdx = messages.findIndex(
+      (message) => message.id === agentMessageId
+    );
 
     if (targetIdx !== -1) {
-      if (errorString.includes("SETUP_REQUIRED")) {
-        messages[targetIdx].text = "⚠️ Workspace Configuration Required: Please navigate to Settings and specify your Google AI Studio API Key to communicate with local models.";
-        
-        // Hook: Proactively launch your configuration UI here if desired
-        // showWorkspaceSettingsModal = true;
-      } else {
-        messages[targetIdx].text = `Runtime Execution Failure: ${errorString}`;
-      }
+      messages[targetIdx].text = errorString.includes("SETUP_REQUIRED")
+        ? "⚠️ Workspace Configuration Required: Please navigate to Settings and specify your Google AI Studio API Key."
+        : `Runtime Execution Failure: ${errorString}`;
     }
+
   } finally {
     isLoading = false;
     activeAgentMsgId = null;
+
     void scrollToBottom();
     focusInput();
   }
