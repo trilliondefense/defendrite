@@ -23,7 +23,7 @@
 
 <main class="error-page">
   <div class="error-content">
-    <div class="error-icon">✳</div>
+    <img src="/favicon.png" alt="" class="message-avatar" />
 
     <p class="eyebrow">OOPS!</p>
 
@@ -73,15 +73,10 @@
     text-align: center;
   }
 
-  .error-icon {
-    margin-bottom: 28px;
-    color: #d78261;
-    font-size: 42px;
-  }
 
   .eyebrow {
     margin: 0 0 12px;
-    color: #d78261;
+    color: #d461c6;
     font-size: 10px;
     font-weight: 600;
     letter-spacing: 0.18em;
@@ -94,6 +89,12 @@
     font-weight: 400;
     letter-spacing: -1px;
   }
+
+.message-avatar {
+  width: 64px;
+  height: 64px;
+  object-fit: contain;
+}
 
   .description {
     margin: 16px 0 28px;
