@@ -14,3 +14,4 @@ reqwest = { version = "0.12", features = ["json", "stream"] }
 tauri-plugin-store = "2"
 rusqlite = { version = "0.41.1", features = ["bundled-sqlcipher-vendored-openssl"] }
 uuid = { version = "1.29.0", features = ["v4"] }
+futures-util = "0.3"

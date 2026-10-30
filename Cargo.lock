@@ -3112,6 +3112,7 @@ name = "runtime"
 version = "0.3.5"
 dependencies = [
  "dotenvy",
+ "futures-util",
  "models",
  "reqwest 0.12.28",
  "rusqlite",
