@@ -153,6 +153,23 @@
     return;
   }
 
+   if (modifier && /^[1-9]$/.test(event.key)) {
+      // Convert key string (e.g., "1") to a 0-based array index (e.g., 0)
+      const targetIndex = parseInt(event.key, 10) - 1;
+
+      // Ensure the index falls within both your maxSize limit and available data bounds
+      if (targetIndex < pageSize && targetIndex < paginatedCases.length) {
+        event.preventDefault();
+        
+        const targetUser = paginatedCases[targetIndex];
+        
+        // Navigate instantly without blowing away application state
+        goto(`/app/investigations/${encodeURIComponent(targetUser.id)}`);
+        return;
+      }
+    }
+
+
   if (modifier && key === "k") {
     event.preventDefault();
 
