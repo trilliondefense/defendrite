@@ -890,26 +890,6 @@ let shortcutModifier = $derived(isMac ? "⌘" : "Ctrl");
   font-weight: 600;
 }
 
-.shortcut-hint {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 21px;
-  height: 21px;
-  padding: 0 5px;
-  border: 1px solid #e5e2db;
-  border-radius: 4px;
-  background: #f5f4ef;
-  color: #77746c;
-  font-size: 10px;
-  font-weight: 600;
-}
-
-.chat-action-group {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-}
 
 @media (max-width: 650px) {
   .keyboard-shortcuts {
