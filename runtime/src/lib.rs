@@ -5,7 +5,7 @@ use std::{
 };
 
 mod storage;
-
+use futures_util::StreamExt;
 use serde_json::{json, Value};
 use tauri::{AppHandle, Emitter, Manager};
 use tauri_plugin_store::StoreExt;
@@ -229,8 +229,9 @@ pub async fn handle_agent_request(
     }));
 
     // --------------------------------------------------
-    // GEMINI API REQUEST
+    // GEMINI STREAMING API REQUEST
     // --------------------------------------------------
+
 
     let client = match reqwest::Client::builder()
         .timeout(Duration::from_secs(120))
@@ -253,6 +254,7 @@ pub async fn handle_agent_request(
     let response = match client
         .post(&url)
         .header("x-goog-api-key", &api_key)
+        .header("Accept", "text/event-stream")
         .json(&json!({
             "contents": contents
         }))
@@ -261,7 +263,7 @@ pub async fn handle_agent_request(
     {
         Ok(response) => response,
         Err(error) => {
-            eprintln!("Gemini request failed: {error}");
+            eprintln!("Gemini streaming request failed: {error}");
 
             return emit_error(
                 app_handle,
@@ -271,7 +273,7 @@ pub async fn handle_agent_request(
     };
 
     // --------------------------------------------------
-    // HANDLE API RESPONSE
+    // HANDLE HTTP ERRORS
     // --------------------------------------------------
 
     let status = response.status();
@@ -280,7 +282,9 @@ pub async fn handle_agent_request(
         let details = response
             .text()
             .await
-            .unwrap_or_else(|_| "No error details available".to_string());
+            .unwrap_or_else(|_| {
+                "No error details available".to_string()
+            });
 
         eprintln!("Gemini API returned {status}: {details}");
 
@@ -292,34 +296,177 @@ pub async fn handle_agent_request(
         );
     }
 
-    // Parse response JSON.
+    // --------------------------------------------------
+    // READ GEMINI STREAMING RESPONSE
+    // --------------------------------------------------
 
-    let data: Value = match response.json().await {
-        Ok(data) => data,
-        Err(error) => {
-            eprintln!("Failed to parse Gemini response: {error}");
+    let mut stream = response.bytes_stream();
 
-            return emit_error(
-                app_handle,
-                "Could not parse the Gemini response.",
-            );
+    // Use bytes instead of String to safely handle
+    // UTF-8 characters split across network chunks.
+    let mut buffer: Vec<u8> = Vec::new();
+
+    let mut answer = String::new();
+    let mut last_event = String::new();
+
+    while let Some(chunk_result) = stream.next().await {
+
+        let chunk = match chunk_result {
+            Ok(chunk) => chunk,
+            Err(error) => {
+                eprintln!("Gemini stream failed: {error}");
+
+                return emit_error(
+                    app_handle,
+                    "Gemini streaming connection was interrupted.",
+                );
+            }
+        };
+
+        // Append incoming network bytes.
+        buffer.extend_from_slice(&chunk);
+
+        // Process complete SSE lines.
+        while let Some(line_end) = buffer.iter().position(|b| *b == b'\n') {
+
+            let mut line: Vec<u8> =
+                buffer.drain(..=line_end).collect();
+
+            // Remove newline.
+            line.pop();
+
+            // Handle CRLF (\r\n) and LF (\n).
+            if line.last() == Some(&b'\r') {
+                line.pop();
+            }
+
+            let line = String::from_utf8_lossy(&line);
+
+            // Only process SSE data lines.
+            let Some(data) = line.strip_prefix("data:") else {
+                continue;
+            };
+
+            let data = data.trim();
+
+            if data.is_empty() || data == "[DONE]" {
+                continue;
+            }
+
+            last_event = data.to_string();
+
+            // Parse Gemini JSON event.
+            let parsed: Value = match serde_json::from_str(data) {
+                Ok(value) => value,
+                Err(error) => {
+                    eprintln!("Gemini SSE JSON parsing failed: {error}");
+                    eprintln!("Received event: {data}");
+                    continue;
+                }
+            };
+
+            // Extract generated text.
+            let text = parsed["candidates"][0]
+                ["content"]["parts"]
+                .as_array()
+                .map(|parts| {
+                    parts
+                        .iter()
+                        .filter_map(|part| {
+                            part["text"].as_str()
+                        })
+                        .collect::<String>()
+                })
+                .unwrap_or_default();
+
+            if text.is_empty() {
+                continue;
+            }
+
+            // Accumulate complete response.
+            answer.push_str(&text);
+
+            // Emit generated text immediately to frontend.
+            if let Err(error) =
+                app_handle.emit("agent-token", text.clone())
+            {
+                eprintln!("Failed to emit agent token: {error}");
+            }
         }
-    };
+    }
 
-    // Extract generated response text.
+    // --------------------------------------------------
+    // PROCESS FINAL INCOMPLETE SSE LINE
+    // --------------------------------------------------
 
-    let answer = data["candidates"][0]["content"]["parts"]
-        .as_array()
-        .map(|parts| {
-            parts
-                .iter()
-                .filter_map(|part| part["text"].as_str())
-                .collect::<String>()
-        })
-        .unwrap_or_default();
+    // Some streams may end without a trailing newline.
+    if !buffer.is_empty() {
+        buffer.push(b'\n');
+    }
+
+    while let Some(line_end) = buffer.iter().position(|b| *b == b'\n') {
+
+        let mut line: Vec<u8> =
+            buffer.drain(..=line_end).collect();
+
+        line.pop();
+
+        if line.last() == Some(&b'\r') {
+            line.pop();
+        }
+
+        let line = String::from_utf8_lossy(&line);
+
+        let Some(data) = line.strip_prefix("data:") else {
+            continue;
+        };
+
+        let data = data.trim();
+
+        if data.is_empty() || data == "[DONE]" {
+            continue;
+        }
+
+        last_event = data.to_string();
+
+        let parsed: Value = match serde_json::from_str(data) {
+            Ok(value) => value,
+            Err(error) => {
+                eprintln!("Final Gemini SSE parsing failed: {error}");
+                continue;
+            }
+        };
+
+        let text = parsed["candidates"][0]
+            ["content"]["parts"]
+            .as_array()
+            .map(|parts| {
+                parts
+                    .iter()
+                    .filter_map(|part| part["text"].as_str())
+                    .collect::<String>()
+            })
+            .unwrap_or_default();
+
+        if !text.is_empty() {
+            answer.push_str(&text);
+
+            if let Err(error) =
+                app_handle.emit("agent-token", text.clone())
+            {
+                eprintln!("Failed to emit agent token: {error}");
+            }
+        }
+    }
+
+    // --------------------------------------------------
+    // VALIDATE COMPLETED RESPONSE
+    // --------------------------------------------------
 
     if answer.trim().is_empty() {
-        eprintln!("Gemini returned no text: {data}");
+
+        eprintln!("Gemini returned no generated text.");
+        eprintln!("Last Gemini event: {last_event}");
 
         return emit_error(
             app_handle,
@@ -331,16 +478,15 @@ pub async fn handle_agent_request(
     // SAVE CONVERSATION EXCHANGE
     // --------------------------------------------------
 
-    // Both messages are saved in one transaction.
-    // Neither message is saved if the transaction fails.
-
     if let Err(error) = storage::save_exchange(
         &mut db,
         conversation_id,
         prompt,
         &answer,
     ) {
-        eprintln!("Failed to save conversation exchange: {error}");
+        eprintln!(
+            "Failed to save conversation exchange: {error}"
+        );
 
         return emit_error(
             app_handle,
@@ -348,23 +494,9 @@ pub async fn handle_agent_request(
         );
     }
 
-    // --------------------------------------------------
-    // EMIT RESPONSE TO FRONTEND
-    // --------------------------------------------------
-
-    // Note: this is chunking an already completed response,
-    // not true Gemini API streaming.
-
-    for chunk in answer.split_inclusive(char::is_whitespace) {
-        if let Err(error) = app_handle.emit("agent-token", chunk) {
-            eprintln!("Failed to emit agent token: {error}");
-            break;
-        }
-
-        tokio::time::sleep(Duration::from_millis(10)).await;
-    }
-
     answer
+
+
 }
 
 // --------------------------------------------------
