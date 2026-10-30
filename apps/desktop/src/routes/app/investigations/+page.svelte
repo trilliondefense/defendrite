@@ -11,6 +11,7 @@
     createdAt: number;
     updatedAt: number;
   }
+  
 
   // State
   let cases = $state<Conversation[]>([]);
@@ -22,7 +23,41 @@
   const pageSize = 8;
   let currentPage = $state(1);
 
-  // Load conversations on mount
+  // Derived data
+  let filteredCases = $derived.by(() => {
+    const query = search.trim().toLowerCase();
+
+    if (!query) return cases;
+
+    return cases.filter((item) =>
+      (item.title ?? "").toLowerCase().includes(query) ||
+      (item.id ?? "").toLowerCase().includes(query) ||
+      String(item.chatNumber ?? "").includes(query)
+    );
+  });
+
+  let totalPages = $derived(
+    Math.max(1, Math.ceil(filteredCases.length / pageSize))
+  );
+
+  let paginatedCases = $derived(
+    filteredCases.slice(
+      (currentPage - 1) * pageSize,
+      currentPage * pageSize
+    )
+  );
+
+  let startItem = $derived(
+    filteredCases.length === 0
+      ? 0
+      : (currentPage - 1) * pageSize + 1
+  );
+
+  let endItem = $derived(
+    Math.min(currentPage * pageSize, filteredCases.length)
+  );
+
+  // Load conversations
   onMount(() => {
     loadChats();
   });
@@ -47,19 +82,18 @@
     }
   }
 
-  // Open existing conversation
+  // Navigation
   async function openChat(chatId: string) {
     await goto(
       `/app/investigations/${encodeURIComponent(chatId)}`
     );
   }
 
-  // Navigate to new investigation
   function createInvestigation() {
-    goto("/app/investigations/new");
+    goto("/app/newchat");
   }
 
-  // Format timestamps
+  // Date formatting
   function formatDate(timestamp: number) {
     if (!timestamp || !Number.isFinite(timestamp)) {
       return "Unknown";
@@ -71,51 +105,17 @@
     }).format(timestamp * 1000);
   }
 
-  // Search filtering
-  let filteredCases = $derived.by(() => {
-    const query = search.trim().toLowerCase();
-
-    if (!query) {
-      return cases;
-    }
-
-    return cases.filter((item) => {
-      return (
-        (item.title ?? "").toLowerCase().includes(query) ||
-        (item.id ?? "").toLowerCase().includes(query) ||
-        String(item.chatNumber ?? "").includes(query)
-      );
-    });
-  });
-
-  // Pagination calculations
-  let totalPages = $derived(
-    Math.max(1, Math.ceil(filteredCases.length / pageSize))
-  );
-
-  let paginatedCases = $derived(
-    filteredCases.slice(
-      (currentPage - 1) * pageSize,
-      currentPage * pageSize
-    )
-  );
-
-  let startItem = $derived(
-    filteredCases.length === 0
-      ? 0
-      : (currentPage - 1) * pageSize + 1
-  );
-
-  let endItem = $derived(
-    Math.min(currentPage * pageSize, filteredCases.length)
-  );
-
-  // Reset pagination when search changes
+  // Search
   function handleSearch(value: string) {
     search = value;
     currentPage = 1;
   }
 
+  function clearSearch() {
+    handleSearch("");
+  }
+
+  // Pagination
   function previousPage() {
     if (currentPage > 1) {
       currentPage--;
@@ -128,11 +128,76 @@
     }
   }
 
-  // Generate a display number for each case
   function getCaseNumber(index: number) {
     return (currentPage - 1) * pageSize + index + 1;
   }
+
+  // Keyboard-first navigation
+  function handleGlobalKeydown(event: KeyboardEvent) {
+    const isMac = /Mac|iPhone|iPad/.test(navigator.platform);
+    const modifierPressed = isMac ? event.metaKey : event.ctrlKey;
+
+    // Ignore combinations involving Alt or Shift
+    if (event.altKey || event.shiftKey) return;
+
+    const target = event.target as HTMLElement | null;
+
+    const isTyping =
+      target?.tagName === "INPUT" ||
+      target?.tagName === "TEXTAREA" ||
+      target?.isContentEditable;
+
+    // Ctrl + F / Cmd + F: Focus search
+    if (modifierPressed && event.key.toLowerCase() === "f") {
+      event.preventDefault();
+      searchInput?.focus();
+      return;
+    }
+
+    // Don't interfere with normal typing
+    if (isTyping || !modifierPressed) return;
+
+    // Ctrl + 1..8 / Cmd + 1..8: Open investigation
+    if (/^[1-8]$/.test(event.key)) {
+      event.preventDefault();
+
+      const index = Number(event.key) - 1;
+      const selectedCase = paginatedCases[index];
+
+      if (selectedCase) {
+        openChat(selectedCase.id);
+      }
+
+      return;
+    }
+
+    // Ctrl + Left / Cmd + Left: Previous page
+    if (event.key === "ArrowLeft") {
+      event.preventDefault();
+      previousPage();
+      return;
+    }
+
+    // Ctrl + Right / Cmd + Right: Next page
+    if (event.key === "ArrowRight") {
+      event.preventDefault();
+      nextPage();
+      return;
+    }
+  }
+
+let searchInput: HTMLInputElement;
+let isMac = $state(false);
+
+onMount(() => {
+  isMac = /Mac|iPhone|iPad/.test(navigator.userAgent);
+  loadChats();
+});
+
+let shortcutModifier = $derived(isMac ? "⌘" : "Ctrl");
 </script>
+
+<svelte:window onkeydown={handleGlobalKeydown} />
 
 <div class="investigations-page">
 
@@ -147,47 +212,97 @@
   </header>
 
   <!-- Toolbar -->
-  <div class="toolbar">
+ 
+<!-- Toolbar -->
+<div class="toolbar">
 
-    <label class="search-box">
-      <span aria-hidden="true">⌕</span>
+  <label class="search-box">
+    <span aria-hidden="true">⌕</span>
 
-      <input
-        type="search"
-        placeholder="Search investigations..."
-        aria-label="Search investigations"
-        value={search}
-        oninput={(event) =>
-          handleSearch(event.currentTarget.value)}
-      />
-    </label>
+    <input
+      bind:this={searchInput}
+      id="investigation-search"
+      type="search"
+      placeholder="Search investigations..."
+      aria-label="Search investigations"
+      value={search}
+      oninput={(event) =>
+        handleSearch(event.currentTarget.value)}
+      onkeydown={(event) => {
+        if (event.key === "Escape" && search) {
+          event.preventDefault();
+          clearSearch();
+        }
+      }}
+    />
+  </label>
 
-    <div class="stat-card">
-      <span>Total investigations</span>
+  <div
+    class="stat-card"
+    aria-label={`${cases.length} total investigations`}
+  >
+    <span>Total investigations</span>
+    <strong>{cases.length}</strong>
+  </div>
 
-      <strong>{cases.length}</strong>
+  <button
+    class="primary-button"
+    onclick={createInvestigation}
+  >
+    <span aria-hidden="true">+</span>
+    New investigation
+  </button>
 
-      <small>Across your workspace</small>
+</div>
+
+<!-- Keyboard Shortcuts -->
+<div class="keyboard-shortcuts" aria-label="Keyboard shortcuts">
+
+  <div class="shortcut-group">
+
+    <div class="shortcut-item">
+      <span>Search</span>
+      <span class="shortcut-keys">
+        <kbd class="shortcut-key">{shortcutModifier}</kbd>
+        <kbd class="shortcut-key">F</kbd>
+      </span>
     </div>
 
+    <div class="shortcut-item">
+      <span>Open investigation</span>
+      <span class="shortcut-keys">
+        <kbd class="shortcut-key">{shortcutModifier}</kbd>
+        <kbd class="shortcut-key">1–8</kbd>
+      </span>
+    </div>
 
-    <button
-      class="primary-button"
-      onclick={createInvestigation}
-    >
-      <span aria-hidden="true">+</span>
-      New investigation
-    </button>
+    <div class="shortcut-item">
+      <span>Previous / Next page</span>
+      <span class="shortcut-keys">
+        <kbd class="shortcut-key">{shortcutModifier}</kbd>
+        <kbd class="shortcut-key">←</kbd>
+        <kbd class="shortcut-key">→</kbd>
+      </span>
+    </div>
 
   </div>
 
+  <span class="shortcut-item">
+    {isMac ? "Mac shortcuts" : "Windows / Linux shortcuts"}
+  </span>
+
+</div>
+
 
   <!-- Investigation Section -->
-  <section class="investigation-section">
+  <section
+    class="investigation-section"
+    aria-labelledby="investigation-heading"
+  >
 
     <div class="section-header">
       <div>
-        <h2>All investigations</h2>
+        <h2 id="investigation-heading">All investigations</h2>
 
         <p>
           Review and continue your previous investigations.
@@ -195,14 +310,14 @@
       </div>
     </div>
 
-    <!-- Loading State -->
+    <!-- Loading -->
     {#if isLoading}
 
-      <div class="empty-state" role="status">
+      <div class="empty-state" role="status" aria-live="polite">
         Loading investigations...
       </div>
 
-    <!-- Error State -->
+    <!-- Error -->
     {:else if error}
 
       <div class="empty-state" role="alert">
@@ -213,7 +328,7 @@
         </button>
       </div>
 
-    <!-- No Conversations -->
+    <!-- Empty -->
     {:else if cases.length === 0}
 
       <div class="empty-state">
@@ -238,7 +353,7 @@
           Try searching with another investigation title or ID.
         </p>
 
-        <button onclick={() => handleSearch("")}>
+        <button onclick={clearSearch}>
           Clear search
         </button>
       </div>
@@ -246,25 +361,34 @@
     <!-- Investigation List -->
     {:else}
 
-      <div class="investigation-list">
+      <div
+        class="investigation-list"
+        role="table"
+        aria-label="Investigation history"
+        aria-rowcount={filteredCases.length + 1}
+      >
 
         <!-- Table Header -->
-        <div class="investigation-row table-header">
-          <span>Investigation</span>
-          <span>Case ID</span>
-          <span>Last Updated</span>
-          <span>Action</span>
+        <div class="investigation-row table-header" role="row">
+          <span role="columnheader">Investigation</span>
+          <span role="columnheader">Case ID</span>
+          <span role="columnheader">Last Updated</span>
+          <span role="columnheader">Action</span>
         </div>
 
-        <!-- Dynamic Investigation Rows -->
+        <!-- Investigation Rows -->
         {#each paginatedCases as chat, index (chat.id)}
 
-          <div class="investigation-row">
+          <div
+            class="investigation-row"
+            role="row"
+            aria-rowindex={startItem + index + 1}
+          >
 
-            <!-- Investigation Details -->
-            <div class="case-name">
+            <!-- Investigation -->
+            <div class="case-name" role="cell">
 
-              <div class="case-icon">
+              <div class="case-icon" aria-hidden="true">
                 #{getCaseNumber(index)}
               </div>
 
@@ -272,29 +396,34 @@
                 <strong>
                   {chat.title || "Untitled investigation"}
                 </strong>
-
               </div>
 
             </div>
 
             <!-- Case ID -->
-            <span class="case-id" title={chat.id}>
+            <span
+              class="case-id"
+              role="cell"
+              title={chat.id}
+            >
               {chat.id}
             </span>
 
             <!-- Updated Date -->
-            <span class="date">
+            <span class="date" role="cell">
               {formatDate(chat.updatedAt)}
             </span>
 
-            <!-- Continue Action -->
-            <button
-              class="chat-action"
-              onclick={() => openChat(chat.id)}
-              aria-label={`Continue ${chat.title || "investigation"}`}
-            >
-              Continue
-            </button>
+            <!-- Continue -->
+            <div role="cell">
+              <button
+                class="chat-action"
+                onclick={() => openChat(chat.id)}
+                aria-label={`Continue ${chat.title || "investigation"}`}
+              >
+                Continue
+              </button>
+            </div>
 
           </div>
 
@@ -302,15 +431,15 @@
 
       </div>
 
-      <!-- Pagination Footer -->
+      <!-- Pagination -->
       <footer class="list-footer">
 
-        <span>
+        <span aria-live="polite">
           Showing {startItem}–{endItem}
           of {filteredCases.length} investigations
         </span>
 
-        <div class="pagination">
+        <nav class="pagination" aria-label="Investigation pages">
 
           <button
             onclick={previousPage}
@@ -324,6 +453,7 @@
             class="current-page"
             aria-current="page"
             disabled
+            aria-label={`Page ${currentPage} of ${totalPages}`}
           >
             {currentPage}
           </button>
@@ -336,7 +466,7 @@
             Next
           </button>
 
-        </div>
+        </nav>
 
       </footer>
 
@@ -357,7 +487,6 @@
     background: #faf9f6;
     color: #292824;
     font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-    -webkit-font-smoothing: antialiased;
   }
 
   :global(button),
@@ -369,35 +498,36 @@
     cursor: pointer;
   }
 
+  /* Page */
+
   .investigations-page {
     width: 100%;
     max-width: 1440px;
     margin: 0 auto;
-    padding: 36px 40px 48px;
+    padding: 36px 40px;
   }
 
-  /* Page header */
+  /* Header */
 
   .page-header {
-    margin-bottom: 30px;
+    margin-bottom: 28px;
   }
 
   .page-header h1 {
     margin: 0;
-    color: #292824;
     font-family: Georgia, "Times New Roman", serif;
-    font-size: clamp(28px, 3vw, 36px);
+    font-size: 34px;
     font-weight: 400;
-    letter-spacing: -0.8px;
     line-height: 1.2;
+    letter-spacing: -0.6px;
   }
 
   .page-header p {
     max-width: 560px;
-    margin: 10px 0 0;
-    color: #858177;
+    margin: 9px 0 0;
+    color: #77746c;
     font-size: 13px;
-    line-height: 1.75;
+    line-height: 1.6;
   }
 
   /* Toolbar */
@@ -405,66 +535,32 @@
   .toolbar {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    gap: 16px;
-    margin-bottom: 26px;
+    gap: 12px;
+    margin-bottom: 28px;
   }
 
   .search-box {
     display: flex;
     align-items: center;
-    gap: 11px;
-    width: 360px;
-    max-width: 100%;
-    min-height: 42px;
-    padding: 0 13px;
-    border: 1px solid #e7e4dc;
-    border-radius: 7px;
+    flex: 1;
+    min-width: 180px;
+    height: 42px;
+    gap: 10px;
+    padding: 0 12px;
+    border: 1px solid #dedbd3;
+    border-radius: 6px;
     background: #fffefa;
-    color: #89867d;
-    transition: border-color 160ms ease, box-shadow 160ms ease;
-  }
-  .toolbar .stat-card {
-  flex-direction: row;
-  align-items: center;
-  gap: 10px;
-  padding: 8px 14px;
-  min-height: 42px;
-  border-radius: 7px;
-}
-
-.toolbar .stat-card strong {
-  font-size: 17px;
-}
-
-.toolbar .stat-card small {
-  display: none;
-}
-
-.toolbar .stat-card > span {
-  font-size: 11px;
-  white-space: nowrap;
-}
-
-.toolbar .search-box {
-  flex: 1;
-  width: auto;
-}
-
-  .search-box:focus-within {
-    border-color: #aaa397;
-    box-shadow: 0 0 0 3px rgba(141, 114, 92, 0.09);
   }
 
   .search-box span {
-    flex-shrink: 0;
-    font-size: 19px;
-    line-height: 1;
+    color: #77746c;
+    font-size: 18px;
   }
 
   .search-box input {
     width: 100%;
     min-width: 0;
+    height: 100%;
     border: 0;
     outline: none;
     background: transparent;
@@ -473,89 +569,72 @@
   }
 
   .search-box input::placeholder {
-    color: #a19d94;
+    color: #969187;
   }
 
-  .search-box input::-webkit-search-cancel-button {
-    cursor: pointer;
+  .stat-card {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-height: 42px;
+    padding: 0 14px;
+    border: 1px solid #dedbd3;
+    border-radius: 6px;
+    background: #fffefa;
+    white-space: nowrap;
   }
+
+  .stat-card span {
+    color: #77746c;
+    font-size: 11px;
+  }
+
+  .stat-card strong {
+    font-size: 17px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Buttons */
 
   .primary-button {
     display: inline-flex;
     align-items: center;
     justify-content: center;
     gap: 8px;
-    min-height: 40px;
+    min-height: 42px;
     padding: 0 15px;
     border: 1px solid #34332e;
-    border-radius: 7px;
+    border-radius: 6px;
     background: #34332e;
     color: #fffefa;
     font-size: 12px;
     font-weight: 500;
     white-space: nowrap;
-    transition: background 160ms ease, transform 160ms ease;
   }
 
   .primary-button:hover {
     background: #504e46;
   }
 
-  .primary-button:active {
-    transform: translateY(1px);
-  }
-
-  .primary-button:focus-visible,
-  .chat-action:focus-visible,
-  .pagination button:focus-visible {
-    outline: 2px solid #9b8068;
-    outline-offset: 3px;
-  }
-
-  /* Overview */
-
-  .overview {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 14px;
-    margin-bottom: 34px;
-  }
-
-  .stat-card {
-    display: flex;
-    flex-direction: column;
-    gap: 9px;
-    min-width: 0;
-    padding: 19px 20px;
-    border: 1px solid #e8e5de;
-    border-radius: 9px;
+  .chat-action {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 32px;
+    padding: 0 12px;
+    border: 1px solid #dedbd3;
+    border-radius: 5px;
     background: #fffefa;
-    transition: border-color 160ms ease, box-shadow 160ms ease;
-  }
-
-  .stat-card:hover {
-    border-color: #d9d3c9;
-    box-shadow: 0 3px 12px rgba(45, 42, 34, 0.035);
-  }
-
-  .stat-card > span {
-    color: #77746c;
-    font-size: 12px;
-    font-weight: 450;
-  }
-
-  .stat-card strong {
     color: #34332e;
-    font-size: 29px;
+    font-size: 11px;
     font-weight: 500;
-    letter-spacing: -0.8px;
-    line-height: 1.2;
-    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
   }
 
-  .stat-card small {
-    color: #969187;
-    font-size: 11px;
+  .chat-action:hover {
+    border-color: #34332e;
+    background: #f4f2ec;
   }
 
   /* Investigation section */
@@ -565,53 +644,45 @@
   }
 
   .section-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    margin-bottom: 15px;
+    margin-bottom: 14px;
   }
 
   .section-header h2 {
     margin: 0;
-    color: #393832;
     font-size: 15px;
     font-weight: 600;
-    letter-spacing: -0.15px;
   }
 
   .section-header p {
     margin: 5px 0 0;
-    color: #858177;
+    color: #77746c;
     font-size: 12px;
     line-height: 1.5;
   }
 
-  /* Investigation table */
+  /* Investigation list */
 
   .investigation-list {
     width: 100%;
     overflow-x: auto;
-    border: 1px solid #e8e5de;
-    border-radius: 9px;
+    border: 1px solid #e5e2db;
+    border-radius: 7px;
     background: #fffefa;
-    scrollbar-width: thin;
-    scrollbar-color: #d8d3ca transparent;
   }
 
   .investigation-row {
     display: grid;
     grid-template-columns:
-      minmax(240px, 2fr)
-      minmax(110px, 0.85fr)
-      minmax(150px, 1fr)
-      minmax(90px, auto);
+      minmax(220px, 2fr)
+      minmax(130px, 1fr)
+      minmax(160px, 1.2fr)
+      100px;
     align-items: center;
-    gap: 18px;
-    min-width: 760px;
-    padding: 14px 20px;
-    border-bottom: 1px solid #efede7;
-    transition: background 140ms ease;
+    gap: 16px;
+    min-width: 740px;
+    min-height: 62px;
+    padding: 10px 18px;
+    border-bottom: 1px solid #eeece6;
   }
 
   .investigation-row:last-child {
@@ -619,21 +690,17 @@
   }
 
   .investigation-row:not(.table-header):hover {
-    background: #fbfaf6;
+    background: #f9f8f4;
   }
 
   .table-header {
-    min-height: 43px;
-    background: #f8f7f3;
-    color: #858177;
+    min-height: 42px;
+    background: #f5f4ef;
+    color: #77746c;
     font-size: 10px;
     font-weight: 600;
-    letter-spacing: 0.35px;
+    letter-spacing: 0.3px;
     text-transform: uppercase;
-  }
-
-  .table-header:hover {
-    background: #f8f7f3;
   }
 
   /* Case information */
@@ -650,12 +717,12 @@
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
-    width: 36px;
-    height: 36px;
-    border: 1px solid #e7e1d7;
-    border-radius: 7px;
-    background: #f7f4ed;
-    color: #8d725c;
+    width: 34px;
+    height: 34px;
+    border: 1px solid #e5e2db;
+    border-radius: 5px;
+    background: #f5f3ed;
+    color: #75634f;
     font-size: 11px;
     font-weight: 600;
     font-variant-numeric: tabular-nums;
@@ -668,19 +735,9 @@
   .case-name strong {
     display: block;
     overflow: hidden;
-    color: #393832;
+    color: #34332e;
     font-size: 12px;
     font-weight: 600;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .case-name small {
-    display: block;
-    overflow: hidden;
-    margin-top: 5px;
-    color: #89867d;
-    font-size: 10px;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
@@ -695,32 +752,7 @@
     font-variant-numeric: tabular-nums;
   }
 
-  /* Continue action */
-
-  .chat-action {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    justify-self: start;
-    min-height: 30px;
-    padding: 0 12px;
-    border: 1px solid #e5e2db;
-    border-radius: 5px;
-    background: #fffefa;
-    color: #504e46;
-    font-size: 11px;
-    font-weight: 500;
-    white-space: nowrap;
-    transition: all 150ms ease;
-  }
-
-  .chat-action:hover {
-    border-color: #34332e;
-    background: #34332e;
-    color: #fffefa;
-  }
-
-  /* Empty, loading and error states */
+  /* Empty and error states */
 
   .empty-state {
     display: flex;
@@ -729,11 +761,11 @@
     justify-content: center;
     gap: 10px;
     min-height: 190px;
-    padding: 32px 20px;
-    border: 1px dashed #e3dfd6;
-    border-radius: 9px;
+    padding: 24px;
+    border: 1px dashed #dedbd3;
+    border-radius: 7px;
     background: #fffefa;
-    color: #858177;
+    color: #77746c;
     text-align: center;
     font-size: 12px;
   }
@@ -744,28 +776,28 @@
   }
 
   .empty-state button {
-    padding: 7px 12px;
-    border: 1px solid #ded9cf;
+    min-height: 32px;
+    padding: 0 12px;
+    border: 1px solid #dedbd3;
     border-radius: 5px;
     background: #fffefa;
-    color: #504e46;
+    color: #34332e;
     font-size: 11px;
-    transition: background 150ms ease;
   }
 
   .empty-state button:hover {
-    background: #f4f1e9;
+    background: #f4f2ec;
   }
 
-  /* Footer and pagination */
+  /* Pagination */
 
   .list-footer {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 12px;
-    margin-top: 15px;
-    color: #89867d;
+    margin-top: 14px;
+    color: #77746c;
     font-size: 11px;
   }
 
@@ -779,24 +811,22 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    min-width: 30px;
-    min-height: 29px;
-    padding: 0 9px;
-    border: 1px solid #e5e2db;
+    min-width: 32px;
+    min-height: 30px;
+    padding: 0 10px;
+    border: 1px solid #dedbd3;
     border-radius: 5px;
     background: #fffefa;
-    color: #69665e;
+    color: #504e46;
     font-size: 10px;
-    transition: all 150ms ease;
   }
 
-  .pagination button:not(:disabled):hover {
-    border-color: #aaa397;
-    background: #f7f5ef;
+  .pagination button:hover:not(:disabled) {
+    background: #f4f2ec;
   }
 
   .pagination button:disabled {
-    opacity: 0.4;
+    opacity: 0.45;
     cursor: not-allowed;
   }
 
@@ -806,110 +836,168 @@
     color: #fffefa;
   }
 
-  .pagination .current-page:hover {
-    border-color: #34332e;
-    background: #34332e;
+/* Keyboard shortcuts */
+
+.keyboard-shortcuts {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px 20px;
+  margin: -12px 0 26px;
+  padding: 11px 14px;
+  border: 1px solid #e8e5de;
+  border-radius: 7px;
+  background: #f5f4ef;
+}
+
+.shortcut-group {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.shortcut-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: #77746c;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.shortcut-keys {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.shortcut-key {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 23px;
+  height: 22px;
+  padding: 0 6px;
+  border: 1px solid #dedbd3;
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  background: #fffefa;
+  color: #504e46;
+  font-family: inherit;
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.shortcut-hint {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 21px;
+  height: 21px;
+  padding: 0 5px;
+  border: 1px solid #e5e2db;
+  border-radius: 4px;
+  background: #f5f4ef;
+  color: #77746c;
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.chat-action-group {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+@media (max-width: 650px) {
+  .keyboard-shortcuts {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .shortcut-group {
+    gap: 10px 14px;
+  }
+}
+
+
+  /* Keyboard accessibility */
+
+  :global(button:focus-visible),
+  :global(input:focus-visible),
+  :global(.search-box:focus-within) {
+    outline: 2px solid #8d725c;
+    outline-offset: 3px;
+  }
+
+  :global(button:focus-visible) {
+    position: relative;
+    z-index: 1;
   }
 
   /* Responsive */
 
-  @media (max-width: 900px) {
+  @media (max-width: 800px) {
     .investigations-page {
-      padding: 30px 24px 40px;
+      padding: 28px 22px;
     }
 
-    .overview {
-      grid-template-columns: repeat(2, minmax(0, 1fr));
+    .toolbar {
+      flex-wrap: wrap;
+    }
+
+    .search-box {
+      flex-basis: 100%;
     }
   }
 
-  @media (max-width: 650px) {
+  @media (max-width: 600px) {
     .investigations-page {
-      padding: 26px 16px 32px;
+      padding: 24px 16px;
     }
 
-    .page-header {
-      margin-bottom: 23px;
-    }
-
-    .page-header p {
-      font-size: 12px;
+    .page-header h1 {
+      font-size: 29px;
     }
 
     .toolbar {
       align-items: stretch;
       flex-direction: column;
-      gap: 10px;
-      margin-bottom: 22px;
     }
 
     .search-box {
+      flex: none;
       width: 100%;
-      min-height: 42px;
+    }
+
+    .stat-card {
+      justify-content: space-between;
     }
 
     .primary-button {
       align-self: flex-start;
     }
 
-    .overview {
-      grid-template-columns: 1fr;
-      gap: 10px;
-      margin-bottom: 28px;
-    }
-
-    .stat-card {
-      padding: 15px 16px;
-      gap: 7px;
-    }
-
-    .stat-card strong {
-      font-size: 25px;
-    }
-
-    .section-header {
-      align-items: flex-start;
-    }
-
     .investigation-row {
-      min-width: 700px;
-      padding: 13px 14px;
-      gap: 12px;
+      min-width: 740px;
+      padding: 10px 14px;
     }
 
     .list-footer {
       align-items: flex-start;
       flex-direction: column;
-      gap: 12px;
     }
   }
 
-  @media (max-width: 380px) {
-    .investigations-page {
-      padding-right: 12px;
-      padding-left: 12px;
-    }
-
-    .page-header h1 {
-      font-size: 28px;
-    }
-
-    .pagination button {
-      min-width: 28px;
-      padding: 0 7px;
-    }
-  }
-
-  /* Reduced motion accessibility */
+  /* Reduced motion */
 
   @media (prefers-reduced-motion: reduce) {
-    *,
-    *::before,
-    *::after {
+    :global(*) {
       scroll-behavior: auto !important;
-      transition-duration: 0.01ms !important;
-      animation-duration: 0.01ms !important;
-      animation-iteration-count: 1 !important;
+      transition: none !important;
+      animation: none !important;
     }
   }
 </style>
