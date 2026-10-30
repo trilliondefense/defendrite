@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org).
 
 ---
 
+## [0.3.0] - 2026-10-30
+
+### Added
+
+- Updated Storage for keeping the conversation going in the multiple sessions
+- Updated Investigations Page UI to be keyboard first
+
+### Updated
+
+- Updated Dependencies
+- Migrated the Code for Update Dependencies
+
 ## [0.2.0] - 2026-10-30
 
 ### Added
