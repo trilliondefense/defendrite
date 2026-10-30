@@ -1,40 +1,172 @@
+
 use std::{
     fs,
-    path::{Path, PathBuf},
     time::Duration,
 };
+
 mod storage;
+
 use serde_json::{json, Value};
 use tauri::{AppHandle, Emitter, Manager};
 use tauri_plugin_store::StoreExt;
 
-pub async fn handle_agent_request(prompt: &str, app_handle: &AppHandle) -> String {
-    // 1. Initialize application local data layout folders
+pub use storage::models::{Conversation, Message};
+// --------------------------------------------------
+// DATABASE INITIALIZATION
+// --------------------------------------------------
+
+fn open_conversation_db(
+    app_handle: &AppHandle,
+) -> Result<rusqlite::Connection, String> {
     let mut storage_path = app_handle
         .path()
         .app_data_dir()
-        .unwrap_or_else(|_| PathBuf::from("./"));
+        .map_err(|e| format!("Could not resolve application data directory: {e}"))?;
 
     storage_path.push("storage");
 
-    if let Err(error) = fs::create_dir_all(&storage_path) {
-        eprintln!("Failed to create storage directory: {error}");
+    fs::create_dir_all(&storage_path)
+        .map_err(|e| format!("Could not create storage directory: {e}"))?;
+
+    let store = app_handle
+        .store("settings.json")
+        .map_err(|e| format!("Could not access application settings: {e}"))?;
+
+    let db_key = store
+        .get("HARNESS_HISTORY_DB_KEY")
+        .and_then(|v| {
+            v.get("value")
+                .and_then(|v| v.as_str())
+                .map(str::to_owned)
+        })
+        .filter(|s| !s.trim().is_empty())
+        .ok_or_else(|| "Conversation database key is missing.".to_string())?;
+
+    let db_path = storage_path.join("conversation.db");
+
+    storage::open_db(&db_path, &db_key)
+        .map_err(|e| format!("Could not open conversation database: {e}"))
+}
+
+// --------------------------------------------------
+// CREATE NEW CONVERSATION
+// --------------------------------------------------
+
+pub fn create_new_conversation(
+    app_handle: &AppHandle,
+) -> Result<Conversation, String> {
+    let mut db = open_conversation_db(app_handle)?;
+
+    storage::create_conversation(&mut db)
+        .map_err(|e| format!("Could not create conversation: {e}"))
+}
+// Retrieve messages for a selected conversation.
+pub fn get_chat_messages(
+    app_handle: &AppHandle,
+    conversation_id: &str,
+) -> Result<Vec<Message>, String> {
+    let db = open_conversation_db(app_handle)?;
+
+    storage::load_history(&db, conversation_id)
+        .map_err(|e| format!("Could not retrieve chat messages: {e}"))
+}
+
+// Delete a selected conversation.
+pub fn delete_chat(
+    app_handle: &AppHandle,
+    conversation_id: &str,
+) -> Result<(), String> {
+    let db = open_conversation_db(app_handle)?;
+
+    storage::delete_conversation(&db, conversation_id)
+        .map_err(|e| format!("Could not delete conversation: {e}"))
+}
+
+// --------------------------------------------------
+// GET ALL CONVERSATIONS
+// --------------------------------------------------
+
+pub fn get_conversations(
+    app_handle: &AppHandle,
+) -> Result<Vec<Conversation>, String> {
+    let db = open_conversation_db(app_handle)?;
+
+    storage::list_conversations(&db)
+        .map_err(|e| format!("Could not retrieve conversations: {e}"))
+}
+
+// --------------------------------------------------
+// HANDLE AGENT REQUEST
+// --------------------------------------------------
+
+pub async fn handle_agent_request(
+    prompt: &str,
+    conversation_id: &str,
+    app_handle: &AppHandle,
+) -> String {
+
+    // 1. Validate conversation ID.
+
+    if conversation_id.trim().is_empty() {
+        return emit_error(
+            app_handle,
+            "A valid conversation ID is required.",
+        );
     }
 
-    // 2. Read Configuration from the Tauri v2 Store instance
-    let store = match app_handle.store("settings.json") {
-        Ok(s) => s,
-        Err(e) => {
+    // 2. Open the encrypted conversation database.
+
+    let mut db = match open_conversation_db(app_handle) {
+        Ok(db) => db,
+        Err(error) => {
+            eprintln!("Database initialization failed: {error}");
             return emit_error(
                 app_handle,
-                &format!("Failed to access application settings store: {e}"),
+                "Could not open conversation history.",
             );
         }
     };
-    // 3. Extract the Google AI Studio Key string value by navigating the { value: ... } object wrapper
+
+    // 3. Verify that the requested conversation exists.
+
+    let conversations = match storage::list_conversations(&db) {
+        Ok(conversations) => conversations,
+        Err(error) => {
+            eprintln!("Could not retrieve conversations: {error}");
+            return emit_error(
+                app_handle,
+                "Could not retrieve conversations.",
+            );
+        }
+    };
+
+    if !conversations
+        .iter()
+        .any(|conversation| conversation.id == conversation_id)
+    {
+        return emit_error(
+            app_handle,
+            "The requested conversation does not exist.",
+        );
+    }
+
+    // 4. Read application settings.
+
+    let store = match app_handle.store("settings.json") {
+        Ok(store) => store,
+        Err(error) => {
+            return emit_error(
+                app_handle,
+                &format!("Failed to access application settings: {error}"),
+            );
+        }
+    };
+
+    // 5. Retrieve Gemini API key.
+
     let api_key = match store.get("HARNESS_MODEL_API_KEY") {
         Some(value) => match value.get("value").and_then(|v| v.as_str()) {
-            Some(s) if !s.trim().is_empty() => s.to_string(),
+            Some(key) if !key.trim().is_empty() => key.to_string(),
             _ => {
                 return emit_error(
                     app_handle,
@@ -50,78 +182,75 @@ pub async fn handle_agent_request(prompt: &str, app_handle: &AppHandle) -> Strin
         }
     };
 
-    // 4. Extract the active target Model name string profile by navigating the { value: ... } object wrapper
+    // 6. Retrieve configured Gemini model.
+
     let model = match store.get("HARNESS_MODEL_NAME") {
         Some(value) => match value.get("value").and_then(|v| v.as_str()) {
-            Some(s) if !s.trim().is_empty() => s.to_string(),
-            _ => "gemini-1.5-flash".to_string(), // Fallback if entry is malformed or structural string conversion fails
+            Some(name) if !name.trim().is_empty() => name.to_string(),
+            _ => "gemini-1.5-flash".to_string(),
         },
-        None => "gemini-1.5-flash".to_string(), // Default baseline profile
+        None => "gemini-1.5-flash".to_string(),
     };
 
-    let db_key = match store
-        .get("HARNESS_HISTORY_DB_KEY")
-        .and_then(|v| v.get("value").and_then(|v| v.as_str()).map(str::to_owned))
-        .filter(|s| !s.trim().is_empty())
-    {
-        Some(key) => key,
-        None => return emit_error(app_handle, "Conversation database key is missing."),
-    };
+    // 7. Load history ONLY for the selected conversation.
 
-    let db_path = storage_path.join("conversation.db");
-
-    let db = match storage::open_db(Path::new(&db_path), &db_key) {
-        Ok(db) => db,
-        Err(e) => {
-            eprintln!("Conversation database error: {e}");
-            return emit_error(app_handle, "Could not open conversation history.");
-        }
-    };
-
-    let history = match storage::load_history(&db) {
+    let history = match storage::load_history(&db, conversation_id) {
         Ok(history) => history,
-        Err(e) => {
-            eprintln!("Could not load history: {e}");
-            return emit_error(app_handle, "Could not load conversation history.");
+        Err(error) => {
+            eprintln!("Could not load conversation history: {error}");
+            return emit_error(
+                app_handle,
+                "Could not load conversation history.",
+            );
         }
     };
 
-    // Gemini expects "user" and "model" roles.
+    // 8. Convert history into Gemini contents format.
+
     let mut contents: Vec<Value> = history
         .into_iter()
-        .map(|msg| {
+        .map(|message| {
             json!({
-                "role": msg.role,
-                "parts": [{ "text": msg.content }]
+                "role": message.role,
+                "parts": [
+                    { "text": message.content }
+                ]
             })
         })
         .collect();
 
-    // Add the current prompt after previous messages.
+    // 9. Append current user prompt.
+
     contents.push(json!({
         "role": "user",
-        "parts": [{ "text": prompt }]
+        "parts": [
+            { "text": prompt }
+        ]
     }));
 
-    // --- rest of your network streaming and tool execution loop goes here ---
+    // --------------------------------------------------
+    // GEMINI API REQUEST
+    // --------------------------------------------------
 
-    // Create the HTTP client.
-    let client: reqwest::Client = match reqwest::Client::builder()
+    let client = match reqwest::Client::builder()
         .timeout(Duration::from_secs(120))
         .build()
     {
         Ok(client) => client,
         Err(error) => {
             eprintln!("HTTP client initialization failed: {error}");
-            return emit_error(app_handle, "Could not initialize the HTTP client.");
+            return emit_error(
+                app_handle,
+                "Could not initialize the HTTP client.",
+            );
         }
     };
 
-    let url =
-        format!("https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent");
+    let url = format!(
+        "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
+    );
 
-    // Send the prompt to Gemini.
-    let response: reqwest::Response = match client
+    let response = match client
         .post(&url)
         .header("x-goog-api-key", &api_key)
         .json(&json!({
@@ -133,6 +262,7 @@ pub async fn handle_agent_request(prompt: &str, app_handle: &AppHandle) -> Strin
         Ok(response) => response,
         Err(error) => {
             eprintln!("Gemini request failed: {error}");
+
             return emit_error(
                 app_handle,
                 "Could not connect to Gemini. Check your network.",
@@ -140,7 +270,10 @@ pub async fn handle_agent_request(prompt: &str, app_handle: &AppHandle) -> Strin
         }
     };
 
-    // Handle unsuccessful API responses.
+    // --------------------------------------------------
+    // HANDLE API RESPONSE
+    // --------------------------------------------------
+
     let status = response.status();
 
     if !status.is_success() {
@@ -153,20 +286,28 @@ pub async fn handle_agent_request(prompt: &str, app_handle: &AppHandle) -> Strin
 
         return emit_error(
             app_handle,
-            &format!("Gemini API returned HTTP {status}. Check application logs."),
+            &format!(
+                "Gemini API returned HTTP {status}. Check application logs."
+            ),
         );
     }
 
-    // Parse the JSON response.
+    // Parse response JSON.
+
     let data: Value = match response.json().await {
         Ok(data) => data,
         Err(error) => {
             eprintln!("Failed to parse Gemini response: {error}");
-            return emit_error(app_handle, "Could not parse the Gemini response.");
+
+            return emit_error(
+                app_handle,
+                "Could not parse the Gemini response.",
+            );
         }
     };
 
-    // Extract generated text.
+    // Extract generated response text.
+
     let answer = data["candidates"][0]["content"]["parts"]
         .as_array()
         .map(|parts| {
@@ -180,17 +321,40 @@ pub async fn handle_agent_request(prompt: &str, app_handle: &AppHandle) -> Strin
     if answer.trim().is_empty() {
         eprintln!("Gemini returned no text: {data}");
 
-        return emit_error(app_handle, "Gemini returned an empty response.");
-    }
-    if let Err(e) = storage::save_message(&db, "user", prompt)
-        .and_then(|_| storage::save_message(&db, "model", &answer))
-    {
-        eprintln!("Failed to save conversation: {e}");
-        return emit_error(app_handle, "Could not save conversation history.");
+        return emit_error(
+            app_handle,
+            "Gemini returned an empty response.",
+        );
     }
 
-    // Emit chunks to the Svelte frontend.
-    // Note: this chunks an already-completed response.
+    // --------------------------------------------------
+    // SAVE CONVERSATION EXCHANGE
+    // --------------------------------------------------
+
+    // Both messages are saved in one transaction.
+    // Neither message is saved if the transaction fails.
+
+    if let Err(error) = storage::save_exchange(
+        &mut db,
+        conversation_id,
+        prompt,
+        &answer,
+    ) {
+        eprintln!("Failed to save conversation exchange: {error}");
+
+        return emit_error(
+            app_handle,
+            "Could not save conversation history.",
+        );
+    }
+
+    // --------------------------------------------------
+    // EMIT RESPONSE TO FRONTEND
+    // --------------------------------------------------
+
+    // Note: this is chunking an already completed response,
+    // not true Gemini API streaming.
+
     for chunk in answer.split_inclusive(char::is_whitespace) {
         if let Err(error) = app_handle.emit("agent-token", chunk) {
             eprintln!("Failed to emit agent token: {error}");
@@ -203,10 +367,20 @@ pub async fn handle_agent_request(prompt: &str, app_handle: &AppHandle) -> Strin
     answer
 }
 
-fn emit_error(app_handle: &tauri::AppHandle, message: &str) -> String {
+// --------------------------------------------------
+// ERROR EVENT
+// --------------------------------------------------
+
+fn emit_error(
+    app_handle: &AppHandle,
+    message: &str,
+) -> String {
     let display_message = format!("Error: {message}");
 
-    if let Err(error) = app_handle.emit("agent-token", display_message.as_str()) {
+    if let Err(error) = app_handle.emit(
+        "agent-token",
+        display_message.as_str(),
+    ) {
         eprintln!("Failed to emit error event: {error}");
     }
 
