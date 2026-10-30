@@ -1,10 +1,10 @@
 
 <script lang="ts">
-  import { goto } from "$app/navigation";
+  import { goto, invalidateAll, refreshAll } from "$app/navigation";
 
 
 import { invoke } from "@tauri-apps/api/core";
-import { listen } from "@tauri-apps/api/event";
+import { emit, listen } from "@tauri-apps/api/event";
 import { onMount, tick } from "svelte";
 
 interface Message {
@@ -219,6 +219,7 @@ async function handleSendMessage(event: SubmitEvent) {
       prompt,
       conversationId: chatId
     });
+    await emit('chat-created', {}); 
 
   } catch (error) {
     const errorString = String(error);

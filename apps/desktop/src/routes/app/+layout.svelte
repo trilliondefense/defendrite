@@ -2,6 +2,7 @@
 <script lang="ts">
   import { goto } from "$app/navigation";
   import { invoke } from "@tauri-apps/api/core";
+  import { listen } from "@tauri-apps/api/event";
   import { onMount, tick } from "svelte";
   import type { Snippet } from "svelte";
 
@@ -41,7 +42,9 @@
   ])
   const MAX_RECENT_CASES = 4 
   let visibleRecentCases = $derived(recentCases.slice(0,MAX_RECENT_CASES)); 
-
+  $effect(()=>{
+    loadChats()
+  })
   let filteredItems = $derived(
     navItems.filter((item) =>
       `${item.label} ${item.keywords}`
@@ -54,17 +57,24 @@
       isMac = /Mac|iPhone|iPad|iPod/i.test(navigator.platform);
     collapsed = localStorage.getItem("sidebar-collapsed") === "true";
       loadChats();
+      const unlisten = listen('chat-created', () => {
+
+    loadChats(); // Re-trigger your backend fetch method
+    return () => {
+    // Clean up event listener when component unmounts
+    unlisten.then(f => f());
+  };
+
+  });
+
   });
   
   const pageSize = 4;
-
   let paginatedCases = $derived(
-    cases.slice(0,pageSize
-    )
-  );
-
-
-
+      cases.slice(0,pageSize
+      )
+    );
+  
   async function loadChats() {
     try {
       const result = await invoke<Conversation[]>("list_chats");
