@@ -4,8 +4,14 @@
 
 
 import { invoke } from "@tauri-apps/api/core";
-import { listen } from "@tauri-apps/api/event";
+import { emit, listen } from "@tauri-apps/api/event";
 import { onMount, tick } from "svelte";
+
+  import { marked } from "marked";
+  import DOMPurify from "dompurify";
+  function renderMarkdown(content: string) {
+    return DOMPurify.sanitize(marked.parse(content) as string);
+  }
 
 interface Message {
   id: string;
@@ -219,6 +225,7 @@ async function handleSendMessage(event: SubmitEvent) {
       prompt,
       conversationId: chatId
     });
+    await emit('chat-created', {}); 
 
   } catch (error) {
     const errorString = String(error);
@@ -345,7 +352,7 @@ async function handleSendMessage(event: SubmitEvent) {
 
               <div class="message-text">
                 {#if msg.text}
-                  {msg.text}
+            {@html renderMarkdown(msg.text)}
                 {:else if isLoading && msg.id === activeAgentMsgId}
                   <span class="thinking-indicator">
                     <span></span><span></span><span></span>

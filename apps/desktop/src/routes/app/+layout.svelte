@@ -1,7 +1,18 @@
 
 <script lang="ts">
+  import { goto } from "$app/navigation";
+  import { invoke } from "@tauri-apps/api/core";
+  import { listen } from "@tauri-apps/api/event";
   import { onMount, tick } from "svelte";
   import type { Snippet } from "svelte";
+
+  interface Conversation {
+    id: string;
+    title: string;
+    chatNumber: number;
+    createdAt: number;
+    updatedAt: number;
+  }
 
   let { children }: { children: Snippet } = $props();
 
@@ -10,26 +21,19 @@
   let query = $state("");
   let selectedIndex = $state(0);
   let searchInput: HTMLInputElement | undefined= $state(undefined);
+  let cases = $state<Conversation[]>([]);
+
 
   const navItems = [
-    { label: "Investigations", href: "/app/investigations", icon: "▤", keywords: "history conversations" ,shortcut:"p"},
-    { label: "Evidence Vault", href: "/app/evidence-vault", icon: "▤", keywords: "history conversations" ,shortcut:"y"},
-    { label: "Customize", href: "/app/customize", icon: "⚙", keywords: "settings appearance" ,shortcut:"u"},
-    { label: "Reports", href: "/app/reports", icon: "▣", keywords: "workspace files" ,shortcut:"o"},
-    { label: "Help", href: "/app/help", icon: "▣", keywords: "help" ,shortcut:"i"},
+    { label: "Investigations", href: "/app/investigations", icon: "🔍", keywords: "history conversations" ,shortcut:"p"},
+    { label: "Evidence Vault", href: "/app/evidence-vault", icon: "🏛️", keywords: "history conversations" ,shortcut:"y"},
+    { label: "Reports", href: "/app/reports", icon: "📊", keywords: "workspace files" ,shortcut:"o"},
+    { label: "Customize", href: "/app/customize", icon: "⚙️", keywords: "settings appearance" ,shortcut:"u"},
+    { label: "Help", href: "/app/help", icon: "❓", keywords: "help" ,shortcut:"i"},
   ];
-  type CaseStatus = "Active" | "Review" | "Closed";
-  interface RecentCase{
-    label:string, 
-    caseId:string ,
-    status : CaseStatus
-  }
-  let recentCases : RecentCase[]= $state([
-    
-  ])
-  const MAX_RECENT_CASES = 4 
-  let visibleRecentCases = $derived(recentCases.slice(0,MAX_RECENT_CASES)); 
-
+  $effect(()=>{
+    loadChats()
+  })
   let filteredItems = $derived(
     navItems.filter((item) =>
       `${item.label} ${item.keywords}`
@@ -41,7 +45,37 @@
   onMount(() => {
       isMac = /Mac|iPhone|iPad|iPod/i.test(navigator.platform);
     collapsed = localStorage.getItem("sidebar-collapsed") === "true";
+      loadChats();
+      const unlisten = listen('chat-created', () => {
+
+    loadChats(); // Re-trigger your backend fetch method
+    return () => {
+    // Clean up event listener when component unmounts
+    unlisten.then(f => f());
+  };
+
   });
+
+  });
+  
+  const pageSize = 4;
+  let paginatedCases = $derived(
+      cases.slice(0,pageSize
+      )
+    );
+  
+  async function loadChats() {
+    try {
+      const result = await invoke<Conversation[]>("list_chats");
+      cases = result.sort(
+        (a, b) => b.updatedAt - a.updatedAt
+      );
+
+    } catch (err) {
+      console.error("Failed to load chats:", err);
+    } 
+  }
+
 
   function toggleSidebar() {
     collapsed = !collapsed;
@@ -88,13 +122,20 @@
 
     if (modifier && key === "o") {
     event.preventDefault();
-    window.location.href = "/app/cases";
+    window.location.href = "/app/reports";
     return;
   }
 
+    if (modifier && key === "y") {
+    event.preventDefault();
+    window.location.href = "/app/evidence-vault";
+    return;
+  }
+
+
     if (modifier && key === "p") {
     event.preventDefault();
-    window.location.href = "/app/chats";
+    window.location.href = "/app/investigations";
     return;
   }
 
@@ -110,6 +151,23 @@
     toggleSidebar();
     return;
   }
+
+   if (modifier && /^[1-9]$/.test(event.key)) {
+      // Convert key string (e.g., "1") to a 0-based array index (e.g., 0)
+      const targetIndex = parseInt(event.key, 10) - 1;
+
+      // Ensure the index falls within both your maxSize limit and available data bounds
+      if (targetIndex < pageSize && targetIndex < paginatedCases.length) {
+        event.preventDefault();
+        
+        const targetUser = paginatedCases[targetIndex];
+        
+        // Navigate instantly without blowing away application state
+        goto(`/app/investigations/${encodeURIComponent(targetUser.id)}`);
+        return;
+      }
+    }
+
 
   if (modifier && key === "k") {
     event.preventDefault();
@@ -173,7 +231,7 @@
       onclick={() => (window.location.href = "/app/newchat")}
       title="New Investigation"
     >
-      <span class="nav-icon">＋</span>
+      <span class="nav-icon">➕</span>
       {#if !collapsed}
         <span>New Chat</span>
         <kbd>{isMac ? "⌘" : "Ctrl"} N</kbd>
@@ -185,7 +243,7 @@
       onclick={() => void openPalette()}
       title="Search navigation (Ctrl+K)"
     >
-      <span class="nav-icon">⌕</span>
+      <span class="nav-icon">🌐</span>
       {#if !collapsed}
         <span>Search</span>
   <kbd>{isMac ? "⌘" : "Ctrl"} K</kbd>      {/if}
@@ -216,29 +274,31 @@
       {/each}
     </nav>
 
-    {#if visibleRecentCases.length>0}
+    {#if paginatedCases.length>0}
 
     <div class="section-label">
       {#if !collapsed}
-        <span>RECENT CASES</span>
+        <span>RECENT CHATS</span>
       {:else}
         <span class="section-dot">·</span>
       {/if}
     </div>
 
     <nav class="nav-list">
-      {#each visibleRecentCases as item,index (item.caseId)}
+      {#each paginatedCases as item,index (item.id)}
         <a
           class="nav-item"
-          href={item.caseId}
-          title={collapsed ? item.label : undefined}
-          aria-label={item.label}
+          href="/app/investigations/{encodeURIComponent(item.id)}"
+          title={collapsed ? item.title : undefined}
+          aria-label={item.title}
+          data-sveltekit-replacestate
         >
           {#if !collapsed}
-            <span class="nav-case-label">{item.label.toLocaleUpperCase()}</span>
-            <span class="nav-case-status" data-status={item.status}>{item.status}</span>
+            <span class="nav-case-label">{item.title.toLocaleUpperCase()}</span>
             <kbd>{isMac ? "⌘" : "Ctrl"} {index+1}</kbd>
-
+          {:else}
+          <span class="nav-case-label">{index+1}</span>
+            
           {/if}
         </a>
       {/each}
@@ -449,7 +509,6 @@
   }
 
   .new-chat {
-    background: #ebe9e2;
     color: #292824;
     font-weight: 550;
   }
@@ -515,38 +574,12 @@
 
 
 
-/* "CASE 045" Label Styling */
 .nav-case-label {
   font-family: monospace; /* Keeps the case numbers perfectly aligned */
   font-size: 11px;
   font-weight: 600;
   color: #333332;
   letter-spacing: 0.5px;
-}
-
-/* Base Status Badge Styling */
-.nav-case-status {
-  font-size: 9px;
-  font-weight: 700;
-  text-transform: uppercase;
-  padding: 2px 8px;
-  border-radius: 4px;
-}
-
-/* Color Coding based on CaseStatus Type */
-.nav-case-status[data-status="Active"] {
-  background-color: #e6f4ea;
-  color: #137333;
-}
-
-.nav-case-status[data-status="Review"] {
-  background-color: #fef7e0;
-  color: #b06000;
-}
-
-.nav-case-status[data-status="Closed"] {
-  background-color: #f1f3f4;
-  color: #5f6368;
 }
 
   .sidebar-spacer {
