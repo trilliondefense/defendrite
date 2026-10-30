@@ -247,7 +247,7 @@ pub async fn handle_agent_request(
     };
 
     let url = format!(
-        "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
+        "https://generativelanguage.googleapis.com/v1beta/models/{model}:streamGenerateContent?alt=sse"
     );
 
     let response = match client
