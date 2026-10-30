@@ -35,7 +35,7 @@
   }
 
   async function openChat(chatId: string) {
-    await goto(`/chats/${chatId}`);
+    await goto(`/investigations/${chatId}`);
   }
 
   function formatDate(timestamp: number) {
