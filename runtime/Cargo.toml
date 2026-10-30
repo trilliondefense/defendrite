@@ -13,3 +13,4 @@ dotenvy = "0.15"
 reqwest = { version = "0.12", features = ["json", "stream"] }
 tauri-plugin-store = "2"
 rusqlite = { version = "0.41.1", features = ["bundled-sqlcipher-vendored-openssl"] }
+uuid = "1.29.0"
