@@ -4,42 +4,59 @@
   import { invoke } from "@tauri-apps/api/core";
   import { page } from "$app/state";
   import { marked } from "marked";
-import DOMPurify from "dompurify";
-function renderMarkdown(content: string) {
-  return DOMPurify.sanitize(marked.parse(content) as string);
-}
+  import DOMPurify from "dompurify";
+  function renderMarkdown(content: string) {
+    return DOMPurify.sanitize(marked.parse(content) as string);
+  }
 
   interface Message {
     role: string;
     content: string;
   }
 
+  // Svelte 5 derived state for the URL parameter
   const conversationId = $derived(page.params.id);
 
   let messages = $state<Message[]>([]);
   let input = $state("");
   let isLoading = $state(false);
   let error = $state<string | null>(null);
-
   let modelName = $state<string | null>(null);
 
   let bottomElement = $state<HTMLDivElement | null>(null);
   let inputElement = $state<HTMLTextAreaElement | null>(null);
 
   // --------------------------------------------------
+  // REACTIVE ROUTE EFFECT (Svelte 5)
+  // --------------------------------------------------
+  $effect(() => {
+    // Explicitly read conversationId here so Svelte tracks it as a dependency.
+    // Every time the URL changes to a new UUID, this effect reruns.
+    const activeId = conversationId; 
+
+    if (activeId) {
+      loadMessages(activeId);
+      
+      // Proactively focus input when changing conversations
+      void tick().then(() => {
+        focusInput();
+      });
+    }
+  });
+
+  // --------------------------------------------------
   // LOAD MESSAGES
   // --------------------------------------------------
-
-  async function loadMessages() {
+  async function loadMessages(targetId = conversationId) {
     try {
       error = null;
 
+      // Pass targetId explicitly to avoid state race conditions during quick clicks
       messages = await invoke<Message[]>("get_chat_messages", {
-        conversationId
+        conversationId: targetId
       });
 
       await scrollToBottom();
-
     } catch (err) {
       console.error("Failed to load conversation:", err);
       error = "Could not load this conversation.";
@@ -47,18 +64,15 @@ function renderMarkdown(content: string) {
   }
 
   // --------------------------------------------------
-  // SCROLLING
+  // SCROLLING & FOCUS
   // --------------------------------------------------
-
   async function scrollToBottom() {
     await tick();
-
     bottomElement?.scrollIntoView({
       behavior: "smooth",
       block: "end"
     });
   }
-
 
   function focusInput() {
     inputElement?.focus();
@@ -73,12 +87,10 @@ function renderMarkdown(content: string) {
       target instanceof HTMLTextAreaElement ||
       (target instanceof HTMLElement && target.isContentEditable);
 
-    // Escape: focus chat input
     if (event.key === "Escape" && !typing) {
       focusInput();
     }
 
-    // Slash: focus chat input
     if (
       event.key === "/" &&
       !modifier &&
@@ -93,19 +105,16 @@ function renderMarkdown(content: string) {
   // --------------------------------------------------
   // SEND MESSAGE
   // --------------------------------------------------
-
   async function handleSendMessage(event: SubmitEvent) {
     event.preventDefault();
 
     const prompt = input.trim();
-
     if (!prompt || isLoading) return;
 
     isLoading = true;
     error = null;
     input = "";
 
-    // Immediately display user message and loading placeholder.
     messages = [
       ...messages,
       { role: "user", content: prompt },
@@ -115,72 +124,49 @@ function renderMarkdown(content: string) {
     await scrollToBottom();
 
     try {
-      // Send prompt to existing conversation.
       await invoke("ask_agent", {
         prompt,
         conversationId
       });
 
-      // Retrieve updated conversation from Rust backend.
       await loadMessages();
-
     } catch (err) {
       console.error("Agent request failed:", err);
-
       error = String(err);
 
-      // Replace loading placeholder with error.
       messages = messages.map((message, index) =>
         index === messages.length - 1 &&
         message.role === "model" &&
         message.content === "Generating response..."
-          ? {
-              role: "model",
-              content: String(err)
-            }
+          ? { role: "model", content: String(err) }
           : message
       );
-
     } finally {
       isLoading = false;
-
       await scrollToBottom();
       focusInput();
     }
   }
 
+  // --------------------------------------------------
+  // LIFECYCLE (Strictly static initialisations)
+  // --------------------------------------------------
   onMount(() => {
-    let disposed = false;
-
-    // Read saved model preference.
+    // Read saved model preference once.
     modelName = localStorage.getItem("modelName");
-
-    // Load conversation.
-    void loadMessages();
 
     // Global keyboard shortcuts.
     window.addEventListener("keydown", handleGlobalKeydown);
 
-    // Focus input after mounting.
-    void tick().then(() => {
-      if (!disposed) {
-        focusInput();
-      }
-    });
-
     // Cleanup.
     return () => {
-      disposed = true;
-
-      window.removeEventListener(
-        "keydown",
-        handleGlobalKeydown
-      );
+      window.removeEventListener("keydown", handleGlobalKeydown);
     };
   });
 </script>
 
-
+{#key page.url.pathname}
+  
 <div class="chat-page">
   {#if messages.length === 0}
     <main class="chat-home">
@@ -277,6 +263,7 @@ function renderMarkdown(content: string) {
 
   {/if}
 </div>
+{/key}
 
 <style>
 

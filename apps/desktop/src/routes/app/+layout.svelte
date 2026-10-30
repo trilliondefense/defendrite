@@ -275,6 +275,7 @@
           href="/app/investigations/{encodeURIComponent(item.id)}"
           title={collapsed ? item.title : undefined}
           aria-label={item.title}
+          data-sveltekit-replacestate
         >
           {#if !collapsed}
             <span class="nav-case-label">{item.title.toLocaleUpperCase()}</span>
@@ -557,7 +558,6 @@
 
 
 
-/* "CASE 045" Label Styling */
 .nav-case-label {
   font-family: monospace; /* Keeps the case numbers perfectly aligned */
   font-size: 11px;
