@@ -1,27 +1,48 @@
+
 use tauri::Manager;
 use tauri_plugin_store::StoreExt;
+
+// --------------------------------------------------
+// ASK AGENT
+// --------------------------------------------------
+
 #[tauri::command]
-async fn ask_agent(prompt: String, app_handle: tauri::AppHandle) -> Result<(), String> {
-    // 1. Pre-flight check: In Tauri v2, .store() automatically loads the file safely if it's not already in memory
+async fn ask_agent(
+    prompt: String,
+    conversation_id: String,
+    app_handle: tauri::AppHandle,
+) -> Result<(), String> {
+
+    // Verify that the API key exists.
+
     let store = app_handle
         .store("settings.json")
-        .map_err(|e| format!("Error: Configuration store failed to access or initialize: {e}"))?;
+        .map_err(|e| {
+            format!("Configuration store failed: {e}")
+        })?;
 
-    // 2. Inspect the verified store object for the credential token, unpacking the { value: ... } object wrapper
     let key_is_missing = match store.get("HARNESS_MODEL_API_KEY") {
         Some(value) => match value.get("value").and_then(|v| v.as_str()) {
             Some(s) => s.trim().is_empty(),
-            None => true, // Value field is missing or not a string
+            None => true,
         },
-        None => true, // HARNESS_MODEL_API_KEY key is missing entirely
+        None => true,
     };
 
     if key_is_missing {
-        return Err("SETUP_REQUIRED: Google AI Studio API key is missing. Please add your key in the Workspace settings.".into());
+        return Err(
+            "SETUP_REQUIRED: Google AI Studio API key is missing. Please add your key in Workspace settings.".into()
+        );
     }
 
-    // 3. Dispatch to runtime worker pool
-    let result = runtime::handle_agent_request(&prompt, &app_handle).await;
+    // Send the prompt to the selected conversation.
+
+    let result = runtime::handle_agent_request(
+        &prompt,
+        &conversation_id,
+        &app_handle,
+    )
+    .await;
 
     if result.starts_with("Error:") {
         return Err(result);
@@ -30,23 +51,106 @@ async fn ask_agent(prompt: String, app_handle: tauri::AppHandle) -> Result<(), S
     Ok(())
 }
 
+// --------------------------------------------------
+// CREATE NEW CHAT
+// --------------------------------------------------
+
+#[tauri::command]
+fn create_chat(
+    app_handle: tauri::AppHandle,
+) -> Result<runtime::Conversation, String> {
+
+    runtime::create_new_conversation(&app_handle)
+}
+
+// --------------------------------------------------
+// LIST ALL CHATS
+// --------------------------------------------------
+
+#[tauri::command]
+fn list_chats(
+    app_handle: tauri::AppHandle,
+) -> Result<Vec<runtime::Conversation>, String> {
+
+    runtime::get_conversations(&app_handle)
+}
+
+// --------------------------------------------------
+// GET MESSAGES FOR A CHAT
+// --------------------------------------------------
+
+#[tauri::command]
+fn get_chat_messages(
+    conversation_id: String,
+    app_handle: tauri::AppHandle,
+) -> Result<Vec<runtime::Message>, String> {
+
+    runtime::get_chat_messages(
+        &app_handle,
+        &conversation_id,
+    )
+}
+
+// --------------------------------------------------
+// DELETE CHAT
+// --------------------------------------------------
+
+#[tauri::command]
+fn delete_chat(
+    conversation_id: String,
+    app_handle: tauri::AppHandle,
+) -> Result<(), String> {
+
+    runtime::delete_chat(
+        &app_handle,
+        &conversation_id,
+    )
+}
+
+// --------------------------------------------------
+// APPLICATION ENTRY POINT
+// --------------------------------------------------
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
-        // 1. Initialize the single-instance plugin
-        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
-            // Find your main window by its label (default is "main")
-            if let Some(window) = app.get_webview_window("main") {
-                // Unminimize the window if it was minimized
-                let _ = window.unminimize();
-                // Bring it to the front and focus it
-                let _ = window.show();
-                let _ = window.set_focus();
-            }
-        }))
-        .plugin(tauri_plugin_store::Builder::new().build())
-        .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![ask_agent])
+
+        // Single instance plugin.
+        .plugin(
+            tauri_plugin_single_instance::init(
+                |app, _args, _cwd| {
+                    if let Some(window) =
+                        app.get_webview_window("main")
+                    {
+                        let _ = window.unminimize();
+                        let _ = window.show();
+                        let _ = window.set_focus();
+                    }
+                },
+            ),
+        )
+
+        // Settings storage.
+        .plugin(
+            tauri_plugin_store::Builder::new().build()
+        )
+
+        // External URL opener.
+        .plugin(
+            tauri_plugin_opener::init()
+        )
+
+        // Register frontend commands.
+        .invoke_handler(
+            tauri::generate_handler![
+                ask_agent,
+                create_chat,
+                list_chats,
+                get_chat_messages,
+                delete_chat
+            ]
+        )
+
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
