@@ -139,11 +139,11 @@
     padding: 14px;
     margin-bottom: 12px;
     border-radius: 10px;
-    background: var(--message-bg, #222);
+    background: var(--message-bg, #fff);
   }
 
   .message.agent {
-    background: var(--agent-message-bg, #303030);
+    background: var(--agent-message-bg, #fff);
   }
 
   .message p {
