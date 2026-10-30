@@ -1,7 +1,17 @@
 
 <script lang="ts">
+  import { goto } from "$app/navigation";
+  import { invoke } from "@tauri-apps/api/core";
   import { onMount, tick } from "svelte";
   import type { Snippet } from "svelte";
+
+  interface Conversation {
+    id: string;
+    title: string;
+    chatNumber: number;
+    createdAt: number;
+    updatedAt: number;
+  }
 
   let { children }: { children: Snippet } = $props();
 
@@ -10,6 +20,8 @@
   let query = $state("");
   let selectedIndex = $state(0);
   let searchInput: HTMLInputElement | undefined= $state(undefined);
+  let cases = $state<Conversation[]>([]);
+
 
   const navItems = [
     { label: "Investigations", href: "/app/investigations", icon: "🔍", keywords: "history conversations" ,shortcut:"p"},
@@ -41,7 +53,30 @@
   onMount(() => {
       isMac = /Mac|iPhone|iPad|iPod/i.test(navigator.platform);
     collapsed = localStorage.getItem("sidebar-collapsed") === "true";
+      loadChats();
   });
+  
+  const pageSize = 4;
+
+  let paginatedCases = $derived(
+    cases.slice(0,pageSize
+    )
+  );
+
+
+
+  async function loadChats() {
+    try {
+      const result = await invoke<Conversation[]>("list_chats");
+      cases = result.sort(
+        (a, b) => b.updatedAt - a.updatedAt
+      );
+
+    } catch (err) {
+      console.error("Failed to load chats:", err);
+    } 
+  }
+
 
   function toggleSidebar() {
     collapsed = !collapsed;
@@ -223,7 +258,7 @@
       {/each}
     </nav>
 
-    {#if visibleRecentCases.length>0}
+    {#if paginatedCases.length>0}
 
     <div class="section-label">
       {#if !collapsed}
@@ -234,18 +269,19 @@
     </div>
 
     <nav class="nav-list">
-      {#each visibleRecentCases as item,index (item.caseId)}
+      {#each paginatedCases as item,index (item.id)}
         <a
           class="nav-item"
-          href={item.caseId}
-          title={collapsed ? item.label : undefined}
-          aria-label={item.label}
+          href="/app/investigations/{encodeURIComponent(item.id)}"
+          title={collapsed ? item.title : undefined}
+          aria-label={item.title}
         >
           {#if !collapsed}
-            <span class="nav-case-label">{item.label.toLocaleUpperCase()}</span>
-            <span class="nav-case-status" data-status={item.status}>{item.status}</span>
+            <span class="nav-case-label">{item.title.toLocaleUpperCase()}</span>
             <kbd>{isMac ? "⌘" : "Ctrl"} {index+1}</kbd>
-
+          {:else}
+          <span class="nav-case-label">{index+1}</span>
+            
           {/if}
         </a>
       {/each}
@@ -528,31 +564,6 @@
   font-weight: 600;
   color: #333332;
   letter-spacing: 0.5px;
-}
-
-/* Base Status Badge Styling */
-.nav-case-status {
-  font-size: 9px;
-  font-weight: 700;
-  text-transform: uppercase;
-  padding: 2px 8px;
-  border-radius: 4px;
-}
-
-/* Color Coding based on CaseStatus Type */
-.nav-case-status[data-status="Active"] {
-  background-color: #e6f4ea;
-  color: #137333;
-}
-
-.nav-case-status[data-status="Review"] {
-  background-color: #fef7e0;
-  color: #b06000;
-}
-
-.nav-case-status[data-status="Closed"] {
-  background-color: #f1f3f4;
-  color: #5f6368;
 }
 
   .sidebar-spacer {
