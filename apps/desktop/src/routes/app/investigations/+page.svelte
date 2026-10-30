@@ -1,5 +1,49 @@
 <script lang="ts">
   type CaseStatus = 'Active' | 'Review' | 'Closed';
+   import { onMount } from "svelte";
+  import { invoke } from "@tauri-apps/api/core";
+  import { goto } from "$app/navigation";
+
+  interface Conversation {
+    id: string;
+    title: string;
+    chatNumber: number;
+    createdAt: number;
+    updatedAt: number;
+  }
+
+  let chats = $state<Conversation[]>([]);
+  let isLoading = $state(true);
+  let error = $state<string | null>(null);
+
+  onMount(() => {
+    loadChats();
+  });
+
+  async function loadChats() {
+    isLoading = true;
+    error = null;
+
+    try {
+      chats = await invoke<Conversation[]>("list_chats");
+    } catch (err) {
+      console.error("Failed to load chats:", err);
+      error = "Could not load conversation history.";
+    } finally {
+      isLoading = false;
+    }
+  }
+
+  async function openChat(chatId: string) {
+    await goto(`/chats/${chatId}`);
+  }
+
+  function formatDate(timestamp: number) {
+    return new Intl.DateTimeFormat("en", {
+      dateStyle: "medium",
+      timeStyle: "short"
+    }).format(timestamp * 1000);
+  }
 
   type ForensicCase = {
     id: string;
@@ -160,7 +204,7 @@
     </div>
   </section>
 
-  <section class="investigation-section">
+  <!-- <section class="investigation-section">
     <div class="section-header">
       <div>
         <h2>All investigations</h2>
@@ -195,65 +239,6 @@
         <button class="more-button" aria-label="Case options">···</button>
       </div>
 
-      <div class="investigation-row">
-        <div class="case-name">
-          <div class="case-icon">02</div>
-          <div>
-            <strong>Unauthorized Data Access</strong>
-            <small>System logs and access timeline</small>
-          </div>
-        </div>
-        <span class="case-id">CASE-023</span>
-        <span class="priority high">High</span>
-        <span class="status review">Under review</span>
-        <span class="date">Oct 23, 2026</span>
-        <button class="more-button" aria-label="Case options">···</button>
-      </div>
-
-      <div class="investigation-row">
-        <div class="case-name">
-          <div class="case-icon">03</div>
-          <div>
-            <strong>Deleted File Recovery</strong>
-            <small>Disk image and file system analysis</small>
-          </div>
-        </div>
-        <span class="case-id">CASE-021</span>
-        <span class="priority medium">Medium</span>
-        <span class="status active">In progress</span>
-        <span class="date">Oct 22, 2026</span>
-        <button class="more-button" aria-label="Case options">···</button>
-      </div>
-
-      <div class="investigation-row">
-        <div class="case-name">
-          <div class="case-icon">04</div>
-          <div>
-            <strong>Browser Activity Analysis</strong>
-            <small>Browser artifacts and browsing history</small>
-          </div>
-        </div>
-        <span class="case-id">CASE-019</span>
-        <span class="priority low">Low</span>
-        <span class="status active">In progress</span>
-        <span class="date">Oct 20, 2026</span>
-        <button class="more-button" aria-label="Case options">···</button>
-      </div>
-
-      <div class="investigation-row">
-        <div class="case-name">
-          <div class="case-icon">05</div>
-          <div>
-            <strong>Endpoint Forensic Review</strong>
-            <small>Evidence validation and final reporting</small>
-          </div>
-        </div>
-        <span class="case-id">CASE-017</span>
-        <span class="priority medium">Medium</span>
-        <span class="status completed">Completed</span>
-        <span class="date">Oct 18, 2026</span>
-        <button class="more-button" aria-label="Case options">···</button>
-      </div>
     </div>
 
     <footer class="list-footer">
@@ -266,8 +251,60 @@
         <button>Next</button>
       </div>
     </footer>
-  </section>
+  </section> -->
 
+  <div class="chat-list">
+
+  <div class="chat-row table-header">
+    <span>Chats</span>
+    <span>Chat ID</span>
+    <span>Updated</span>
+    <span></span>
+  </div>
+
+  {#if isLoading}
+    <div class="empty-state">
+      Loading conversations...
+    </div>
+
+  {:else if error}
+    <div class="empty-state">
+      <p>{error}</p>
+      <button onclick={loadChats}>Retry</button>
+    </div>
+
+  {:else if chats.length === 0}
+    <div class="empty-state">
+      No conversations yet.
+    </div>
+
+  {:else}
+    {#each chats as chat (chat.id)}
+      <button
+        type="button"
+        class="chat-row"
+        onclick={() => openChat(chat.id)}
+      >
+        <span class="chat-title">
+          {chat.title}
+        </span>
+
+        <span class="chat-id">
+          {chat.id}
+        </span>
+
+        <span class="chat-date">
+          {formatDate(chat.updatedAt)}
+        </span>
+
+        <span class="chat-action">
+          Open →
+        </span>
+      </button>
+    {/each}
+  {/if}
+
+</div>
   <section class="workspace-note">
     <div class="note-icon">i</div>
     <div>
@@ -295,6 +332,80 @@
     background: #faf9f6;
     color: #292824;
     font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  }
+
+    .chat-list {
+    width: 100%;
+  }
+
+  .chat-row {
+    display: grid;
+    grid-template-columns: 1fr 1.5fr 1fr auto;
+    align-items: center;
+    gap: 16px;
+    width: 100%;
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--border-color, #333);
+    text-align: left;
+  }
+
+  .table-header {
+    font-size: 12px;
+    font-weight: 600;
+    opacity: 0.65;
+  }
+
+  button.chat-row {
+    background: transparent;
+    color: inherit;
+    border-top: none;
+    border-left: none;
+    border-right: none;
+    cursor: pointer;
+  }
+
+  button.chat-row:hover {
+    background: var(--chat-hover, rgba(128, 128, 128, 0.08));
+  }
+
+  .chat-title {
+    font-weight: 600;
+  }
+
+  .chat-id {
+    font-size: 12px;
+    opacity: 0.55;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .chat-date {
+    font-size: 13px;
+    opacity: 0.7;
+  }
+
+  .chat-action {
+    font-size: 13px;
+    opacity: 0.7;
+  }
+
+  .empty-state {
+    padding: 32px 16px;
+    text-align: center;
+    opacity: 0.65;
+  }
+
+  @media (max-width: 650px) {
+    .chat-row {
+      grid-template-columns: 1fr auto;
+    }
+
+    .table-header span:nth-child(2),
+    .table-header span:nth-child(3),
+    .chat-id,
+    .chat-date {
+      display: none;
+    }
   }
 
   .investigations-page {
