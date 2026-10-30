@@ -279,7 +279,7 @@
 
     <div class="section-label">
       {#if !collapsed}
-        <span>RECENT CASES</span>
+        <span>RECENT CHATS</span>
       {:else}
         <span class="section-dot">·</span>
       {/if}
