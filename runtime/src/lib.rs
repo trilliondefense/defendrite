@@ -11,8 +11,7 @@ use serde_json::{json, Value};
 use tauri::{AppHandle, Emitter, Manager};
 use tauri_plugin_store::StoreExt;
 
-use storage::models::Conversation;
-
+pub use storage::models::{Conversation, Message};
 // --------------------------------------------------
 // DATABASE INITIALIZATION
 // --------------------------------------------------
@@ -61,6 +60,27 @@ pub fn create_new_conversation(
 
     storage::create_conversation(&mut db)
         .map_err(|e| format!("Could not create conversation: {e}"))
+}
+// Retrieve messages for a selected conversation.
+pub fn get_chat_messages(
+    app_handle: &AppHandle,
+    conversation_id: &str,
+) -> Result<Vec<Message>, String> {
+    let db = open_conversation_db(app_handle)?;
+
+    storage::load_history(&db, conversation_id)
+        .map_err(|e| format!("Could not retrieve chat messages: {e}"))
+}
+
+// Delete a selected conversation.
+pub fn delete_chat(
+    app_handle: &AppHandle,
+    conversation_id: &str,
+) -> Result<(), String> {
+    let db = open_conversation_db(app_handle)?;
+
+    storage::delete_conversation(&db, conversation_id)
+        .map_err(|e| format!("Could not delete conversation: {e}"))
 }
 
 // --------------------------------------------------
