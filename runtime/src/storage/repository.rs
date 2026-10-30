@@ -282,42 +282,42 @@ pub fn load_history(
 }
 
 // Save one message to a particular conversation.
-pub fn save_message(
-    conn: &mut Connection,
-    conversation_id: &str,
-    role: &str,
-    content: &str,
-) -> rusqlite::Result<()> {
-    let tx = conn.transaction()?;
+// pub fn save_message(
+//     conn: &mut Connection,
+//     conversation_id: &str,
+//     role: &str,
+//     content: &str,
+// ) -> rusqlite::Result<()> {
+//     let tx = conn.transaction()?;
 
-    let now = current_timestamp();
+//     let now = current_timestamp();
 
-    tx.execute(
-        "
-        INSERT INTO messages
-            (conversation_id, role, content, created_at)
-        VALUES (?1, ?2, ?3, ?4)
-        ",
-        params![conversation_id, role, content, now],
-    )?;
+//     tx.execute(
+//         "
+//         INSERT INTO messages
+//             (conversation_id, role, content, created_at)
+//         VALUES (?1, ?2, ?3, ?4)
+//         ",
+//         params![conversation_id, role, content, now],
+//     )?;
 
-    let updated = tx.execute(
-        "
-        UPDATE conversations
-        SET updated_at = ?1
-        WHERE id = ?2
-        ",
-        params![now, conversation_id],
-    )?;
+//     let updated = tx.execute(
+//         "
+//         UPDATE conversations
+//         SET updated_at = ?1
+//         WHERE id = ?2
+//         ",
+//         params![now, conversation_id],
+//     )?;
 
-    if updated == 0 {
-        return Err(rusqlite::Error::QueryReturnedNoRows);
-    }
+//     if updated == 0 {
+//         return Err(rusqlite::Error::QueryReturnedNoRows);
+//     }
 
-    tx.commit()?;
+//     tx.commit()?;
 
-    Ok(())
-}
+//     Ok(())
+// }
 
 // Save the complete user/model exchange atomically.
 pub fn save_exchange(

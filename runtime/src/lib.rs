@@ -1,7 +1,6 @@
 
 use std::{
     fs,
-    path::PathBuf,
     time::Duration,
 };
 
