@@ -1,6 +1,6 @@
+
 <script lang="ts">
-  type CaseStatus = 'Active' | 'Review' | 'Closed';
-   import { onMount } from "svelte";
+  import { onMount } from "svelte";
   import { invoke } from "@tauri-apps/api/core";
   import { goto } from "$app/navigation";
 
@@ -12,10 +12,17 @@
     updatedAt: number;
   }
 
-  let chats = $state<Conversation[]>([]);
+  // State
+  let cases = $state<Conversation[]>([]);
   let isLoading = $state(true);
   let error = $state<string | null>(null);
+  let search = $state("");
 
+  // Pagination
+  const pageSize = 8;
+  let currentPage = $state(1);
+
+  // Load conversations on mount
   onMount(() => {
     loadChats();
   });
@@ -25,7 +32,13 @@
     error = null;
 
     try {
-      chats = await invoke<Conversation[]>("list_chats");
+      const result = await invoke<Conversation[]>("list_chats");
+
+      cases = result.sort(
+        (a, b) => b.updatedAt - a.updatedAt
+      );
+
+      currentPage = 1;
     } catch (err) {
       console.error("Failed to load chats:", err);
       error = "Could not load conversation history.";
@@ -34,305 +47,305 @@
     }
   }
 
+  // Open existing conversation
   async function openChat(chatId: string) {
-  
-     try {
-              await goto(`/app/investigations/${encodeURIComponent(chatId)}`);
-  } catch (error) {
-        consoleLog(`Navigation failed:${error}`)
+    await goto(
+      `/app/investigations/${encodeURIComponent(chatId)}`
+    );
   }
 
+  // Navigate to new investigation
+  function createInvestigation() {
+    goto("/app/investigations/new");
   }
 
-  async function consoleLog(message: string){
-      await invoke("log_to_terminal", {
-      message
-    });
-  } 
-
+  // Format timestamps
   function formatDate(timestamp: number) {
+    if (!timestamp || !Number.isFinite(timestamp)) {
+      return "Unknown";
+    }
+
     return new Intl.DateTimeFormat("en", {
       dateStyle: "medium",
       timeStyle: "short"
     }).format(timestamp * 1000);
   }
 
-  type ForensicCase = {
-    id: string;
-    title: string;
-    reference: string;
-    type: string;
-    investigator: string;
-    status: CaseStatus;
-    evidence: number;
-    createdAt: string;
-  };
+  // Search filtering
+  let filteredCases = $derived.by(() => {
+    const query = search.trim().toLowerCase();
 
-  let cases = $state<ForensicCase[]>([
-    {
-      id: '1',
-      title: 'Corporate Data Exfiltration',
-      reference: 'DF-2026-001',
-      type: 'Incident Response',
-      investigator: 'A. Mitchell',
-      status: 'Active',
-      evidence: 24,
-      createdAt: '2026-10-18'
-    },
-    {
-      id: '2',
-      title: 'Mobile Device Examination',
-      reference: 'DF-2026-002',
-      type: 'Mobile Forensics',
-      investigator: 'J. Parker',
-      status: 'Review',
-      evidence: 12,
-      createdAt: '2026-10-16'
-    },
-    {
-      id: '3',
-      title: 'Unauthorized System Access',
-      reference: 'DF-2026-003',
-      type: 'Computer Forensics',
-      investigator: 'S. Morgan',
-      status: 'Active',
-      evidence: 8,
-      createdAt: '2026-10-14'
+    if (!query) {
+      return cases;
     }
-  ]);
 
-  let search = $state('');
-  let statusFilter = $state('All');
-  let showCreateForm = $state(false);
+    return cases.filter((item) => {
+      return (
+        (item.title ?? "").toLowerCase().includes(query) ||
+        (item.id ?? "").toLowerCase().includes(query) ||
+        String(item.chatNumber ?? "").includes(query)
+      );
+    });
+  });
 
-  let title = $state('');
-  let type = $state('Computer Forensics');
-  let investigator = $state('');
-
-  let filteredCases = $derived(
-    cases.filter((item) => {
-      const query = search.toLowerCase();
-
-      const matchesSearch =
-        `${item.title} ${item.reference} ${item.investigator} ${item.type}`
-          .toLowerCase()
-          .includes(query);
-
-      const matchesStatus =
-        statusFilter === 'All' || item.status === statusFilter;
-
-      return matchesSearch && matchesStatus;
-    })
+  // Pagination calculations
+  let totalPages = $derived(
+    Math.max(1, Math.ceil(filteredCases.length / pageSize))
   );
 
-  let activeCases = $derived(
-    cases.filter((item) => item.status === 'Active').length
+  let paginatedCases = $derived(
+    filteredCases.slice(
+      (currentPage - 1) * pageSize,
+      currentPage * pageSize
+    )
   );
 
-  let reviewCases = $derived(
-    cases.filter((item) => item.status === 'Review').length
+  let startItem = $derived(
+    filteredCases.length === 0
+      ? 0
+      : (currentPage - 1) * pageSize + 1
   );
 
-  let evidenceCount = $derived(
-    cases.reduce((total, item) => total + item.evidence, 0)
+  let endItem = $derived(
+    Math.min(currentPage * pageSize, filteredCases.length)
   );
 
-  function createCase() {
-    if (!title.trim() || !investigator.trim()) return;
+  // Reset pagination when search changes
+  function handleSearch(value: string) {
+    search = value;
+    currentPage = 1;
+  }
 
-    const number =
-      Math.max(
-        0,
-        ...cases.map((item) => {
-          const match = item.reference.match(/DF-\d+-(\d+)/);
-          return match ? Number(match[1]) : 0;
-        })
-      ) + 1;
+  function previousPage() {
+    if (currentPage > 1) {
+      currentPage--;
+    }
+  }
 
-    cases = [
-      {
-        id: crypto.randomUUID(),
-        title: title.trim(),
-        reference: `DF-2026-${String(number).padStart(3, '0')}`,
-        type,
-        investigator: investigator.trim(),
-        status: 'Active',
-        evidence: 0,
-        createdAt: new Date().toISOString().slice(0, 10)
-      },
-      ...cases
-    ];
+  function nextPage() {
+    if (currentPage < totalPages) {
+      currentPage++;
+    }
+  }
 
-    title = '';
-    investigator = '';
-    showCreateForm = false;
+  // Generate a display number for each case
+  function getCaseNumber(index: number) {
+    return (currentPage - 1) * pageSize + index + 1;
   }
 </script>
 
-<svelte:head>
-  <title>Investigations | Forensic Workspace</title>
-</svelte:head>
-
 <div class="investigations-page">
+
+  <!-- Page Header -->
   <header class="page-header">
-    <div class="eyebrow">FORENSIC WORKSPACE</div>
     <h1>Investigations</h1>
+
     <p>
       Manage forensic cases, track examination progress, and organize
       digital evidence in one workspace.
     </p>
   </header>
 
+  <!-- Toolbar -->
   <div class="toolbar">
+
     <label class="search-box">
-      <span>⌕</span>
+      <span aria-hidden="true">⌕</span>
+
       <input
         type="search"
         placeholder="Search investigations..."
         aria-label="Search investigations"
+        value={search}
+        oninput={(event) =>
+          handleSearch(event.currentTarget.value)}
       />
     </label>
 
-    <button class="primary-button">+ New investigation</button>
-  </div>
-
-  <section class="overview">
     <div class="stat-card">
       <span>Total investigations</span>
-      <strong>32</strong>
+
+      <strong>{cases.length}</strong>
+
       <small>Across your workspace</small>
     </div>
 
-    <div class="stat-card">
-      <span>Active</span>
-      <strong>12</strong>
-      <small>Currently under examination</small>
-    </div>
 
-    <div class="stat-card">
-      <span>Completed</span>
-      <strong>20</strong>
-      <small>Investigations closed</small>
-    </div>
-  </section>
+    <button
+      class="primary-button"
+      onclick={createInvestigation}
+    >
+      <span aria-hidden="true">+</span>
+      New investigation
+    </button>
 
-  <!-- <section class="investigation-section">
+  </div>
+
+
+  <!-- Investigation Section -->
+  <section class="investigation-section">
+
     <div class="section-header">
       <div>
         <h2>All investigations</h2>
-        <p>Review cases and their current progress</p>
-      </div>
 
-      <button class="filter-button">All cases⌄</button>
+        <p>
+          Review and continue your previous investigations.
+        </p>
+      </div>
     </div>
 
-    <div class="investigation-list">
-      <div class="investigation-row table-header">
-        <span>Investigation</span>
-        <span>Case ID</span>
-        <span>Priority</span>
-        <span>Status</span>
-        <span>Updated</span>
-        <span></span>
+    <!-- Loading State -->
+    {#if isLoading}
+
+      <div class="empty-state" role="status">
+        Loading investigations...
       </div>
 
-      <div class="investigation-row">
-        <div class="case-name">
-          <div class="case-icon">01</div>
-          <div>
-            <strong>Mobile Device Examination</strong>
-            <small>Device acquisition and artifact analysis</small>
-          </div>
+    <!-- Error State -->
+    {:else if error}
+
+      <div class="empty-state" role="alert">
+        <p>{error}</p>
+
+        <button onclick={loadChats}>
+          Try again
+        </button>
+      </div>
+
+    <!-- No Conversations -->
+    {:else if cases.length === 0}
+
+      <div class="empty-state">
+        <p>No investigations found.</p>
+
+        <p>
+          Create a new investigation to get started.
+        </p>
+
+        <button onclick={createInvestigation}>
+          + New investigation
+        </button>
+      </div>
+
+    <!-- No Search Results -->
+    {:else if filteredCases.length === 0}
+
+      <div class="empty-state">
+        <p>No matching investigations.</p>
+
+        <p>
+          Try searching with another investigation title or ID.
+        </p>
+
+        <button onclick={() => handleSearch("")}>
+          Clear search
+        </button>
+      </div>
+
+    <!-- Investigation List -->
+    {:else}
+
+      <div class="investigation-list">
+
+        <!-- Table Header -->
+        <div class="investigation-row table-header">
+          <span>Investigation</span>
+          <span>Case ID</span>
+          <span>Last Updated</span>
+          <span>Action</span>
         </div>
-        <span class="case-id">CASE-024</span>
-        <span class="priority high">High</span>
-        <span class="status active">In progress</span>
-        <span class="date">Oct 24, 2026</span>
-        <button class="more-button" aria-label="Case options">···</button>
+
+        <!-- Dynamic Investigation Rows -->
+        {#each paginatedCases as chat, index (chat.id)}
+
+          <div class="investigation-row">
+
+            <!-- Investigation Details -->
+            <div class="case-name">
+
+              <div class="case-icon">
+                #{getCaseNumber(index)}
+              </div>
+
+              <div>
+                <strong>
+                  {chat.title || "Untitled investigation"}
+                </strong>
+
+              </div>
+
+            </div>
+
+            <!-- Case ID -->
+            <span class="case-id" title={chat.id}>
+              {chat.id}
+            </span>
+
+            <!-- Updated Date -->
+            <span class="date">
+              {formatDate(chat.updatedAt)}
+            </span>
+
+            <!-- Continue Action -->
+            <button
+              class="chat-action"
+              onclick={() => openChat(chat.id)}
+              aria-label={`Continue ${chat.title || "investigation"}`}
+            >
+              Continue
+            </button>
+
+          </div>
+
+        {/each}
+
       </div>
 
-    </div>
+      <!-- Pagination Footer -->
+      <footer class="list-footer">
 
-    <footer class="list-footer">
-      <span>Showing 5 of 32 investigations</span>
-      <div class="pagination">
-        <button disabled>Previous</button>
-        <button class="current-page">1</button>
-        <button>2</button>
-        <button>3</button>
-        <button>Next</button>
-      </div>
-    </footer>
-  </section> -->
-
-  <div class="chat-list">
-
-  <div class="chat-row table-header">
-    <span>Chats</span>
-    <span>Chat ID</span>
-    <span>Updated</span>
-    <span></span>
-  </div>
-
-  {#if isLoading}
-    <div class="empty-state">
-      Loading conversations...
-    </div>
-
-  {:else if error}
-    <div class="empty-state">
-      <p>{error}</p>
-      <button onclick={loadChats}>Retry</button>
-    </div>
-
-  {:else if chats.length === 0}
-    <div class="empty-state">
-      No conversations yet.
-    </div>
-
-  {:else}
-    {#each chats as chat (chat.id)}
-      <button
-        type="button"
-        class="chat-row"
-        onclick={() => openChat(chat.id)}
-      >
-        <span class="chat-title">
-          {chat.title}
+        <span>
+          Showing {startItem}–{endItem}
+          of {filteredCases.length} investigations
         </span>
 
-        <span class="chat-id">
-          {chat.id}
-        </span>
+        <div class="pagination">
 
-        <span class="chat-date">
-          {formatDate(chat.updatedAt)}
-        </span>
+          <button
+            onclick={previousPage}
+            disabled={currentPage === 1}
+            aria-label="Previous page"
+          >
+            Previous
+          </button>
 
-        <span class="chat-action">
-          Open →
-        </span>
-      </button>
-    {/each}
-  {/if}
+          <button
+            class="current-page"
+            aria-current="page"
+            disabled
+          >
+            {currentPage}
+          </button>
 
-</div>
-  <section class="workspace-note">
-    <div class="note-icon">i</div>
-    <div>
-      <strong>Investigation workspace</strong>
-      <p>
-        Keep case records, evidence references, examination notes, and
-        generated reports linked to the same investigation.
-      </p>
-    </div>
+          <button
+            onclick={nextPage}
+            disabled={currentPage >= totalPages}
+            aria-label="Next page"
+          >
+            Next
+          </button>
+
+        </div>
+
+      </footer>
+
+    {/if}
+
   </section>
 
-  <footer class="page-footer">
-    <span>Forensic Workspace</span>
-    <span>Investigation management · Local workspace</span>
-  </footer>
 </div>
+
 
 <style>
   :global(*) {
@@ -344,135 +357,109 @@
     background: #faf9f6;
     color: #292824;
     font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    -webkit-font-smoothing: antialiased;
   }
 
-    .chat-list {
-    width: 100%;
+  :global(button),
+  :global(input) {
+    font: inherit;
   }
 
-  .chat-row {
-    display: grid;
-    grid-template-columns: 1fr 1.5fr 1fr auto;
-    align-items: center;
-    gap: 16px;
-    width: 100%;
-    padding: 14px 16px;
-    border-bottom: 1px solid var(--border-color, #333);
-    text-align: left;
-  }
-
-  .table-header {
-    font-size: 12px;
-    font-weight: 600;
-    opacity: 0.65;
-  }
-
-  button.chat-row {
-    background: transparent;
-    color: inherit;
-    border-top: none;
-    border-left: none;
-    border-right: none;
+  :global(button) {
     cursor: pointer;
-  }
-
-  button.chat-row:hover {
-    background: var(--chat-hover, rgba(128, 128, 128, 0.08));
-  }
-
-  .chat-title {
-    font-weight: 600;
-  }
-
-  .chat-id {
-    font-size: 12px;
-    opacity: 0.55;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  .chat-date {
-    font-size: 13px;
-    opacity: 0.7;
-  }
-
-  .chat-action {
-    font-size: 13px;
-    opacity: 0.7;
-  }
-
-  .empty-state {
-    padding: 32px 16px;
-    text-align: center;
-    opacity: 0.65;
-  }
-
-  @media (max-width: 650px) {
-    .chat-row {
-      grid-template-columns: 1fr auto;
-    }
-
-    .table-header span:nth-child(2),
-    .table-header span:nth-child(3),
-    .chat-id,
-    .chat-date {
-      display: none;
-    }
   }
 
   .investigations-page {
     width: 100%;
+    max-width: 1440px;
     margin: 0 auto;
-    padding: 32px;
+    padding: 36px 40px 48px;
   }
+
+  /* Page header */
 
   .page-header {
-    margin-bottom: 28px;
+    margin-bottom: 30px;
   }
 
-  .eyebrow {
-    margin-bottom: 10px;
-    color: #b4775c;
-    font-size: 10px;
-    font-weight: 700;
-    letter-spacing: 1.5px;
-  }
-
-  h1 {
+  .page-header h1 {
     margin: 0;
+    color: #292824;
     font-family: Georgia, "Times New Roman", serif;
-    font-size: 34px;
+    font-size: clamp(28px, 3vw, 36px);
     font-weight: 400;
-    letter-spacing: -0.7px;
+    letter-spacing: -0.8px;
+    line-height: 1.2;
   }
 
   .page-header p {
     max-width: 560px;
     margin: 10px 0 0;
-    color: #77746c;
+    color: #858177;
     font-size: 13px;
-    line-height: 1.8;
+    line-height: 1.75;
   }
+
+  /* Toolbar */
 
   .toolbar {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 14px;
-    margin-bottom: 24px;
+    gap: 16px;
+    margin-bottom: 26px;
   }
 
   .search-box {
     display: flex;
     align-items: center;
-    gap: 10px;
-    width: 340px;
+    gap: 11px;
+    width: 360px;
     max-width: 100%;
-    padding: 10px 12px;
-    border: 1px solid #e5e2db;
+    min-height: 42px;
+    padding: 0 13px;
+    border: 1px solid #e7e4dc;
     border-radius: 7px;
     background: #fffefa;
     color: #89867d;
+    transition: border-color 160ms ease, box-shadow 160ms ease;
+  }
+  .toolbar .stat-card {
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px;
+  min-height: 42px;
+  border-radius: 7px;
+}
+
+.toolbar .stat-card strong {
+  font-size: 17px;
+}
+
+.toolbar .stat-card small {
+  display: none;
+}
+
+.toolbar .stat-card > span {
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.toolbar .search-box {
+  flex: 1;
+  width: auto;
+}
+
+  .search-box:focus-within {
+    border-color: #aaa397;
+    box-shadow: 0 0 0 3px rgba(141, 114, 92, 0.09);
+  }
+
+  .search-box span {
+    flex-shrink: 0;
+    font-size: 19px;
+    line-height: 1;
   }
 
   .search-box input {
@@ -485,46 +472,85 @@
     font-size: 12px;
   }
 
-  button {
-    font: inherit;
+  .search-box input::placeholder {
+    color: #a19d94;
+  }
+
+  .search-box input::-webkit-search-cancel-button {
     cursor: pointer;
   }
 
   .primary-button {
-    padding: 10px 14px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 40px;
+    padding: 0 15px;
     border: 1px solid #34332e;
     border-radius: 7px;
     background: #34332e;
     color: #fffefa;
     font-size: 12px;
+    font-weight: 500;
     white-space: nowrap;
+    transition: background 160ms ease, transform 160ms ease;
   }
+
+  .primary-button:hover {
+    background: #504e46;
+  }
+
+  .primary-button:active {
+    transform: translateY(1px);
+  }
+
+  .primary-button:focus-visible,
+  .chat-action:focus-visible,
+  .pagination button:focus-visible {
+    outline: 2px solid #9b8068;
+    outline-offset: 3px;
+  }
+
+  /* Overview */
 
   .overview {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 14px;
-    margin-bottom: 32px;
+    margin-bottom: 34px;
   }
 
   .stat-card {
     display: flex;
     flex-direction: column;
     gap: 9px;
-    padding: 18px;
+    min-width: 0;
+    padding: 19px 20px;
     border: 1px solid #e8e5de;
     border-radius: 9px;
     background: #fffefa;
+    transition: border-color 160ms ease, box-shadow 160ms ease;
+  }
+
+  .stat-card:hover {
+    border-color: #d9d3c9;
+    box-shadow: 0 3px 12px rgba(45, 42, 34, 0.035);
   }
 
   .stat-card > span {
     color: #77746c;
     font-size: 12px;
+    font-weight: 450;
   }
 
   .stat-card strong {
-    font-size: 27px;
+    color: #34332e;
+    font-size: 29px;
     font-weight: 500;
+    letter-spacing: -0.8px;
+    line-height: 1.2;
+    font-variant-numeric: tabular-nums;
   }
 
   .stat-card small {
@@ -532,70 +558,90 @@
     font-size: 11px;
   }
 
+  /* Investigation section */
+
+  .investigation-section {
+    min-width: 0;
+  }
+
   .section-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 12px;
-    margin-bottom: 14px;
+    margin-bottom: 15px;
   }
 
   .section-header h2 {
     margin: 0;
+    color: #393832;
     font-size: 15px;
     font-weight: 600;
+    letter-spacing: -0.15px;
   }
 
   .section-header p {
     margin: 5px 0 0;
-    color: #77746c;
+    color: #858177;
     font-size: 12px;
+    line-height: 1.5;
   }
 
-  .filter-button {
-    padding: 8px 11px;
-    border: 1px solid #e5e2db;
-    border-radius: 6px;
-    background: #fffefa;
-    color: #555249;
-    font-size: 11px;
-  }
+  /* Investigation table */
 
   .investigation-list {
+    width: 100%;
     overflow-x: auto;
     border: 1px solid #e8e5de;
     border-radius: 9px;
     background: #fffefa;
+    scrollbar-width: thin;
+    scrollbar-color: #d8d3ca transparent;
   }
 
   .investigation-row {
     display: grid;
-    grid-template-columns: minmax(230px, 2fr) minmax(90px, 0.7fr)
-      minmax(80px, 0.6fr) minmax(105px, 0.8fr)
-      minmax(100px, 0.8fr) 28px;
+    grid-template-columns:
+      minmax(240px, 2fr)
+      minmax(110px, 0.85fr)
+      minmax(150px, 1fr)
+      minmax(90px, auto);
     align-items: center;
-    gap: 12px;
-    min-width: 900px;
-    padding: 14px 18px;
+    gap: 18px;
+    min-width: 760px;
+    padding: 14px 20px;
     border-bottom: 1px solid #efede7;
+    transition: background 140ms ease;
   }
 
   .investigation-row:last-child {
     border-bottom: 0;
   }
 
+  .investigation-row:not(.table-header):hover {
+    background: #fbfaf6;
+  }
+
   .table-header {
-    min-height: 42px;
+    min-height: 43px;
     background: #f8f7f3;
     color: #858177;
     font-size: 10px;
     font-weight: 600;
+    letter-spacing: 0.35px;
+    text-transform: uppercase;
   }
+
+  .table-header:hover {
+    background: #f8f7f3;
+  }
+
+  /* Case information */
 
   .case-name {
     display: flex;
     align-items: center;
-    gap: 11px;
+    gap: 12px;
     min-width: 0;
   }
 
@@ -607,11 +653,16 @@
     width: 36px;
     height: 36px;
     border: 1px solid #e7e1d7;
-    border-radius: 6px;
+    border-radius: 7px;
     background: #f7f4ed;
     color: #8d725c;
-    font-size: 10px;
+    font-size: 11px;
     font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .case-name > div:last-child {
+    min-width: 0;
   }
 
   .case-name strong {
@@ -619,183 +670,246 @@
     overflow: hidden;
     color: #393832;
     font-size: 12px;
-    font-weight: 550;
+    font-weight: 600;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
 
   .case-name small {
     display: block;
+    overflow: hidden;
     margin-top: 5px;
     color: #89867d;
     font-size: 10px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .case-id,
   .date {
+    overflow: hidden;
     color: #69665e;
     font-size: 11px;
-  }
-
-  .priority,
-  .status {
-    justify-self: start;
-    padding: 5px 8px;
-    border-radius: 5px;
-    font-size: 10px;
+    text-overflow: ellipsis;
     white-space: nowrap;
+    font-variant-numeric: tabular-nums;
   }
 
-  .high {
-    background: #f7e9e4;
-    color: #a45d48;
+  /* Continue action */
+
+  .chat-action {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    justify-self: start;
+    min-height: 30px;
+    padding: 0 12px;
+    border: 1px solid #e5e2db;
+    border-radius: 5px;
+    background: #fffefa;
+    color: #504e46;
+    font-size: 11px;
+    font-weight: 500;
+    white-space: nowrap;
+    transition: all 150ms ease;
   }
 
-  .medium {
-    background: #f8f0df;
-    color: #97743a;
+  .chat-action:hover {
+    border-color: #34332e;
+    background: #34332e;
+    color: #fffefa;
   }
 
-  .low {
-    background: #efeee9;
-    color: #77746c;
+  /* Empty, loading and error states */
+
+  .empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    min-height: 190px;
+    padding: 32px 20px;
+    border: 1px dashed #e3dfd6;
+    border-radius: 9px;
+    background: #fffefa;
+    color: #858177;
+    text-align: center;
+    font-size: 12px;
   }
 
-  .active {
-    background: #edf1e8;
-    color: #5d7652;
+  .empty-state p {
+    margin: 0;
+    line-height: 1.6;
   }
 
-  .review {
-    background: #f8f0df;
-    color: #97743a;
+  .empty-state button {
+    padding: 7px 12px;
+    border: 1px solid #ded9cf;
+    border-radius: 5px;
+    background: #fffefa;
+    color: #504e46;
+    font-size: 11px;
+    transition: background 150ms ease;
   }
 
-  .completed {
-    background: #edf3eb;
-    color: #54744f;
+  .empty-state button:hover {
+    background: #f4f1e9;
   }
 
-  .more-button {
-    border: 0;
-    background: transparent;
-    color: #77746c;
-    font-size: 19px;
-  }
+  /* Footer and pagination */
 
   .list-footer {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 12px;
-    margin-top: 14px;
+    margin-top: 15px;
     color: #89867d;
     font-size: 11px;
   }
 
   .pagination {
     display: flex;
+    align-items: center;
     gap: 5px;
   }
 
   .pagination button {
-    padding: 7px 9px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 30px;
+    min-height: 29px;
+    padding: 0 9px;
     border: 1px solid #e5e2db;
     border-radius: 5px;
     background: #fffefa;
     color: #69665e;
     font-size: 10px;
+    transition: all 150ms ease;
+  }
+
+  .pagination button:not(:disabled):hover {
+    border-color: #aaa397;
+    background: #f7f5ef;
   }
 
   .pagination button:disabled {
-    opacity: 0.45;
-    cursor: default;
+    opacity: 0.4;
+    cursor: not-allowed;
   }
 
   .pagination .current-page {
     border-color: #34332e;
     background: #34332e;
-    color: white;
+    color: #fffefa;
   }
 
-  .workspace-note {
-    display: flex;
-    align-items: flex-start;
-    gap: 12px;
-    margin-top: 28px;
-    padding: 18px;
-    border: 1px solid #e8e2d6;
-    border-radius: 9px;
-    background: #f5f1e8;
+  .pagination .current-page:hover {
+    border-color: #34332e;
+    background: #34332e;
   }
 
-  .note-icon {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-    width: 24px;
-    height: 24px;
-    border: 1px solid #dcd3c2;
-    border-radius: 50%;
-    color: #8d725c;
-    font-size: 12px;
-  }
+  /* Responsive */
 
-  .workspace-note strong {
-    font-size: 12px;
-    font-weight: 600;
-  }
+  @media (max-width: 900px) {
+    .investigations-page {
+      padding: 30px 24px 40px;
+    }
 
-  .workspace-note p {
-    margin: 6px 0 0;
-    color: #77746c;
-    font-size: 11px;
-    line-height: 1.8;
-  }
-
-  .page-footer {
-    display: flex;
-    justify-content: space-between;
-    gap: 12px;
-    margin-top: 36px;
-    padding-top: 16px;
-    border-top: 1px solid #e8e5de;
-    color: #89867d;
-    font-size: 10px;
+    .overview {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
   }
 
   @media (max-width: 650px) {
     .investigations-page {
-      padding: 24px 16px;
+      padding: 26px 16px 32px;
     }
 
-    .overview {
-      grid-template-columns: 1fr;
-      gap: 10px;
+    .page-header {
+      margin-bottom: 23px;
     }
 
-    .stat-card {
-      padding: 14px;
+    .page-header p {
+      font-size: 12px;
     }
 
     .toolbar {
       align-items: stretch;
       flex-direction: column;
+      gap: 10px;
+      margin-bottom: 22px;
     }
 
     .search-box {
       width: 100%;
+      min-height: 42px;
     }
 
     .primary-button {
       align-self: flex-start;
     }
 
-    .list-footer,
-    .page-footer {
+    .overview {
+      grid-template-columns: 1fr;
+      gap: 10px;
+      margin-bottom: 28px;
+    }
+
+    .stat-card {
+      padding: 15px 16px;
+      gap: 7px;
+    }
+
+    .stat-card strong {
+      font-size: 25px;
+    }
+
+    .section-header {
+      align-items: flex-start;
+    }
+
+    .investigation-row {
+      min-width: 700px;
+      padding: 13px 14px;
+      gap: 12px;
+    }
+
+    .list-footer {
       align-items: flex-start;
       flex-direction: column;
+      gap: 12px;
+    }
+  }
+
+  @media (max-width: 380px) {
+    .investigations-page {
+      padding-right: 12px;
+      padding-left: 12px;
+    }
+
+    .page-header h1 {
+      font-size: 28px;
+    }
+
+    .pagination button {
+      min-width: 28px;
+      padding: 0 7px;
+    }
+  }
+
+  /* Reduced motion accessibility */
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      scroll-behavior: auto !important;
+      transition-duration: 0.01ms !important;
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
     }
   }
 </style>
