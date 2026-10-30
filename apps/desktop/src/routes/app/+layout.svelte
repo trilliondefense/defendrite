@@ -12,11 +12,11 @@
   let searchInput: HTMLInputElement | undefined= $state(undefined);
 
   const navItems = [
-    { label: "Investigations", href: "/app/investigations", icon: "▤", keywords: "history conversations" ,shortcut:"p"},
-    { label: "Evidence Vault", href: "/app/evidence-vault", icon: "▤", keywords: "history conversations" ,shortcut:"y"},
-    { label: "Customize", href: "/app/customize", icon: "⚙", keywords: "settings appearance" ,shortcut:"u"},
-    { label: "Reports", href: "/app/reports", icon: "▣", keywords: "workspace files" ,shortcut:"o"},
-    { label: "Help", href: "/app/help", icon: "▣", keywords: "help" ,shortcut:"i"},
+    { label: "Investigations", href: "/app/investigations", icon: "🔍", keywords: "history conversations" ,shortcut:"p"},
+    { label: "Evidence Vault", href: "/app/evidence-vault", icon: "🏛️", keywords: "history conversations" ,shortcut:"y"},
+    { label: "Reports", href: "/app/reports", icon: "📊", keywords: "workspace files" ,shortcut:"o"},
+    { label: "Customize", href: "/app/customize", icon: "⚙️", keywords: "settings appearance" ,shortcut:"u"},
+    { label: "Help", href: "/app/help", icon: "❓", keywords: "help" ,shortcut:"i"},
   ];
   type CaseStatus = "Active" | "Review" | "Closed";
   interface RecentCase{
@@ -180,7 +180,7 @@
       onclick={() => (window.location.href = "/app/newchat")}
       title="New Investigation"
     >
-      <span class="nav-icon">＋</span>
+      <span class="nav-icon">➕</span>
       {#if !collapsed}
         <span>New Chat</span>
         <kbd>{isMac ? "⌘" : "Ctrl"} N</kbd>
@@ -192,7 +192,7 @@
       onclick={() => void openPalette()}
       title="Search navigation (Ctrl+K)"
     >
-      <span class="nav-icon">⌕</span>
+      <span class="nav-icon">🌐</span>
       {#if !collapsed}
         <span>Search</span>
   <kbd>{isMac ? "⌘" : "Ctrl"} K</kbd>      {/if}
