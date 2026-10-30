@@ -3,6 +3,11 @@
   import { onMount, tick } from "svelte";
   import { invoke } from "@tauri-apps/api/core";
   import { page } from "$app/state";
+  import { marked } from "marked";
+import DOMPurify from "dompurify";
+function renderMarkdown(content: string) {
+  return DOMPurify.sanitize(marked.parse(content) as string);
+}
 
   interface Message {
     role: string;
@@ -206,7 +211,7 @@
                 <span></span>
               </span>
             {:else}
-              {msg.content}
+            {@html renderMarkdown(msg.content)}
             {/if}
           </div>
         </div>
