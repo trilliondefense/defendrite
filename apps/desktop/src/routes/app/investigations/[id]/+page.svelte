@@ -452,6 +452,45 @@ function renderMarkdown(content: string) {
   color: white !important;
   font-size: 20px;
 }
+.chat-conversation {
+  width: 100%;
+  flex: 1;
+  min-width: 0;
+}
+
+.message-list {
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding-inline: 64px;
+}
+.message-text :global(p) {
+  margin: 0 0 6px;
+  line-height: 1.5;
+}
+
+.message-text :global(p:last-child) {
+  margin-bottom: 0;
+}
+
+.message-text :global(ul),
+.message-text :global(ol) {
+  margin-top: 4px;
+  margin-bottom: 6px;
+}
+
+.message-text :global(li) {
+  margin-bottom: 2px;
+}
+
+.message-row {
+  width: 100%;
+}
+
+.message-content {
+  max-width: 100%;
+  flex: 1;
+}
 
 .send-button:disabled {
   opacity: 0.4;
@@ -471,6 +510,7 @@ function renderMarkdown(content: string) {
   background: #d18b6e;
   animation: thinking 1s infinite ease-in-out;
 }
+
 
 .thinking-indicator span:nth-child(2) {
   animation-delay: 150ms;
