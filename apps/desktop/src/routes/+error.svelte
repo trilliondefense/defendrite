@@ -17,10 +17,6 @@
   }
 </script>
 
-<svelte:head>
-  <title>Something went wrong</title>
-</svelte:head>
-
 <main class="error-page">
   <div class="error-content">
     <img src="/favicon.png" alt="" class="message-avatar" />
