@@ -22,11 +22,7 @@ interface Conversation {
 }
 
 let messages = $state<Message[]>([
-  {
-    id: crypto.randomUUID(),
-    sender: "agent",
-    text: "Hello! I'm your AI agent. What would you like to work on today?"
-  }
+  
 ]);
 
 let conversationId = $state<string | null>(null);
