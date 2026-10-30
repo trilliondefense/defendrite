@@ -478,6 +478,30 @@ function renderMarkdown(content: string) {
   margin-top: 4px;
   margin-bottom: 6px;
 }
+/* Agent messages - left aligned, 80% width */
+.message-row.agent {
+  width: 80%;
+  margin-right: auto;
+  justify-content: flex-start;
+}
+
+/* User messages - right aligned, 40% width */
+.message-row.user {
+  width: 40%;
+  margin-left: auto;
+  justify-content: flex-end;
+}
+
+/* Message content */
+.message-content {
+  width: 100%;
+  min-width: 0;
+}
+
+/* Prevent content overflow */
+.message-text {
+  overflow-wrap: anywhere;
+}
 
 .message-text :global(li) {
   margin-bottom: 2px;
