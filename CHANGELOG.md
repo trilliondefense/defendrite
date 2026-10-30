@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org).
 
 ---
 
+## [0.2.0] - 2026-10-30
+
+### Added
+
+- Added Storage for keeping the conversation going in the single chat
+
+### Fixed
+
+- Corrected the Brand
+- Changed New Investigations to New Chat for Alignment
+
 ## [0.1.0] - 2026-10-24
 
 ### Added
