@@ -456,7 +456,6 @@
   }
 
   .new-chat {
-    background: #ebe9e2;
     color: #292824;
     font-weight: 550;
   }
