@@ -88,13 +88,20 @@
 
     if (modifier && key === "o") {
     event.preventDefault();
-    window.location.href = "/app/cases";
+    window.location.href = "/app/reports";
     return;
   }
 
+    if (modifier && key === "y") {
+    event.preventDefault();
+    window.location.href = "/app/evidence-vault";
+    return;
+  }
+
+
     if (modifier && key === "p") {
     event.preventDefault();
-    window.location.href = "/app/chats";
+    window.location.href = "/app/investigations";
     return;
   }
 
