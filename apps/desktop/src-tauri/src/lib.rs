@@ -107,6 +107,12 @@ fn delete_chat(
     )
 }
 
+
+#[tauri::command]
+fn log_to_terminal(message: String){
+    println!("Frontend :{}",message);
+}
+
 // --------------------------------------------------
 // APPLICATION ENTRY POINT
 // --------------------------------------------------
@@ -147,7 +153,7 @@ pub fn run() {
                 create_chat,
                 list_chats,
                 get_chat_messages,
-                delete_chat
+                delete_chat,log_to_terminal
             ]
         )
 

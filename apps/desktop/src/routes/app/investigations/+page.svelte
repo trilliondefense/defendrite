@@ -35,8 +35,20 @@
   }
 
   async function openChat(chatId: string) {
-    await goto(`/investigations/${chatId}`);
+  
+     try {
+              await goto(`/app/investigations/${encodeURIComponent(chatId)}`);
+  } catch (error) {
+        consoleLog(`Navigation failed:${error}`)
   }
+
+  }
+
+  async function consoleLog(message: string){
+      await invoke("log_to_terminal", {
+      message
+    });
+  } 
 
   function formatDate(timestamp: number) {
     return new Intl.DateTimeFormat("en", {
