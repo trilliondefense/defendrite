@@ -27,21 +27,23 @@ interface Conversation {
   updatedAt: number;
 }
 
-let messages = $state<Message[]>([
-  
-]);
+// --------------------------------------------------
+// STATE
+// --------------------------------------------------
+
+let messages = $state<Message[]>([]);
 
 let conversationId = $state<string | null>(null);
 let modelName = $state<string | null>(null);
 
 let bottomElement = $state<HTMLDivElement>();
+let viewportElement = $state<HTMLElement | null>(null);
+
 let input = $state("");
 let isLoading = $state(false);
-  let viewportElement = $state<HTMLElement | null>(null);
 
 let inputElement = $state<HTMLTextAreaElement>();
 let activeAgentMsgId = $state<string | null>(null);
-  
 
 // --------------------------------------------------
 // SCROLLING
@@ -75,9 +77,7 @@ function newChat() {
 
   conversationId = null;
 
-  messages = [
-    
-  ];
+  messages = [];
 
   activeAgentMsgId = null;
   input = "";
@@ -120,27 +120,33 @@ function handleGlobalKeydown(event: KeyboardEvent) {
 }
 
 // --------------------------------------------------
-// EVENT LISTENER INITIALIZATION
+// GLOBAL STREAMING EVENT LISTENER
 // --------------------------------------------------
 
 onMount(() => {
   let disposed = false;
   let unlisten: (() => void) | undefined;
 
-  // Read model preference safely in the browser.
+  // Read model preference.
   modelName = localStorage.getItem("modelName");
 
+  // Listen for Gemini streaming tokens.
   listen<string>("agent-token", (event) => {
     if (disposed || !activeAgentMsgId) return;
 
-    const activeMessage = messages.find(
-      (message) => message.id === activeAgentMsgId
+    const messageId = activeAgentMsgId;
+
+    // Append token to the active assistant message.
+    messages = messages.map((message) =>
+      message.id === messageId
+        ? {
+            ...message,
+            text: message.text + event.payload
+          }
+        : message
     );
 
-    if (activeMessage) {
-      activeMessage.text += event.payload;
-      void scrollToBottom();
-    }
+    void scrollToBottom();
   })
     .then((unsubscribe) => {
       if (disposed) {
@@ -150,17 +156,30 @@ onMount(() => {
       }
     })
     .catch((error) => {
-      console.error("Failed to register agent listener:", error);
+      console.error(
+        "Failed to register agent listener:",
+        error
+      );
     });
 
-  window.addEventListener("keydown", handleGlobalKeydown);
+  // Register keyboard shortcuts.
+  window.addEventListener(
+    "keydown",
+    handleGlobalKeydown
+  );
 
   focusInput();
 
+  // Cleanup.
   return () => {
     disposed = true;
+
     unlisten?.();
-    window.removeEventListener("keydown", handleGlobalKeydown);
+
+    window.removeEventListener(
+      "keydown",
+      handleGlobalKeydown
+    );
   };
 });
 
@@ -194,12 +213,14 @@ async function handleSendMessage(event: SubmitEvent) {
   isLoading = true;
   input = "";
 
+  // Create user message.
   const userMessage: Message = {
     id: crypto.randomUUID(),
     sender: "user",
     text: prompt
   };
 
+  // Create empty assistant message.
   const agentMessageId = crypto.randomUUID();
 
   messages = [
@@ -212,37 +233,47 @@ async function handleSendMessage(event: SubmitEvent) {
     }
   ];
 
+  // Set active message BEFORE invoking Rust.
   activeAgentMsgId = agentMessageId;
 
   void scrollToBottom();
 
   try {
-    // Create a conversation only for the first message.
+    // Create conversation only for the first message.
     const chatId = await ensureConversation();
 
-    // Send the prompt to the selected conversation.
+    // Invoke Rust.
+    // The global agent-token listener handles streaming.
     await invoke("ask_agent", {
       prompt,
       conversationId: chatId
     });
-    await emit('chat-created', {}); 
+
+    await emit("chat-created", {});
 
   } catch (error) {
     const errorString = String(error);
 
-    const targetIdx = messages.findIndex(
-      (message) => message.id === agentMessageId
+    const errorMessage = errorString.includes(
+      "SETUP_REQUIRED"
+    )
+      ? "⚠️ Workspace Configuration Required: Please navigate to Settings and specify your Google AI Studio API Key."
+      : `Runtime Execution Failure: ${errorString}`;
+
+    // Update the existing assistant message.
+    messages = messages.map((message) =>
+      message.id === agentMessageId
+        ? {
+            ...message,
+            text: errorMessage
+          }
+        : message
     );
 
-    if (targetIdx !== -1) {
-      messages[targetIdx].text = errorString.includes("SETUP_REQUIRED")
-        ? "⚠️ Workspace Configuration Required: Please navigate to Settings and specify your Google AI Studio API Key."
-        : `Runtime Execution Failure: ${errorString}`;
-    }
-
   } finally {
-    isLoading = false;
     activeAgentMsgId = null;
+
+    isLoading = false;
 
     void scrollToBottom();
     focusInput();
