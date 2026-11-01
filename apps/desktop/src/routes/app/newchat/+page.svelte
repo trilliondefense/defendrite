@@ -6,6 +6,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { emit, listen } from "@tauri-apps/api/event";
 import { onMount, tick } from "svelte";
+ import { open } from '@tauri-apps/plugin-dialog';
 
   import { marked } from "marked";
   import DOMPurify from "dompurify";
@@ -18,6 +19,59 @@ interface Message {
   sender: "user" | "agent";
   text: string;
 }
+
+
+  interface Attachment {
+    id: string;
+    name: string;
+    path: string;
+  }
+
+  let attachments = $state<Attachment[]>([]);
+  let isSelecting = $state(false);
+
+  async function addAttachments() {
+    if (isSelecting) return;
+
+    try {
+      isSelecting = true;
+
+      const selected = await open({
+        multiple: true,
+        directory: false,
+        title: 'Select attachments'
+      });
+
+      if (!selected) return;
+
+      const paths = Array.isArray(selected)
+        ? selected
+        : [selected];
+
+      const newAttachments = paths
+        .filter(path =>
+          !attachments.some(item => item.path === path)
+        )
+        .map(path => ({
+          id: crypto.randomUUID(),
+          name: path.split(/[\\/]/).pop() || 'Unknown file',
+          path
+        }));
+
+      attachments = [...attachments, ...newAttachments];
+
+    } catch (error) {
+      console.error('Failed to select attachments:', error);
+    } finally {
+      isSelecting = false;
+    }
+  }
+
+  function removeAttachment(id: string) {
+    attachments = attachments.filter(
+      attachment => attachment.id !== id
+    );
+  }
 
 interface Conversation {
   id: string;
@@ -314,15 +368,19 @@ async function handleSendMessage(event: SubmitEvent) {
           ></textarea>
 
           <div class="composer-bottom">
+           
             <button
               class="add-button"
               type="button"
               aria-label="Add attachment"
               title="Add attachment"
-              onclick={() => {
-                // Connect your existing attachment handler here.
-              }}
-            >+</button>
+              disabled={isSelecting}
+              onclick={addAttachments}
+            >
+              {isSelecting ? '...' : '+'}
+            </button>
+          
+
 
             <div class="composer-actions">
               {#if modelName && modelName !==""}
