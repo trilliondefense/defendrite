@@ -10,17 +10,11 @@ use serde_json::{json, Value};
 use tauri::{AppHandle, Emitter, Manager};
 use tauri_plugin_store::StoreExt;
 
-pub use storage::models::{Conversation, Message};
+pub use storage::models::{Conversation, Message,Attachment};
 // --------------------------------------------------
 // DATABASE INITIALIZATION
 // --------------------------------------------------
-#[derive(Debug, Clone, serde::Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct Attachment {
-    pub id: String,
-    pub name: String,
-    pub path: String,
-}
+
 
 fn open_conversation_db(
     app_handle: &AppHandle,
@@ -530,6 +524,7 @@ pub async fn handle_agent_request(
         conversation_id,
         prompt,
         &answer,
+        attachments,
     ) {
         eprintln!(
             "Failed to save conversation exchange: {error}"

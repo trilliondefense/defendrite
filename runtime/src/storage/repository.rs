@@ -4,7 +4,7 @@ use std::path::Path;
 use std::time::{SystemTime, UNIX_EPOCH};
 use uuid::Uuid;
 
-use super::models::{Conversation, Message};
+use super::models::{Conversation, Message,Attachment};
 
 fn current_timestamp() -> i64 {
     SystemTime::now()
@@ -157,6 +157,7 @@ pub fn open_db(path: &Path, key: &str) -> rusqlite::Result<Connection> {
 
         tx.commit()?;
     }
+   
 
     // Index messages for efficient conversation-specific retrieval.
     conn.execute_batch(
@@ -166,6 +167,28 @@ pub fn open_db(path: &Path, key: &str) -> rusqlite::Result<Connection> {
 
         CREATE INDEX IF NOT EXISTS idx_conversations_updated
         ON conversations(updated_at DESC);
+        ",
+    )?;
+
+     // Create message attachments table.
+    conn.execute_batch(
+        "
+        CREATE TABLE IF NOT EXISTS message_attachments (
+            id TEXT PRIMARY KEY,
+            message_id INTEGER NOT NULL,
+            name TEXT NOT NULL,
+            path TEXT NOT NULL,
+            size INTEGER NOT NULL,
+            mime_type TEXT,
+            created_at INTEGER NOT NULL,
+
+            FOREIGN KEY (message_id)
+                REFERENCES messages(id)
+                ON DELETE CASCADE
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_attachments_message
+        ON message_attachments(message_id);
         ",
     )?;
 
@@ -262,9 +285,10 @@ pub fn load_history(
     conn: &Connection,
     conversation_id: &str,
 ) -> rusqlite::Result<Vec<Message>> {
+
     let mut stmt = conn.prepare(
         "
-        SELECT role, content
+        SELECT id, role, content
         FROM messages
         WHERE conversation_id = ?1
         ORDER BY id ASC
@@ -272,15 +296,51 @@ pub fn load_history(
     )?;
 
     let rows = stmt.query_map(params![conversation_id], |row| {
-        Ok(Message {
-            role: row.get(0)?,
-            content: row.get(1)?,
-        })
+        Ok((
+            row.get::<_, i64>(0)?,
+            row.get::<_, String>(1)?,
+            row.get::<_, String>(2)?,
+        ))
     })?;
 
-    rows.collect()
-}
+    let mut messages = Vec::new();
 
+    for row in rows {
+        let (message_id, role, content) = row?;
+
+        let mut attachment_stmt = conn.prepare(
+            "
+            SELECT id, name, path, size, mime_type
+            FROM message_attachments
+            WHERE message_id = ?1
+            ",
+        )?;
+
+        let attachment_rows = attachment_stmt.query_map(
+            params![message_id],
+            |row| {
+                Ok(Attachment {
+                    id: row.get(0)?,
+                    name: row.get(1)?,
+                    path: row.get(2)?,
+                    size: row.get(3)?,
+                    mime_type: row.get(4)?,
+                })
+            },
+        )?;
+
+        let attachments = attachment_rows.collect::<rusqlite::Result<Vec<_>>>()?;
+
+        messages.push(Message {
+            id: message_id,
+            role,
+            content,
+            attachments,
+        });
+    }
+
+    Ok(messages)
+}
 // Save one message to a particular conversation.
 // pub fn save_message(
 //     conn: &mut Connection,
