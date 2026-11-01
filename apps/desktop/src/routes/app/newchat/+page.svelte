@@ -22,10 +22,12 @@ interface Message {
 
 
   interface Attachment {
-    id: string;
-    name: string;
-    path: string;
-  }
+  id: string;
+  name: string;
+  path: string;
+  size: number;
+  mimeType: string | null;
+}
 
   let attachments = $state<Attachment[]>([]);
   let isSelecting = $state(false);
