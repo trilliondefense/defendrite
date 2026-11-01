@@ -262,19 +262,23 @@ async function handleSendMessage(event: SubmitEvent) {
 
   const prompt = input.trim();
 
-  if (!prompt || isLoading) return;
+  if ((!prompt && attachments.length === 0) || isLoading) return;
 
   isLoading = true;
   input = "";
 
-  // Create user message.
+  // Snapshot attachments for this message.
+  const messageAttachments = [...attachments];
+
+  // Clear selected attachments.
+  attachments = [];
+
   const userMessage: Message = {
     id: crypto.randomUUID(),
     sender: "user",
     text: prompt
   };
 
-  // Create empty assistant message.
   const agentMessageId = crypto.randomUUID();
 
   messages = [
@@ -287,20 +291,17 @@ async function handleSendMessage(event: SubmitEvent) {
     }
   ];
 
-  // Set active message BEFORE invoking Rust.
   activeAgentMsgId = agentMessageId;
 
   void scrollToBottom();
 
   try {
-    // Create conversation only for the first message.
     const chatId = await ensureConversation();
 
-    // Invoke Rust.
-    // The global agent-token listener handles streaming.
     await invoke("ask_agent", {
       prompt,
-      conversationId: chatId
+      conversationId: chatId,
+      attachments: messageAttachments
     });
 
     await emit("chat-created", {});
@@ -308,31 +309,31 @@ async function handleSendMessage(event: SubmitEvent) {
   } catch (error) {
     const errorString = String(error);
 
-    const errorMessage = errorString.includes(
-      "SETUP_REQUIRED"
-    )
+    const errorMessage = errorString.includes("SETUP_REQUIRED")
       ? "⚠️ Workspace Configuration Required: Please navigate to Settings and specify your Google AI Studio API Key."
       : `Runtime Execution Failure: ${errorString}`;
 
-    // Update the existing assistant message.
     messages = messages.map((message) =>
       message.id === agentMessageId
-        ? {
-            ...message,
-            text: errorMessage
-          }
+        ? { ...message, text: errorMessage }
         : message
     );
 
+    // Restore attachments if sending fails.
+    attachments = [
+      ...messageAttachments,
+      ...attachments
+    ];
+
   } finally {
     activeAgentMsgId = null;
-
     isLoading = false;
 
     void scrollToBottom();
     focusInput();
   }
 }
+
 
 </script>
 
