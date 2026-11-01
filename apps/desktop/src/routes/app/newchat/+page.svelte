@@ -409,6 +409,25 @@ async function handleSendMessage(event: SubmitEvent) {
             </div>
           </div>
         </form>
+          {#if attachments.length > 0}
+            <div class="attachments-list">
+              {#each attachments as attachment (attachment.id)}
+                <div class="attachment-item">
+                  <span class="attachment-name">
+                    {attachment.name}
+                  </span>
+
+                  <button
+                    type="button"
+                    aria-label="Remove attachment"
+                    onclick={() => removeAttachment(attachment.id)}
+                  >
+                    ×
+                  </button>
+                </div>
+              {/each}
+            </div>
+          {/if}
 
         <button
           class="connect-tools"
@@ -453,6 +472,7 @@ async function handleSendMessage(event: SubmitEvent) {
         {/each}
           <div bind:this={bottomElement} class="scroll-anchor"></div>
       </div>
+      
 
       <footer class="conversation-footer">
         <form class="composer" onsubmit={handleSendMessage}>
@@ -478,9 +498,17 @@ async function handleSendMessage(event: SubmitEvent) {
     ></textarea>
 
           <div class="composer-bottom">
-            <button class="add-button" type="button" aria-label="Add attachment">
-              +
+           
+             <button  class="add-button"
+              type="button"
+              aria-label="Add attachment"
+              title="Add attachment"
+              disabled={isSelecting}
+              onclick={addAttachments}>
+                            {isSelecting ? '...' : '+'}
+
             </button>
+          
 
             <button
               type="submit"
@@ -492,6 +520,25 @@ async function handleSendMessage(event: SubmitEvent) {
             </button>
           </div>
         </form>
+          {#if attachments.length > 0}
+            <div class="attachments-list">
+              {#each attachments as attachment (attachment.id)}
+                <div class="attachment-item">
+                  <span class="attachment-name">
+                    {attachment.name}
+                  </span>
+
+                  <button
+                    type="button"
+                    aria-label="Remove attachment"
+                    onclick={() => removeAttachment(attachment.id)}
+                  >
+                    ×
+                  </button>
+                </div>
+              {/each}
+            </div>
+          {/if}
 
         <p class="disclaimer">
           AI can make mistakes. Review important information.
