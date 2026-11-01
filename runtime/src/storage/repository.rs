@@ -325,6 +325,7 @@ pub fn save_exchange(
     conversation_id: &str,
     user_content: &str,
     model_content: &str,
+    attachments: &[Attachment],
 ) -> rusqlite::Result<()> {
     let tx = conn.transaction()?;
 
@@ -352,6 +353,27 @@ pub fn save_exchange(
         ",
         params![conversation_id, user_content, now],
     )?;
+
+    let user_message_id = tx.last_insert_rowid();
+
+    for attachment in attachments {
+    tx.execute(
+        "
+        INSERT INTO message_attachments
+            (id, message_id, name, path, size, mime_type, created_at)
+        VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
+        ",
+        params![
+            attachment.id,
+            user_message_id,
+            attachment.name,
+            attachment.path,
+            attachment.size,
+            attachment.mime_type,
+            now
+        ],
+    )?;
+}
 
     // Save model response.
     tx.execute(
