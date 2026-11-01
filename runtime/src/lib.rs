@@ -10,10 +10,11 @@ use serde_json::{json, Value};
 use tauri::{AppHandle, Emitter, Manager};
 use tauri_plugin_store::StoreExt;
 
-pub use storage::models::{Conversation, Message};
+pub use storage::models::{Conversation, Message,Attachment};
 // --------------------------------------------------
 // DATABASE INITIALIZATION
 // --------------------------------------------------
+
 
 fn open_conversation_db(
     app_handle: &AppHandle,
@@ -102,6 +103,7 @@ pub fn get_conversations(
 pub async fn handle_agent_request(
     prompt: &str,
     conversation_id: &str,
+    attachments: &[Attachment],
     app_handle: &AppHandle,
 ) -> String {
 
@@ -204,29 +206,84 @@ pub async fn handle_agent_request(
             );
         }
     };
+    // Validate attachment references.
+
+        for attachment in attachments {
+            if attachment.id.trim().is_empty()
+                || attachment.name.trim().is_empty()
+                || attachment.path.trim().is_empty()
+            {
+                return emit_error(
+                    app_handle,
+                    "Invalid attachment information.",
+                );
+            }
+
+            let path = std::path::Path::new(&attachment.path);
+
+            if !path.is_absolute() || !path.is_file() {
+                return emit_error(
+                    app_handle,
+                    &format!(
+                        "Attachment is unavailable: {}",
+                        attachment.name
+                    ),
+                );
+            }
+        }
 
     // 8. Convert history into Gemini contents format.
 
-    let mut contents: Vec<Value> = history
-        .into_iter()
-        .map(|message| {
-            json!({
-                "role": message.role,
-                "parts": [
-                    { "text": message.content }
-                ]
-            })
+   // 8. Convert history into Gemini contents format.
+
+let mut contents: Vec<Value> = history
+    .into_iter()
+    .map(|message| {
+        let mut text = message.content;
+
+        if !message.attachments.is_empty() {
+            text.push_str("\n\nAttachments in this message:\n");
+
+            for attachment in &message.attachments {
+                text.push_str(&format!(
+                    "- {} (Attachment Path: {})\n",
+                    attachment.name,
+                    attachment.path
+                ));
+            }
+        }
+
+        json!({
+            "role": message.role,
+            "parts": [
+                { "text": text }
+            ]
         })
-        .collect();
+    })
+    .collect();
 
-    // 9. Append current user prompt.
+        // 9. Append current user prompt and attachment metadata.
 
-    contents.push(json!({
-        "role": "user",
-        "parts": [
-            { "text": prompt }
-        ]
-    }));
+        let mut user_prompt = prompt.to_string();
+
+        if !attachments.is_empty() {
+            user_prompt.push_str("\n\nAttached files:\n");
+
+            for attachment in attachments {
+                user_prompt.push_str(&format!(
+                    "- {} (ID: {})\n",
+                    attachment.name,
+                    attachment.id
+                ));
+            }
+        }
+
+        contents.push(json!({
+            "role": "user",
+            "parts": [
+                { "text": user_prompt }
+            ]
+        }));
 
     // --------------------------------------------------
     // GEMINI STREAMING API REQUEST
@@ -483,6 +540,7 @@ pub async fn handle_agent_request(
         conversation_id,
         prompt,
         &answer,
+        attachments,
     ) {
         eprintln!(
             "Failed to save conversation exchange: {error}"

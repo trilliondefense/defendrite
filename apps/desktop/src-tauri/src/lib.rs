@@ -1,7 +1,7 @@
 
 use tauri::Manager;
 use tauri_plugin_store::StoreExt;
-
+use runtime::Attachment;
 // --------------------------------------------------
 // ASK AGENT
 // --------------------------------------------------
@@ -10,6 +10,7 @@ use tauri_plugin_store::StoreExt;
 async fn ask_agent(
     prompt: String,
     conversation_id: String,
+    attachments: Vec<Attachment>,
     app_handle: tauri::AppHandle,
 ) -> Result<(), String> {
 
@@ -40,6 +41,7 @@ async fn ask_agent(
     let result = runtime::handle_agent_request(
         &prompt,
         &conversation_id,
+        &attachments[..],
         &app_handle,
     )
     .await;
@@ -145,6 +147,11 @@ pub fn run() {
         .plugin(
             tauri_plugin_opener::init()
         )
+        // Dialog opener.
+        .plugin(
+            tauri_plugin_dialog::init()
+        )
+        .plugin(tauri_plugin_fs::init())
 
         // Register frontend commands.
         .invoke_handler(

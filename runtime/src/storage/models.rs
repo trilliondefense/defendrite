@@ -1,4 +1,4 @@
-use serde::Serialize;
+use serde::{Serialize,Deserialize};
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -9,10 +9,21 @@ pub struct Conversation {
     pub created_at: i64,
     pub updated_at: i64,
 }
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Attachment {
+    pub id: String,
+    pub name: String,
+    pub path: String,
+    pub size: i64,
+    pub mime_type: Option<String>,
+}
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Message {
+    pub id: i64,
     pub role: String,
     pub content: String,
+    pub attachments: Vec<Attachment>,
 }

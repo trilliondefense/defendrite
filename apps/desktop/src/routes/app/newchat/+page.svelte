@@ -6,6 +6,8 @@
 import { invoke } from "@tauri-apps/api/core";
 import { emit, listen } from "@tauri-apps/api/event";
 import { onMount, tick } from "svelte";
+ import { open } from '@tauri-apps/plugin-dialog';
+import { stat } from "@tauri-apps/plugin-fs";
 
   import { marked } from "marked";
   import DOMPurify from "dompurify";
@@ -18,6 +20,77 @@ interface Message {
   sender: "user" | "agent";
   text: string;
 }
+
+
+  interface Attachment {
+  id: string;
+  name: string;
+  path: string;
+  size: number;
+  mimeType: string | null;
+}
+
+  let attachments = $state<Attachment[]>([]);
+  let isSelecting = $state(false);
+
+  async function addAttachments() {
+    if (isSelecting) return;
+
+    try {
+      isSelecting = true;
+
+      const selected = await open({
+        multiple: true,
+        directory: false,
+        title: 'Select attachments'
+      });
+
+      if (!selected) return;
+
+      const paths = Array.isArray(selected)
+        ? selected
+        : [selected];
+
+      const newAttachments = await Promise.all(
+        paths
+          .filter(path =>
+            !attachments.some(item => item.path === path)
+          )
+          .map(async (path) => {
+            const metadata = await stat(path);
+
+            return {
+              id: crypto.randomUUID(),
+              name: path.split(/[\\/]/).pop() || "Unknown file",
+              path,
+              size: metadata.size,
+              mimeType: null
+            };
+          })
+      );
+
+      attachments = [...attachments, ...newAttachments];
+
+    } catch (error) {
+      console.error('Failed to select attachments:', error);
+      consoleLogTerminal(`Message ${error}`)
+
+    } finally {
+      isSelecting = false;
+    }
+  }
+
+  async function consoleLogTerminal(message:String){
+     await invoke("log_to_terminal", {
+        message
+      });
+  }
+
+  function removeAttachment(id: string) {
+    attachments = attachments.filter(
+      attachment => attachment.id !== id
+    );
+  }
 
 interface Conversation {
   id: string;
@@ -208,19 +281,23 @@ async function handleSendMessage(event: SubmitEvent) {
 
   const prompt = input.trim();
 
-  if (!prompt || isLoading) return;
+  if ((!prompt && attachments.length === 0) || isLoading) return;
 
   isLoading = true;
   input = "";
 
-  // Create user message.
+  // Snapshot attachments for this message.
+  const messageAttachments = [...attachments];
+
+  // Clear selected attachments.
+  attachments = [];
+
   const userMessage: Message = {
     id: crypto.randomUUID(),
     sender: "user",
     text: prompt
   };
 
-  // Create empty assistant message.
   const agentMessageId = crypto.randomUUID();
 
   messages = [
@@ -233,20 +310,17 @@ async function handleSendMessage(event: SubmitEvent) {
     }
   ];
 
-  // Set active message BEFORE invoking Rust.
   activeAgentMsgId = agentMessageId;
 
   void scrollToBottom();
 
   try {
-    // Create conversation only for the first message.
     const chatId = await ensureConversation();
 
-    // Invoke Rust.
-    // The global agent-token listener handles streaming.
     await invoke("ask_agent", {
       prompt,
-      conversationId: chatId
+      conversationId: chatId,
+      attachments: messageAttachments
     });
 
     await emit("chat-created", {});
@@ -254,31 +328,31 @@ async function handleSendMessage(event: SubmitEvent) {
   } catch (error) {
     const errorString = String(error);
 
-    const errorMessage = errorString.includes(
-      "SETUP_REQUIRED"
-    )
+    const errorMessage = errorString.includes("SETUP_REQUIRED")
       ? "⚠️ Workspace Configuration Required: Please navigate to Settings and specify your Google AI Studio API Key."
       : `Runtime Execution Failure: ${errorString}`;
 
-    // Update the existing assistant message.
     messages = messages.map((message) =>
       message.id === agentMessageId
-        ? {
-            ...message,
-            text: errorMessage
-          }
+        ? { ...message, text: errorMessage }
         : message
     );
 
+    // Restore attachments if sending fails.
+    attachments = [
+      ...messageAttachments,
+      ...attachments
+    ];
+
   } finally {
     activeAgentMsgId = null;
-
     isLoading = false;
 
     void scrollToBottom();
     focusInput();
   }
 }
+
 
 </script>
 
@@ -314,15 +388,19 @@ async function handleSendMessage(event: SubmitEvent) {
           ></textarea>
 
           <div class="composer-bottom">
+           
             <button
               class="add-button"
               type="button"
               aria-label="Add attachment"
               title="Add attachment"
-              onclick={() => {
-                // Connect your existing attachment handler here.
-              }}
-            >+</button>
+              disabled={isSelecting}
+              onclick={addAttachments}
+            >
+              {isSelecting ? '...' : '+'}
+            </button>
+          
+
 
             <div class="composer-actions">
               {#if modelName && modelName !==""}
@@ -351,6 +429,25 @@ async function handleSendMessage(event: SubmitEvent) {
             </div>
           </div>
         </form>
+          {#if attachments.length > 0}
+            <div class="attachments-list">
+              {#each attachments as attachment (attachment.id)}
+                <div class="attachment-item">
+                  <span class="attachment-name">
+                    {attachment.name}
+                  </span>
+
+                  <button
+                    type="button"
+                    aria-label="Remove attachment"
+                    onclick={() => removeAttachment(attachment.id)}
+                  >
+                    ×
+                  </button>
+                </div>
+              {/each}
+            </div>
+          {/if}
 
         <button
           class="connect-tools"
@@ -395,6 +492,7 @@ async function handleSendMessage(event: SubmitEvent) {
         {/each}
           <div bind:this={bottomElement} class="scroll-anchor"></div>
       </div>
+      
 
       <footer class="conversation-footer">
         <form class="composer" onsubmit={handleSendMessage}>
@@ -420,9 +518,17 @@ async function handleSendMessage(event: SubmitEvent) {
     ></textarea>
 
           <div class="composer-bottom">
-            <button class="add-button" type="button" aria-label="Add attachment">
-              +
+           
+             <button  class="add-button"
+              type="button"
+              aria-label="Add attachment"
+              title="Add attachment"
+              disabled={isSelecting}
+              onclick={addAttachments}>
+                            {isSelecting ? '...' : '+'}
+
             </button>
+          
 
             <button
               type="submit"
@@ -434,6 +540,25 @@ async function handleSendMessage(event: SubmitEvent) {
             </button>
           </div>
         </form>
+          {#if attachments.length > 0}
+            <div class="attachments-list">
+              {#each attachments as attachment (attachment.id)}
+                <div class="attachment-item">
+                  <span class="attachment-name">
+                    {attachment.name}
+                  </span>
+
+                  <button
+                    type="button"
+                    aria-label="Remove attachment"
+                    onclick={() => removeAttachment(attachment.id)}
+                  >
+                    ×
+                  </button>
+                </div>
+              {/each}
+            </div>
+          {/if}
 
         <p class="disclaimer">
           AI can make mistakes. Review important information.
