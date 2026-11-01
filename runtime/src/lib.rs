@@ -14,6 +14,13 @@ pub use storage::models::{Conversation, Message};
 // --------------------------------------------------
 // DATABASE INITIALIZATION
 // --------------------------------------------------
+#[derive(Debug, Clone, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Attachment {
+    pub id: String,
+    pub name: String,
+    pub path: String,
+}
 
 fn open_conversation_db(
     app_handle: &AppHandle,
@@ -102,6 +109,7 @@ pub fn get_conversations(
 pub async fn handle_agent_request(
     prompt: &str,
     conversation_id: &str,
+    attachments: &[Attachment],
     app_handle: &AppHandle,
 ) -> String {
 
@@ -204,6 +212,31 @@ pub async fn handle_agent_request(
             );
         }
     };
+    // Validate attachment references.
+
+        for attachment in attachments {
+            if attachment.id.trim().is_empty()
+                || attachment.name.trim().is_empty()
+                || attachment.path.trim().is_empty()
+            {
+                return emit_error(
+                    app_handle,
+                    "Invalid attachment information.",
+                );
+            }
+
+            let path = std::path::Path::new(&attachment.path);
+
+            if !path.is_absolute() || !path.is_file() {
+                return emit_error(
+                    app_handle,
+                    &format!(
+                        "Attachment is unavailable: {}",
+                        attachment.name
+                    ),
+                );
+            }
+        }
 
     // 8. Convert history into Gemini contents format.
 
@@ -219,14 +252,28 @@ pub async fn handle_agent_request(
         })
         .collect();
 
-    // 9. Append current user prompt.
+        // 9. Append current user prompt and attachment metadata.
 
-    contents.push(json!({
-        "role": "user",
-        "parts": [
-            { "text": prompt }
-        ]
-    }));
+        let mut user_prompt = prompt.to_string();
+
+        if !attachments.is_empty() {
+            user_prompt.push_str("\n\nAttached files:\n");
+
+            for attachment in attachments {
+                user_prompt.push_str(&format!(
+                    "- {} (ID: {})\n",
+                    attachment.name,
+                    attachment.id
+                ));
+            }
+        }
+
+        contents.push(json!({
+            "role": "user",
+            "parts": [
+                { "text": user_prompt }
+            ]
+        }));
 
     // --------------------------------------------------
     // GEMINI STREAMING API REQUEST
