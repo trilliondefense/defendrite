@@ -145,6 +145,10 @@ pub fn run() {
         .plugin(
             tauri_plugin_opener::init()
         )
+        // External URL opener.
+        .plugin(
+            tauri_plugin_dialog::init()
+        )
 
         // Register frontend commands.
         .invoke_handler(
