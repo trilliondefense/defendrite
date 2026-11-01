@@ -7,6 +7,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { emit, listen } from "@tauri-apps/api/event";
 import { onMount, tick } from "svelte";
  import { open } from '@tauri-apps/plugin-dialog';
+import { stat } from "@tauri-apps/plugin-fs";
 
   import { marked } from "marked";
   import DOMPurify from "dompurify";
@@ -50,23 +51,39 @@ interface Message {
         ? selected
         : [selected];
 
-      const newAttachments = paths
-        .filter(path =>
-          !attachments.some(item => item.path === path)
-        )
-        .map(path => ({
-          id: crypto.randomUUID(),
-          name: path.split(/[\\/]/).pop() || 'Unknown file',
-          path
-        }));
+      const newAttachments = await Promise.all(
+        paths
+          .filter(path =>
+            !attachments.some(item => item.path === path)
+          )
+          .map(async (path) => {
+            const metadata = await stat(path);
+
+            return {
+              id: crypto.randomUUID(),
+              name: path.split(/[\\/]/).pop() || "Unknown file",
+              path,
+              size: metadata.size,
+              mimeType: null
+            };
+          })
+      );
 
       attachments = [...attachments, ...newAttachments];
 
     } catch (error) {
       console.error('Failed to select attachments:', error);
+      consoleLogTerminal(`Message ${error}`)
+
     } finally {
       isSelecting = false;
     }
+  }
+
+  async function consoleLogTerminal(message:String){
+     await invoke("log_to_terminal", {
+        message
+      });
   }
 
   function removeAttachment(id: string) {
