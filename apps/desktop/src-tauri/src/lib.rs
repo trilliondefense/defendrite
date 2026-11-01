@@ -145,7 +145,7 @@ pub fn run() {
         .plugin(
             tauri_plugin_opener::init()
         )
-        // External URL opener.
+        // Dialog opener.
         .plugin(
             tauri_plugin_dialog::init()
         )
