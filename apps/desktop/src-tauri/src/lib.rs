@@ -1,15 +1,7 @@
 
 use tauri::Manager;
 use tauri_plugin_store::StoreExt;
-
-#[derive(Debug, Clone, serde::Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct Attachment {
-    id: String,
-    name: String,
-    path: String,
-}
-
+use runtime::Attachment;
 // --------------------------------------------------
 // ASK AGENT
 // --------------------------------------------------
@@ -49,6 +41,7 @@ async fn ask_agent(
     let result = runtime::handle_agent_request(
         &prompt,
         &conversation_id,
+        &attachments[..],
         &app_handle,
     )
     .await;
