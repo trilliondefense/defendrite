@@ -234,17 +234,33 @@ pub async fn handle_agent_request(
 
     // 8. Convert history into Gemini contents format.
 
-    let mut contents: Vec<Value> = history
-        .into_iter()
-        .map(|message| {
-            json!({
-                "role": message.role,
-                "parts": [
-                    { "text": message.content }
-                ]
-            })
+   // 8. Convert history into Gemini contents format.
+
+let mut contents: Vec<Value> = history
+    .into_iter()
+    .map(|message| {
+        let mut text = message.content;
+
+        if !message.attachments.is_empty() {
+            text.push_str("\n\nAttachments in this message:\n");
+
+            for attachment in &message.attachments {
+                text.push_str(&format!(
+                    "- {} (Attachment Path: {})\n",
+                    attachment.name,
+                    attachment.path
+                ));
+            }
+        }
+
+        json!({
+            "role": message.role,
+            "parts": [
+                { "text": text }
+            ]
         })
-        .collect();
+    })
+    .collect();
 
         // 9. Append current user prompt and attachment metadata.
 
