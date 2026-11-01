@@ -26,6 +26,8 @@ runtime = { path = "../../../runtime" }
 tokio = "1.53.3"
 tauri-plugin-store = "2"
 tauri-plugin-dialog = "2"
+tauri-plugin-fs = "2.7.0"
+
 
 
 # Read the optimization guideline for more details: https://tauri.app/concept/size/#cargo-configuration

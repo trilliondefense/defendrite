@@ -151,6 +151,7 @@ pub fn run() {
         .plugin(
             tauri_plugin_dialog::init()
         )
+        .plugin(tauri_plugin_fs::init())
 
         // Register frontend commands.
         .invoke_handler(
