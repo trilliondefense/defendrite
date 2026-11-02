@@ -11,22 +11,32 @@ jobs:
   build-tauri:
     permissions:
       contents: write
+
     strategy:
       fail-fast: false
       matrix:
         include:
-          - platform: "macos-latest"
+          - platform: macos-latest
             args: "--target universal-apple-darwin"
-          - platform: "windows-latest"
+
+          - platform: windows-latest
             args: ""
-          - platform: "ubuntu-22.04"
+
+          - platform: ubuntu-22.04
             args: ""
 
     runs-on: ${{ matrix.platform }}
+
     steps:
+      # ----------------------------------------
+      # Checkout
+      # ----------------------------------------
       - name: Checkout repository
         uses: actions/checkout@v7
 
+      # ----------------------------------------
+      # Node & pnpm
+      # ----------------------------------------
       - name: Setup Node.js
         uses: actions/setup-node@v7
         with:
@@ -40,7 +50,7 @@ jobs:
       - name: Get pnpm store directory
         shell: bash
         run: |
-          echo "STORE_PATH=$(pnpm store path)" >> $GITHUB_ENV
+          echo "STORE_PATH=$(pnpm store path)" >> "$GITHUB_ENV"
 
       - name: Cache pnpm modules
         uses: actions/cache@v5
@@ -50,6 +60,9 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-pnpm-store-
 
+      # ----------------------------------------
+      # Rust
+      # ----------------------------------------
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -59,8 +72,11 @@ jobs:
         uses: swatinem/rust-cache@v2
         with:
           workspaces: |
-            apps/desktop/src-tauri -> target
+            . -> target
 
+      # ----------------------------------------
+      # Linux dependencies
+      # ----------------------------------------
       - name: Install Linux system dependencies
         if: matrix.platform == 'ubuntu-22.04'
         run: |
@@ -72,18 +88,29 @@ jobs:
             librsvg2-dev \
             patchelf
 
+      # ----------------------------------------
+      # Frontend dependencies
+      # ----------------------------------------
       - name: Install frontend dependencies
-        run: |
-          cd apps/desktop
-          pnpm install --frozen-lockfile
+        working-directory: apps/desktop
+        run: pnpm install --frozen-lockfile
+
+      # ----------------------------------------
+      # Build MCP Filesystem Server
+      # ----------------------------------------
       - name: Build MCP Filesystem Server
         shell: bash
         run: |
+          set -euo pipefail
+
           RESOURCE_DIR="apps/desktop/src-tauri/resources/filesystem"
 
           mkdir -p "$RESOURCE_DIR"
 
           if [ "${{ matrix.platform }}" = "macos-latest" ]; then
+
+            echo "Building macOS universal MCP server"
+
             cargo build --release -p filesystem --target x86_64-apple-darwin
             cargo build --release -p filesystem --target aarch64-apple-darwin
 
@@ -94,7 +121,12 @@ jobs:
               target/aarch64-apple-darwin/release/filesystem \
               -output "$RESOURCE_DIR/macos/filesystem"
 
+            chmod +x "$RESOURCE_DIR/macos/filesystem"
+
           elif [ "${{ matrix.platform }}" = "windows-latest" ]; then
+
+            echo "Building Windows MCP server"
+
             cargo build --release -p filesystem
 
             mkdir -p "$RESOURCE_DIR/windows"
@@ -103,22 +135,59 @@ jobs:
               "$RESOURCE_DIR/windows/filesystem.exe"
 
           else
+
+            echo "Building Linux MCP server"
+
             cargo build --release -p filesystem
 
             mkdir -p "$RESOURCE_DIR/linux"
 
             cp target/release/filesystem \
               "$RESOURCE_DIR/linux/filesystem"
+
+            chmod +x "$RESOURCE_DIR/linux/filesystem"
+
           fi
-      - name: Verify build (Pull Requests)
-        if: github.event_name == 'pull_request'
+
+          echo "MCP resource contents:"
+          find "$RESOURCE_DIR" -type f
+
+      # ----------------------------------------
+      # Verify MCP resource exists
+      # ----------------------------------------
+      - name: Verify MCP Filesystem Server
+        shell: bash
         run: |
-          cd apps/desktop
-          pnpm tauri build ${{ matrix.args }}
+          set -euo pipefail
+
+          case "${{ matrix.platform }}" in
+            macos-latest)
+              test -f apps/desktop/src-tauri/resources/filesystem/macos/filesystem
+              ;;
+            windows-latest)
+              test -f apps/desktop/src-tauri/resources/filesystem/windows/filesystem.exe
+              ;;
+            ubuntu-22.04)
+              test -f apps/desktop/src-tauri/resources/filesystem/linux/filesystem
+              ;;
+          esac
+
+          echo "MCP filesystem resource verified."
+
+      # ----------------------------------------
+      # Verify build (Pull Requests)
+      # ----------------------------------------
+      - name: Verify Tauri build
+        if: github.event_name == 'pull_request'
+        working-directory: apps/desktop
+        run: pnpm exec tauri build ${{ matrix.args }}
         env:
           HARNESS_MODEL_API_KEY: ${{ secrets.HARNESS_MODEL_API_KEY }}
           HARNESS_MODEL_NAME: ${{ secrets.HARNESS_MODEL_NAME }}
 
+      # ----------------------------------------
+      # Production build and release
+      # ----------------------------------------
       - name: Build frontend and Tauri application
         uses: tauri-apps/tauri-action@v0
         if: github.ref_name == 'main' || github.event_name == 'workflow_dispatch'
@@ -127,10 +196,10 @@ jobs:
           HARNESS_MODEL_API_KEY: ${{ secrets.HARNESS_MODEL_API_KEY }}
           HARNESS_MODEL_NAME: ${{ secrets.HARNESS_MODEL_NAME }}
         with:
+          projectPath: apps/desktop
           tagName: app-v__VERSION__
           releaseName: "Defendrite Workbench v__VERSION__"
           releaseBody: "Automated release from GitHub Actions."
           releaseDraft: true
           prerelease: false
           args: ${{ matrix.args }}
-          projectPath: "apps/desktop"
