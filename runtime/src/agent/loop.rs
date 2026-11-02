@@ -5,6 +5,7 @@ use crate::{
     mcp::manager,
     providers::gemini,
 };
+const SYSTEM_PROMPT: &str = include_str!("system_prompt.md");
 pub async fn run(
     mut contents: Vec<Value>,
     api_key: &str,
@@ -40,6 +41,7 @@ pub async fn run(
             model,
             &contents,
             &gemini_tools,
+            SYSTEM_PROMPT,
             app_handle,
         )
         .await?;
