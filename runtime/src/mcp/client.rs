@@ -2,7 +2,7 @@ use std::error::Error;
 
 use rmcp::{
     ServiceExt,
-    transport::{ConfigureCommandExt, TokioChildProcess},
+    transport::TokioChildProcess,
 };
 
 use tokio::process::Command;

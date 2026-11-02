@@ -15,12 +15,8 @@ pub fn convert_tools(tools: &[McpTool]) -> Value {
         .map(|tool| {
             let mut schema = tool.input_schema.clone();
 
-            // Remove JSON Schema metadata not needed by Gemini.
-            if let Some(obj) = schema.as_object_mut() {
-                obj.remove("$schema");
-                obj.remove("$defs");
-                obj.remove("definitions");
-            }
+            // Clean the top-level schema and any nested object parameters
+            clean_gemini_schema(&mut schema);
 
             json!({
                 "name": tool.name,
@@ -30,9 +26,38 @@ pub fn convert_tools(tools: &[McpTool]) -> Value {
         })
         .collect();
 
-    json!([{
-        "functionDeclarations": declarations
-    }])
+    // Correct nesting structure: An array containing a single Tool Object 
+    // that wraps the function declarations list.
+    json!([
+        {
+            "function_declarations": declarations
+        }
+    ])
+}
+
+/// Recursively removes JSON schema keywords that Gemini's parser rejects
+fn clean_gemini_schema(value: &mut Value) {
+    if let Some(obj) = value.as_object_mut() {
+        // Strip top-level metadata and draft keys
+        obj.remove("$schema");
+        obj.remove("$defs");
+        obj.remove("definitions");
+        obj.remove("$comment");
+
+        // Recursively clean inner properties (e.g. if an object parameter has nested structures)
+        if let Some(properties) = obj.get_mut("properties") {
+            if let Some(prop_obj) = properties.as_object_mut() {
+                for (_, prop_value) in prop_obj.iter_mut() {
+                    clean_gemini_schema(prop_value);
+                }
+            }
+        }
+        
+        // Also clean items array schemas if the parameter type is an "array"
+        if let Some(items) = obj.get_mut("items") {
+            clean_gemini_schema(items);
+        }
+    }
 }
 
 pub async fn generate(
