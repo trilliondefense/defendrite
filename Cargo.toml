@@ -3,5 +3,5 @@ members = [
     "apps/desktop/src-tauri",
     "runtime",
     "models"
-]
+, "mcp-servers/filesystem"]
 resolver = "2"
