@@ -1,8 +1,4 @@
-use std::{
-    error::Error,
-    path::Path,
-    process::Stdio,
-};
+use std::error::Error;
 
 use rmcp::{
     ServiceExt,
@@ -11,18 +7,29 @@ use rmcp::{
 
 use tokio::process::Command;
 
+use super::config::McpServerConfig;
+
 pub async fn connect(
-    executable: &Path,
+    config: &McpServerConfig,
 ) -> Result<
     rmcp::service::RunningService<rmcp::RoleClient, ()>,
     Box<dyn Error + Send + Sync>,
 > {
-    let transport = TokioChildProcess::new(
-        Command::new(executable).configure(|cmd| {
-            cmd.kill_on_drop(true);
-            cmd.stderr(Stdio::inherit());
-        }),
-    )?;
+    if config.transport != "stdio" {
+        return Err(format!(
+            "Unsupported MCP transport: {}",
+            config.transport
+        ).into());
+    }
+
+    let mut command = Command::new(&config.command);
+
+    command
+        .args(&config.args)
+        .envs(&config.env)
+        .kill_on_drop(true);
+
+    let transport = TokioChildProcess::new(command)?;
 
     let client = ().serve(transport).await?;
 

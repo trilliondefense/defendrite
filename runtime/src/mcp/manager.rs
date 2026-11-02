@@ -1,3 +1,4 @@
+
 use std::{
     collections::HashMap,
     error::Error,
@@ -6,31 +7,32 @@ use std::{
 };
 
 use serde_json::{json, Value};
-use tokio::sync::Mutex;
 use tauri::{AppHandle, Manager};
 use tauri::path::BaseDirectory;
+use tokio::sync::Mutex;
 
-use super::{client, types::McpTool};
+use super::{
+    client,
+    config::{McpConfig, McpServerConfig},
+    types::McpTool,
+};
 
 type McpResult<T> = Result<T, Box<dyn Error + Send + Sync>>;
 
-pub struct McpManager {
-    servers: RwLock<HashMap<String, PathBuf>>,
+type McpClient =
+    rmcp::service::RunningService<rmcp::RoleClient, ()>;
 
-    clients: Mutex<
-        HashMap<
-            String,
-            rmcp::service::RunningService<rmcp::RoleClient, ()>,
-        >
-    >,
+pub struct McpManager {
+    config: RwLock<McpConfig>,
+    clients: Mutex<HashMap<String, McpClient>>,
 }
 
 static MCP_MANAGER: OnceLock<McpManager> = OnceLock::new();
 
 impl McpManager {
-    fn new(servers: HashMap<String, PathBuf>) -> Self {
+    pub fn new(config: McpConfig) -> Self {
         Self {
-            servers: RwLock::new(servers),
+            config: RwLock::new(config),
             clients: Mutex::new(HashMap::new()),
         }
     }
@@ -41,16 +43,15 @@ impl McpManager {
             return Ok(manager);
         }
 
-        let mut servers = HashMap::new();
-
         #[cfg(target_os = "windows")]
         let resource_name = "filesystem.exe";
 
         #[cfg(not(target_os = "windows"))]
         let resource_name = "filesystem";
 
-        // Production: resolve bundled Tauri resource.
-        let bundled = app.path()
+        // Production: resolve bundled resource.
+        let bundled = app
+            .path()
             .resolve(resource_name, BaseDirectory::Resource)
             .ok();
 
@@ -65,7 +66,7 @@ impl McpManager {
             .join("debug")
             .join(resource_name);
 
-        // Explicit environment override > bundled > development.
+        // Environment override > bundled > development.
         let executable = if let Some(path) =
             std::env::var_os("FILESYSTEM_MCP_BIN")
         {
@@ -80,67 +81,95 @@ impl McpManager {
             return Err(format!(
                 "Filesystem MCP executable not found: {}",
                 executable.display()
-            ).into());
+            )
+            .into());
         }
 
-        servers.insert("filesystem".to_string(), executable);
+        // Initial configuration.
+        let config = McpConfig {
+            servers: vec![McpServerConfig {
+                name: "filesystem".to_string(),
+                enabled: true,
+                transport: "stdio".to_string(),
+                command: executable.to_string_lossy().to_string(),
+                args: Vec::new(),
+                env: HashMap::new(),
+            }],
+        };
 
-        let manager = Self::new(servers);
+        let manager = Self::new(config);
 
-        // Another concurrent caller may have initialized it.
+        // Initialize only once.
         let _ = MCP_MANAGER.set(manager);
 
-        Ok(MCP_MANAGER.get().unwrap())
+        MCP_MANAGER
+            .get()
+            .ok_or_else(|| "Failed to initialize MCP manager".into())
     }
 
-    // Register another MCP server.
+    // Register or update an MCP server configuration.
     pub fn register_server(
         &self,
-        name: impl Into<String>,
-        executable: PathBuf,
+        server: McpServerConfig,
     ) -> McpResult<()> {
-        self.servers
+        let mut config = self.config
             .write()
-            .map_err(|e| format!("Server registry lock failed: {e}"))?
-            .insert(name.into(), executable);
+            .map_err(|e| format!("Config lock failed: {e}"))?;
+
+        if let Some(existing) = config.servers
+            .iter_mut()
+            .find(|item| item.name == server.name)
+        {
+            *existing = server;
+        } else {
+            config.servers.push(server);
+        }
 
         Ok(())
     }
 
     // Connect only if this server isn't already connected.
-    async fn ensure_connected(&self, server: &str) -> McpResult<()> {
+    async fn ensure_connected(&self, name: &str) -> McpResult<()> {
         let mut clients = self.clients.lock().await;
 
-        if clients.contains_key(server) {
+        if clients.contains_key(name) {
             return Ok(());
         }
 
-        let executable = self.servers
-            .read()
-            .map_err(|e| format!("Server registry lock failed: {e}"))?
-            .get(server)
-            .cloned()
-            .ok_or_else(|| format!("Unknown MCP server: {server}"))?;
+        let server = {
+            let config = self.config
+                .read()
+                .map_err(|e| format!("Config lock failed: {e}"))?;
 
-        println!("Starting MCP server: {server}");
+            config.servers
+                .iter()
+                .find(|server| server.name == name && server.enabled)
+                .cloned()
+                .ok_or_else(|| {
+                    format!("MCP server not found or disabled: {name}")
+                })?
+        };
 
-        let connection = client::connect(&executable).await?;
+        let connection = client::connect(&server).await?;
 
-        clients.insert(server.to_string(), connection);
-
-        println!("MCP server connected: {server}");
+        clients.insert(name.to_string(), connection);
 
         Ok(())
     }
 
-    // Discover tools from every registered server.
+    // Discover tools from every enabled server.
     pub async fn discover_tools(&self) -> McpResult<Vec<McpTool>> {
-        let server_names: Vec<String> = self.servers
-            .read()
-            .map_err(|e| format!("Server registry lock failed: {e}"))?
-            .keys()
-            .cloned()
-            .collect();
+        let server_names: Vec<String> = {
+            let config = self.config
+                .read()
+                .map_err(|e| format!("Config lock failed: {e}"))?;
+
+            config.servers
+                .iter()
+                .filter(|server| server.enabled)
+                .map(|server| server.name.clone())
+                .collect()
+        };
 
         let mut all_tools = Vec::new();
 
@@ -148,7 +177,10 @@ impl McpManager {
             self.ensure_connected(&server).await?;
 
             let clients = self.clients.lock().await;
-            let client = clients.get(&server).unwrap();
+
+            let client = clients
+                .get(&server)
+                .ok_or("MCP connection missing")?;
 
             let result = client.list_all_tools().await?;
 
@@ -170,7 +202,7 @@ impl McpManager {
         Ok(all_tools)
     }
 
-    // Execute a tool using its registered server connection.
+    // Execute a tool using its persistent server connection.
     pub async fn execute_tool(
         &self,
         server: &str,
@@ -180,12 +212,15 @@ impl McpManager {
         self.ensure_connected(server).await?;
 
         let clients = self.clients.lock().await;
-        let client = clients.get(server).unwrap();
+
+        let client = clients
+            .get(server)
+            .ok_or("MCP connection missing")?;
 
         let arguments = args
             .as_object()
             .cloned()
-            .unwrap_or_default();
+            .ok_or("Tool arguments must be a JSON object")?;
 
         let result = client.call_tool(
             rmcp::model::CallToolRequestParams::new(name.to_string())
