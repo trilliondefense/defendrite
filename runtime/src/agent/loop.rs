@@ -14,7 +14,9 @@ pub async fn run(
 ) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
 
     // Discover available MCP tools.
-    let mcp_tools = manager::discover_tools().await?;
+    let mcp_manager = manager::McpManager::global(app_handle)?;
+
+    let mcp_tools = mcp_manager.discover_tools().await?;
 
     println!("Available MCP tools: {mcp_tools:#?}");
 
@@ -86,11 +88,11 @@ pub async fn run(
 
             let result = match tool {
                 Some(tool) => {
-                    manager::execute_tool(
-                        &tool.server,
-                        name,
-                        args,
-                    ).await
+                    mcp_manager.execute_tool(
+                    &tool.server,
+                    name,
+                    args,
+                ).await
                 }
 
                 None => {

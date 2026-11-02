@@ -240,16 +240,16 @@ pub async fn handle_agent_request(
    // 8. Convert history into Gemini contents format.
 
 
-let mcp_tools = match crate::mcp::manager::discover_tools().await {
-    Ok(tools) => {
-        println!("Discovered MCP tools: {tools:#?}");
-        tools
-    }
-    Err(error) => {
-        eprintln!("MCP tool discovery failed: {error}");
-        Vec::new()
-    }
-};
+// let mcp_tools = match crate::mcp::manager::discover_tools().await {
+//     Ok(tools) => {
+//         println!("Discovered MCP tools: {tools:#?}");
+//         tools
+//     }
+//     Err(error) => {
+//         eprintln!("MCP tool discovery failed: {error}");
+//         Vec::new()
+//     }
+// };
 
 let mut contents: Vec<Value> = history
     .into_iter()
@@ -292,17 +292,17 @@ let mut contents: Vec<Value> = history
                 ));
             }
         }
-        if !mcp_tools.is_empty() {
-            user_prompt.push_str("\n\nAvailable filesystem tools:\n");
+        // if !mcp_tools.is_empty() {
+        //     user_prompt.push_str("\n\nAvailable filesystem tools:\n");
 
-            for tool in &mcp_tools {
-                user_prompt.push_str(&format!(
-                    "- {}: {}\n",
-                    tool.name,
-                    tool.description
-                ));
-            }
-        }
+        //     for tool in &mcp_tools {
+        //         user_prompt.push_str(&format!(
+        //             "- {}: {}\n",
+        //             tool.name,
+        //             tool.description
+        //         ));
+        //     }
+        // }
 
         contents.push(json!({
             "role": "user",
