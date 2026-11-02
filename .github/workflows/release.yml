@@ -77,23 +77,39 @@ jobs:
           cd apps/desktop
           pnpm install --frozen-lockfile
       - name: Build MCP Filesystem Server
-        shell: bash
-        run: |
-          # Create a clean folder that Tauri will bundle entirely
-          mkdir -p target/release/mcp-server
+          shell: bash
+          run: |
+            RESOURCE_DIR="apps/desktop/src-tauri/resources/filesystem"
 
-          if [ "${{ matrix.platform }}" = "macos-latest" ]; then
-            cargo build --release -p filesystem --target x86_64-apple-darwin
-            cargo build --release -p filesystem --target aarch64-apple-darwin
-            lipo -create target/x86_64-apple-darwin/release/filesystem target/aarch64-apple-darwin/release/filesystem -output target/release/mcp-server/filesystem
-          elif [ "${{ matrix.platform }}" = "windows-latest" ]; then
-            cargo build --release -p filesystem
-            cp target/release/filesystem.exe target/release/mcp-server/filesystem.exe
-          else
-            cargo build --release -p filesystem
-            cp target/release/filesystem target/release/mcp-server/filesystem
-          fi
+            mkdir -p "$RESOURCE_DIR"
 
+            if [ "${{ matrix.platform }}" = "macos-latest" ]; then
+              cargo build --release -p filesystem --target x86_64-apple-darwin
+              cargo build --release -p filesystem --target aarch64-apple-darwin
+
+              mkdir -p "$RESOURCE_DIR/macos"
+
+              lipo -create \
+                target/x86_64-apple-darwin/release/filesystem \
+                target/aarch64-apple-darwin/release/filesystem \
+                -output "$RESOURCE_DIR/macos/filesystem"
+
+            elif [ "${{ matrix.platform }}" = "windows-latest" ]; then
+              cargo build --release -p filesystem
+
+              mkdir -p "$RESOURCE_DIR/windows"
+
+              cp target/release/filesystem.exe \
+                "$RESOURCE_DIR/windows/filesystem.exe"
+
+            else
+              cargo build --release -p filesystem
+
+              mkdir -p "$RESOURCE_DIR/linux"
+
+              cp target/release/filesystem \
+                "$RESOURCE_DIR/linux/filesystem"
+            fi
       - name: Verify build (Pull Requests)
         if: github.event_name == 'pull_request'
         run: |
