@@ -21,64 +21,105 @@ struct UnzipArgs {
 
 #[derive(Clone)]
 struct FilesystemHandler;
-
 #[tool_router(server_handler)]
 impl FilesystemHandler {
-    /// Extracts a ZIP archive into a destination directory.
     #[tool(description = "Extracts a local ZIP archive into a target destination directory.")]
     fn unzip_file(
         &self,
         Parameters(args): Parameters<UnzipArgs>,
     ) -> Result<String, String> {
 
-        // Open the ZIP archive.
-        let zip_file = fs::File::open(&args.zip_path)
-            .map_err(|e| format!("Failed to open ZIP archive: {}", e))?;
+        let log_path = "/tmp/filesystem-mcp.log";
 
-        let mut archive = zip::ZipArchive::new(zip_file)
-            .map_err(|e| format!("Invalid ZIP archive: {}", e))?;
+        let log = |message: &str| {
+            use std::io::Write;
+
+            if let Ok(mut file) = fs::OpenOptions::new()
+                .create(true)
+                .append(true)
+                .open(log_path)
+            {
+                let _ = writeln!(file, "{message}");
+            }
+        };
+
+        log("========== UNZIP REQUEST ==========");
+        log(&format!("ZIP path: {}", args.zip_path));
+        log(&format!("Output path: {}", args.output_dir));
+        log(&format!("Current directory: {:?}", std::env::current_dir()));
+
+        let zip_path = Path::new(&args.zip_path);
+
+        log(&format!("ZIP exists: {}", zip_path.exists()));
+        log(&format!("ZIP is file: {}", zip_path.is_file()));
+
+        let zip_file = match fs::File::open(zip_path) {
+            Ok(file) => file,
+            Err(error) => {
+                log(&format!("OPEN ERROR: {error}"));
+                return Err(format!("Failed to open ZIP archive: {error}"));
+            }
+        };
+
+        log("ZIP opened successfully");
+
+        let mut archive = match zip::ZipArchive::new(zip_file) {
+            Ok(archive) => archive,
+            Err(error) => {
+                log(&format!("ZIP ERROR: {error}"));
+                return Err(format!("Invalid ZIP archive: {error}"));
+            }
+        };
+
+        log(&format!("Archive entries: {}", archive.len()));
 
         let output_path = Path::new(&args.output_dir);
 
-        // Create destination directory if it doesn't exist.
-        fs::create_dir_all(output_path)
-            .map_err(|e| format!("Failed to create output directory: {}", e))?;
+        if let Err(error) = fs::create_dir_all(output_path) {
+            log(&format!("OUTPUT DIRECTORY ERROR: {error}"));
+            return Err(format!("Failed to create output directory: {error}"));
+        }
 
-        // Extract archive entries.
         for i in 0..archive.len() {
-            let mut file = archive
-                .by_index(i)
-                .map_err(|e| format!("Failed to read ZIP entry: {}", e))?;
+            let mut file = match archive.by_index(i) {
+                Ok(file) => file,
+                Err(error) => {
+                    log(&format!("ENTRY ERROR: {error}"));
+                    return Err(format!("Failed to read ZIP entry: {error}"));
+                }
+            };
 
-            // Prevent ZIP Slip path traversal.
-            let enclosed_name = file
-                .enclosed_name()
-                .ok_or_else(|| {
-                    format!("Blocked unsafe archive entry: {:?}", file.name())
-                })?
-                .to_owned();
+            log(&format!("Extracting: {:?}", file.name()));
+
+            let enclosed_name = match file.enclosed_name() {
+                Some(name) => name.to_owned(),
+                None => {
+                    let error = format!("Blocked unsafe archive entry: {:?}", file.name());
+                    log(&error);
+                    return Err(error);
+                }
+            };
 
             let file_out_path = output_path.join(enclosed_name);
 
-            // Use is_dir() instead of checking file.name().ends_with('/').
             if file.is_dir() {
                 fs::create_dir_all(&file_out_path)
-                    .map_err(|e| format!("Failed to create directory: {}", e))?;
+                    .map_err(|e| format!("Directory creation failed: {e}"))?;
             } else {
-                // Create parent directories.
                 if let Some(parent) = file_out_path.parent() {
                     fs::create_dir_all(parent)
-                        .map_err(|e| format!("Failed to create parent directory: {}", e))?;
+                        .map_err(|e| format!("Parent creation failed: {e}"))?;
                 }
 
-                // Write extracted file.
                 let mut outfile = fs::File::create(&file_out_path)
-                    .map_err(|e| format!("Failed to create output file: {}", e))?;
+                    .map_err(|e| format!("File creation failed: {e}"))?;
 
                 std::io::copy(&mut file, &mut outfile)
-                    .map_err(|e| format!("Failed to extract file: {}", e))?;
+                    .map_err(|e| format!("Extraction failed: {e}"))?;
             }
         }
+
+        log("EXTRACTION SUCCESS");
 
         Ok(format!(
             "Successfully extracted ZIP archive into: {}",
@@ -86,7 +127,6 @@ impl FilesystemHandler {
         ))
     }
 }
-
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let service = FilesystemHandler

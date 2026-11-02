@@ -883,7 +883,7 @@ dependencies = [
 
 [[package]]
 name = "desktop-app"
-version = "0.4.5"
+version = "0.7.0"
 dependencies = [
  "runtime",
  "serde",
@@ -1192,7 +1192,7 @@ dependencies = [
 
 [[package]]
 name = "filesystem"
-version = "0.4.5"
+version = "0.7.0"
 dependencies = [
  "rmcp",
  "schemars 1.2.3",
@@ -2470,7 +2470,7 @@ dependencies = [
 
 [[package]]
 name = "models"
-version = "0.4.5"
+version = "0.7.0"
 dependencies = [
  "tokio",
 ]
@@ -3142,6 +3142,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "process-wrap"
+version = "10.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1f21b97672d2dc848e7b25701ab4535618b92f4861c13cc3f7f7bed52ad3c8da"
+dependencies = [
+ "futures",
+ "indexmap 2.14.2",
+ "nix",
+ "tokio",
+ "tracing",
+ "windows",
+]
+
+[[package]]
 name = "quick-xml"
 version = "0.42.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3424,12 +3438,14 @@ dependencies = [
  "libc",
  "pastey",
  "pin-project-lite",
+ "process-wrap",
  "rmcp-macros",
  "schemars 1.2.3",
  "serde",
  "serde_json",
  "thiserror 2.0.21",
  "tokio",
+ "tokio-stream",
  "tokio-util",
  "tracing",
  "uuid",
@@ -3459,13 +3475,14 @@ dependencies = [
 
 [[package]]
 name = "runtime"
-version = "0.4.5"
+version = "0.7.0"
 dependencies = [
  "bytes",
  "dotenvy",
  "futures-util",
  "models",
  "reqwest",
+ "rmcp",
  "rusqlite",
  "serde",
  "serde_json",
@@ -4745,6 +4762,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c9cc2678c2cdd569ef8215e2afd7954ada2ae20b4fdd2c5fe6139a3b02d105db"
 dependencies = [
  "rustls",
+ "tokio",
+]
+
+[[package]]
+name = "tokio-stream"
+version = "0.1.19"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a3d06f0b082ba57c26b79407372e57cf2a1e28124f78e9479fe80322cf53420b"
+dependencies = [
+ "futures-core",
+ "pin-project-lite",
  "tokio",
 ]
 

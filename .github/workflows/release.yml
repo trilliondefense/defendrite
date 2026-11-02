@@ -76,6 +76,24 @@ jobs:
         run: |
           cd apps/desktop
           pnpm install --frozen-lockfile
+      - name: Build MCP Filesystem Server
+        shell: bash
+        run: |
+          # Create a clean folder that Tauri will bundle entirely
+          mkdir -p target/release/mcp-server
+
+          if [ "${{ matrix.platform }}" = "macos-latest" ]; then
+            cargo build --release -p filesystem --target x86_64-apple-darwin
+            cargo build --release -p filesystem --target aarch64-apple-darwin
+            lipo -create target/x86_64-apple-darwin/release/filesystem target/aarch64-apple-darwin/release/filesystem -output target/release/mcp-server/filesystem
+          elif [ "${{ matrix.platform }}" = "windows-latest" ]; then
+            cargo build --release -p filesystem
+            cp target/release/filesystem.exe target/release/mcp-server/filesystem.exe
+          else
+            cargo build --release -p filesystem
+            cp target/release/filesystem target/release/mcp-server/filesystem
+          fi
+
       - name: Verify build (Pull Requests)
         if: github.event_name == 'pull_request'
         run: |

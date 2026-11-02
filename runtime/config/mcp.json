@@ -1,0 +1,12 @@
+{
+  "servers": [
+    {
+      "name": "filesystem",
+      "enabled": true,
+      "transport": "stdio",
+      "command": "filesystem",
+      "args": [],
+      "env": {}
+    }
+  ]
+}
