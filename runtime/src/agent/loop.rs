@@ -43,13 +43,14 @@ pub async fn run(
             app_handle,
         )
         .await?;
-
+        // println!("Gemini text: {:?}", response.text);
+        // println!("Gemini parts: {:#?}", response.parts);
         // 5. Extract function calls using snake_case.
         let function_calls: Vec<Value> = response
             .parts
             .iter()
             .filter_map(|part| {
-                part.get("function_call").cloned()
+                part.get("functionCall").cloned()
             })
             .collect();
 
