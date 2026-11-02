@@ -9,6 +9,9 @@ use futures_util::StreamExt;
 use serde_json::{json, Value};
 use tauri::{AppHandle, Emitter, Manager};
 use tauri_plugin_store::StoreExt;
+pub mod agent;
+pub mod mcp;
+pub mod providers;
 
 pub use storage::models::{Conversation, Message,Attachment};
 // --------------------------------------------------
@@ -236,6 +239,18 @@ pub async fn handle_agent_request(
 
    // 8. Convert history into Gemini contents format.
 
+
+let mcp_tools = match crate::mcp::manager::discover_tools().await {
+    Ok(tools) => {
+        println!("Discovered MCP tools: {tools:#?}");
+        tools
+    }
+    Err(error) => {
+        eprintln!("MCP tool discovery failed: {error}");
+        Vec::new()
+    }
+};
+
 let mut contents: Vec<Value> = history
     .into_iter()
     .map(|message| {
@@ -277,6 +292,17 @@ let mut contents: Vec<Value> = history
                 ));
             }
         }
+        if !mcp_tools.is_empty() {
+            user_prompt.push_str("\n\nAvailable filesystem tools:\n");
+
+            for tool in &mcp_tools {
+                user_prompt.push_str(&format!(
+                    "- {}: {}\n",
+                    tool.name,
+                    tool.description
+                ));
+            }
+        }
 
         contents.push(json!({
             "role": "user",
@@ -284,6 +310,7 @@ let mut contents: Vec<Value> = history
                 { "text": user_prompt }
             ]
         }));
+
 
     // --------------------------------------------------
     // GEMINI STREAMING API REQUEST
