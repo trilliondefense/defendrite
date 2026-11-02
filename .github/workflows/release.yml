@@ -77,39 +77,39 @@ jobs:
           cd apps/desktop
           pnpm install --frozen-lockfile
       - name: Build MCP Filesystem Server
-          shell: bash
-          run: |
-            RESOURCE_DIR="apps/desktop/src-tauri/resources/filesystem"
+        shell: bash
+        run: |
+          RESOURCE_DIR="apps/desktop/src-tauri/resources/filesystem"
 
-            mkdir -p "$RESOURCE_DIR"
+          mkdir -p "$RESOURCE_DIR"
 
-            if [ "${{ matrix.platform }}" = "macos-latest" ]; then
-              cargo build --release -p filesystem --target x86_64-apple-darwin
-              cargo build --release -p filesystem --target aarch64-apple-darwin
+          if [ "${{ matrix.platform }}" = "macos-latest" ]; then
+            cargo build --release -p filesystem --target x86_64-apple-darwin
+            cargo build --release -p filesystem --target aarch64-apple-darwin
 
-              mkdir -p "$RESOURCE_DIR/macos"
+            mkdir -p "$RESOURCE_DIR/macos"
 
-              lipo -create \
-                target/x86_64-apple-darwin/release/filesystem \
-                target/aarch64-apple-darwin/release/filesystem \
-                -output "$RESOURCE_DIR/macos/filesystem"
+            lipo -create \
+              target/x86_64-apple-darwin/release/filesystem \
+              target/aarch64-apple-darwin/release/filesystem \
+              -output "$RESOURCE_DIR/macos/filesystem"
 
-            elif [ "${{ matrix.platform }}" = "windows-latest" ]; then
-              cargo build --release -p filesystem
+          elif [ "${{ matrix.platform }}" = "windows-latest" ]; then
+            cargo build --release -p filesystem
 
-              mkdir -p "$RESOURCE_DIR/windows"
+            mkdir -p "$RESOURCE_DIR/windows"
 
-              cp target/release/filesystem.exe \
-                "$RESOURCE_DIR/windows/filesystem.exe"
+            cp target/release/filesystem.exe \
+              "$RESOURCE_DIR/windows/filesystem.exe"
 
-            else
-              cargo build --release -p filesystem
+          else
+            cargo build --release -p filesystem
 
-              mkdir -p "$RESOURCE_DIR/linux"
+            mkdir -p "$RESOURCE_DIR/linux"
 
-              cp target/release/filesystem \
-                "$RESOURCE_DIR/linux/filesystem"
-            fi
+            cp target/release/filesystem \
+              "$RESOURCE_DIR/linux/filesystem"
+          fi
       - name: Verify build (Pull Requests)
         if: github.event_name == 'pull_request'
         run: |
