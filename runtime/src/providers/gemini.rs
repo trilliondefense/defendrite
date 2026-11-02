@@ -66,6 +66,7 @@ pub async fn generate(
     model: &str,
     contents: &[Value],
     tools: &Value,
+    system_prompt:&str,
     app_handle: &AppHandle,
 ) -> Result<GeminiTurn, Box<dyn std::error::Error + Send + Sync>> {
 
@@ -79,7 +80,14 @@ pub async fn generate(
         .header("Accept", "text/event-stream")
         .json(&json!({
             "contents": contents,
-            "tools": tools
+            "tools": tools, 
+            "system_instruction": {
+                "parts": [
+                    {
+                        "text": system_prompt
+                    }
+                ]
+            }
         }))
         .send()
         .await?;
