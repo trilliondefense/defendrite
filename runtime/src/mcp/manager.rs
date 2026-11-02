@@ -1,6 +1,7 @@
 use super::client;
 use super::types::McpTool;
 use serde_json::Value;
+use rmcp::model::CallToolRequestParams;
 
 pub async fn discover_tools(
 ) -> Result<Vec<McpTool>, Box<dyn std::error::Error + Send + Sync>> {
@@ -21,4 +22,34 @@ pub async fn discover_tools(
         .collect();
 
     Ok(tools)
+}
+
+pub async fn execute_tool(
+    server: &str,
+    name: &str,
+    args: Value,
+) -> Result<Value, Box<dyn std::error::Error + Send + Sync>> {
+
+    let executable = match server {
+        "filesystem" => "./target/debug/filesystem",
+        _ => return Err(format!("Unknown MCP server: {server}").into()),
+    };
+
+    let client = client::connect(executable).await?;
+
+    let arguments = args
+        .as_object()
+        .cloned()
+        .unwrap_or_default();
+
+    let result = client
+        .call_tool(
+            CallToolRequestParams::new(name.to_string())
+                .with_arguments(arguments),
+        )
+        .await?;
+
+    Ok(serde_json::json!({
+        "result": format!("{result:#?}")
+    }))
 }

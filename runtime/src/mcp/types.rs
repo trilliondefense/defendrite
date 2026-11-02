@@ -1,4 +1,5 @@
 use serde_json::Value;
+
 #[derive(Debug, Clone)]
 pub struct McpTool {
     pub server: String,
