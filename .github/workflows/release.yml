@@ -76,6 +76,9 @@ jobs:
         run: |
           cd apps/desktop
           pnpm install --frozen-lockfile
+      - name: Build MCP Filesystem Server
+        run: cargo build --release -p filesystem ${{ matrix.platform == 'macos-latest' && '--target universal-apple-darwin' || '' }}
+
       - name: Verify build (Pull Requests)
         if: github.event_name == 'pull_request'
         run: |
