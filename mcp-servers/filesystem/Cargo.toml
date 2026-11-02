@@ -1,0 +1,14 @@
+[package]
+name = "filesystem"
+version = "0.4.5"
+edition = "2024"
+
+[dependencies]
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+zip = "9.2.2"
+
+# The Official Tier-1 Rust SDK for Model Context Protocol
+rmcp = { version = "3.8.0", features = ["server", "macros", "schemars", "transport-io"] }
+schemars = { version = "1.2.3", features = ["derive"] }
