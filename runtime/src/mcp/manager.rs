@@ -31,8 +31,11 @@ pub async fn execute_tool(
 ) -> Result<Value, Box<dyn std::error::Error + Send + Sync>> {
 
     let executable = match server {
-        "filesystem" => "./target/debug/filesystem",
-        _ => return Err(format!("Unknown MCP server: {server}").into()),
+        "filesystem" => "../../../target/debug/filesystem",
+        _ => return Err(std::io::Error::new(
+                std::io::ErrorKind::NotFound,
+                format!("Unknown MCP server: {server}"),
+            ).into())
     };
 
     let client = client::connect(executable).await?;
