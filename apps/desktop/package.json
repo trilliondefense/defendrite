@@ -10,7 +10,10 @@
     "prepare": "svelte-kit sync || echo ''",
     "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
     "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
-    "tauri": "tauri"
+    "build:mcp": "bash scripts/build-mcp.sh",
+    "tauri": "tauri",
+    "tauri:dev": "pnpm build:mcp && tauri dev",
+    "tauri:build": "pnpm build:mcp && tauri build"
   },
   "license": "MIT",
   "dependencies": {
