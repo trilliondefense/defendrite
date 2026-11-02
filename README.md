@@ -32,19 +32,19 @@
 ### Prerequisites
 
 - [Rust](https://rust-lang.org) (Latest stable)
-- [Node.js](https://nodejs.org) (v18+ or `pnpm`/`bun`)
+- [Node.js](https://nodejs.org) (v18+ or `npm`/`bun`)
 
 ### Setup & Run
 
 1. **Install dependencies:**
 
    ```bash
-   cd apps/desktop && npm install
+   cd apps/desktop && pnpm install
    ```
 
 2. **Launch the development loop:**
    ```bash
-   npm run tauri dev
+   pnpm run tauri:dev
    ```
 
 ## Contribute

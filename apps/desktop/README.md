@@ -13,20 +13,13 @@
 
    ```bash
    cd apps/desktop
-   npm install
+   pnpm install
    ```
 
-2. **Setup MCP Server Plugins:**
+2. **Launch the Desktop Environment Dev Loop:**
 
    ```bash
-   cd ../../mcp-servers/basic-system-server
-   npm install
-   ```
-
-3. **Launch the Desktop Environment Dev Loop:**
-   ```bash
-   cd ../../apps/desktop
-   npm run tauri dev
+   pnpm run tauri:dev
    ```
 
 ---
