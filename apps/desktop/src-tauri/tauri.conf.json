@@ -31,6 +31,6 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
-    "resources": ["../../../target/release/filesystem$EFFECTIVE_PLATFORM"]
+    "resources": ["../../../target/release/mcp-server"]
   }
 }
