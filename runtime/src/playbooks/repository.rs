@@ -304,3 +304,30 @@ pub fn delete_playbook(
 
     Ok(())
 }
+
+pub fn export_playbook(
+    app_handle: &AppHandle,
+    id: &str,
+    destination: PathBuf,
+) -> Result<(), String> {
+    let playbook = get_playbook(app_handle, id)?;
+
+    let metadata = PlaybookFrontmatter {
+        id: playbook.metadata.id.clone(),
+        name: playbook.metadata.name.clone(),
+        description: playbook.metadata.description.clone(),
+        version: playbook.metadata.version.clone(),
+        author: playbook.metadata.author.clone(),
+        tags: playbook.metadata.tags.clone(),
+        status: playbook.metadata.status.clone(),
+        created_at: playbook.metadata.created_at.clone(),
+        updated_at: playbook.metadata.updated_at.clone(),
+    };
+
+    let markdown = serialize_markdown(&metadata, &playbook.content)?;
+
+    fs::write(&destination, markdown)
+        .map_err(|e| format!("Could not export playbook: {e}"))?;
+
+    Ok(())
+}
