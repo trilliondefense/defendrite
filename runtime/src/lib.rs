@@ -28,6 +28,15 @@ pub fn create_new_playbook(
         .map_err(|e| format!("Could not create playbook: {e}"))
 }
 
+pub fn export_existing_playbook(
+    app_handle: &AppHandle,
+    id: &str,
+    destination: std::path::PathBuf,
+) -> Result<(), String> {
+    playbooks::export_playbook(app_handle, id, destination)
+        .map_err(|e| format!("Could not export playbook: {e}"))
+}
+
 /// Retrieve all playbooks.
 pub fn get_all_playbooks(
     app_handle: &AppHandle,
