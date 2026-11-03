@@ -135,35 +135,47 @@ impl FilesystemHandler {
             args.output_dir
         ))
     }
-    #[tool(description = "Creates a new Markdown playbook for the AI agent.")]
-    fn create_playbook(
-        &self,
-        Parameters(args): Parameters<CreatePlaybookArgs>,
-    ) -> Result<String, String> {
+  #[tool(description = "Creates a new Markdown playbook for the AI agent.")]
+fn create_playbook(
+    &self,
+    Parameters(args): Parameters<CreatePlaybookArgs>,
+) -> Result<String, String> {
+    // 1. Resolve the base directory safely using standard dirs
+    let base_directory = dirs::data_local_dir()
+        .ok_or("Could not resolve application data directory")?
+        .join("Defendrite")
+        .join("playbooks");
 
-        let directory = dirs::data_local_dir()
-            .ok_or("Could not resolve application data directory")?
-            .join("YourApp")
-            .join("playbooks");
+    // Ensure the base directory exists
+    fs::create_dir_all(&base_directory)
+        .map_err(|e| format!("Could not create playbooks directory: {e}"))?;
 
-        fs::create_dir_all(&directory)
-            .map_err(|e| format!("Could not create playbooks directory: {e}"))?;
+    // 2. Canonicalize the base directory to resolve any symlinks for strict comparison
+    let base_directory_canonical = base_directory
+        .canonicalize()
+        .map_err(|e| format!("Failed to canonicalize base directory: {e}"))?;
 
-        let filename = format!(
-            "{}.md",
-            uuid::Uuid::new_v4()
-        );
+    // 3. Prevent arbitrary filenames/extensions (Use UUID to completely decouple user input from file path)
+    let safe_filename = format!("{}.md", uuid::Uuid::new_v4());
 
-        let path = directory.join(filename);
+    // 4. Join paths and canonicalize the final target path
+    let target_path = base_directory_canonical.join(safe_filename);
 
-        fs::write(&path, args.content)
-            .map_err(|e| format!("Could not create playbook: {e}"))?;
-
-        Ok(format!(
-            "Playbook '{}' created successfully.",
-            args.name
-        ))
+    // 5. Explicitly verify the final path is strictly inside the sandbox directory
+    if !target_path.starts_with(&base_directory_canonical) {
+        return Err("Security Violation: Target path is outside the designated playbooks directory.".to_string());
     }
+
+    // 6. Safely write the content to disk
+    fs::write(&target_path, args.content)
+        .map_err(|e| format!("Could not create playbook: {e}"))?;
+
+    Ok(format!(
+        "Playbook '{}' created successfully.",
+        args.name
+    ))
+}
+
 }
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
