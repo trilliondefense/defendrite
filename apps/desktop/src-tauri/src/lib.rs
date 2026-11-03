@@ -135,6 +135,19 @@ fn get_playbook_by_id(
 }
 
 #[tauri::command]
+fn export_playbook(
+    app_handle: tauri::AppHandle,
+    id: String,
+    destination: String,
+) -> Result<(), String> {
+    runtime::export_existing_playbook(
+        &app_handle,
+        &id,
+        std::path::PathBuf::from(destination),
+    )
+}
+
+#[tauri::command]
 fn update_playbook(
     app_handle: tauri::AppHandle,
     id: String,
@@ -213,7 +226,8 @@ pub fn run() {
                 get_all_playbooks,
                 get_playbook_by_id,
                 update_playbook,
-                delete_playbook
+                delete_playbook,
+                export_playbook,
             ]
         )
 
