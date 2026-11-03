@@ -1,5 +1,14 @@
 
 <script lang="ts">
+  import { onMount } from 'svelte';
+  import { invoke } from '@tauri-apps/api/core';
+  import { open, save } from '@tauri-apps/plugin-dialog';
+  import { readTextFile } from '@tauri-apps/plugin-fs';
+
+  // --------------------------------------------------
+  // Types
+  // --------------------------------------------------
+
   type PlaybookStatus = 'active' | 'draft' | 'archived';
 
   interface Playbook {
@@ -15,62 +24,285 @@
     status: PlaybookStatus;
   }
 
+  interface PlaybookContent {
+    metadata: Playbook;
+    content: string;
+  }
+
   // --------------------------------------------------
   // State
   // --------------------------------------------------
-let showCreateDialog = $state(false);
 
-let newPlaybookName = $state('');
-let newPlaybookContent = $state('');
+  let playbooks = $state<Playbook[]>([]);
 
-function createPlaybook() {
-  showCreateDialog = true;
-}
-
-function closeCreateDialog() {
-  showCreateDialog = false;
-  newPlaybookName = '';
-  newPlaybookContent = '';
-}
-
-function savePlaybook() {
-  if (!newPlaybookName.trim() || !newPlaybookContent.trim()) {
-    return;
-  }
-
-  const now = new Date().toISOString();
-
-  const playbook: Playbook = {
-    id: crypto.randomUUID(),
-    name: newPlaybookName.trim(),
-    description: 'Custom Markdown playbook',
-    version: '1.0.0',
-    author: 'Local',
-    tags: [],
-    filePath: `playbooks/${crypto.randomUUID()}.md`,
-    createdAt: now,
-    updatedAt: now,
-    status: 'active'
-  };
-
-  playbooks = [playbook, ...playbooks];
-
-  // TODO: Save Markdown content through Tauri command.
-
-  closeCreateDialog();
-}
-  let playbooks = $state<Playbook[]>([
-    
-  ]);
+  let isLoading = $state(true);
+  let isSaving = $state(false);
 
   let searchQuery = $state('');
   let activeFilter = $state('all');
   let currentPage = $state(1);
 
+  // Create / Edit dialog
+  let showCreateDialog = $state(false);
+  let isEditing = $state(false);
+
+  let newPlaybookName = $state('');
+  let newPlaybookContent = $state('');
+
+  let selectedPlaybook = $state<Playbook | null>(null);
+
+  // Delete dialog
+  let showDeleteDialog = $state(false);
+
   const pageSize = 5;
 
   // --------------------------------------------------
-  // Derived data
+  // Lifecycle
+  // --------------------------------------------------
+
+  onMount(() => {
+    loadPlaybooks();
+  });
+
+  // --------------------------------------------------
+  // Backend Operations
+  // --------------------------------------------------
+
+  async function loadPlaybooks() {
+    isLoading = true;
+
+    try {
+      playbooks = await invoke<Playbook[]>('get_all_playbooks');
+    } catch (error) {
+      console.error('Failed to load playbooks:', error);
+      alert(`Could not load playbooks: ${error}`);
+    } finally {
+      isLoading = false;
+    }
+  }
+
+  // --------------------------------------------------
+  // Create / Edit
+  // --------------------------------------------------
+
+  function createPlaybook() {
+    isEditing = false;
+    selectedPlaybook = null;
+
+    newPlaybookName = '';
+    newPlaybookContent = '';
+
+    showCreateDialog = true;
+  }
+
+  function closeCreateDialog() {
+    if (isSaving) return;
+
+    showCreateDialog = false;
+    isEditing = false;
+    selectedPlaybook = null;
+
+    newPlaybookName = '';
+    newPlaybookContent = '';
+  }
+
+  async function openPlaybook(playbook: Playbook) {
+    await editPlaybook(playbook);
+  }
+
+  async function editPlaybook(playbook: Playbook) {
+    try {
+      isSaving = true;
+
+      const result = await invoke<PlaybookContent>(
+        'get_playbook_by_id',
+        { id: playbook.id }
+      );
+
+      selectedPlaybook = result.metadata;
+
+      newPlaybookName = result.metadata.name;
+      newPlaybookContent = result.content;
+
+      isEditing = true;
+      showCreateDialog = true;
+    } catch (error) {
+      console.error('Failed to open playbook:', error);
+      alert(`Could not open playbook: ${error}`);
+    } finally {
+      isSaving = false;
+    }
+  }
+
+  async function savePlaybook() {
+    if (!newPlaybookName.trim() || !newPlaybookContent.trim()) {
+      return;
+    }
+
+    isSaving = true;
+
+    try {
+      if (isEditing && selectedPlaybook) {
+        await invoke<Playbook>('update_playbook', {
+          id: selectedPlaybook.id,
+          name: newPlaybookName.trim(),
+          content: newPlaybookContent
+        });
+      } else {
+        await invoke<Playbook>('create_playbook', {
+          name: newPlaybookName.trim(),
+          content: newPlaybookContent
+        });
+      }
+
+      closeCreateDialog();
+
+      await loadPlaybooks();
+
+    } catch (error) {
+      console.error('Failed to save playbook:', error);
+      alert(`Could not save playbook: ${error}`);
+    } finally {
+      isSaving = false;
+    }
+  }
+
+  // --------------------------------------------------
+  // Import Markdown
+  // --------------------------------------------------
+
+  async function importPlaybook() {
+    try {
+      const selected = await open({
+        multiple: false,
+        filters: [
+          {
+            name: 'Markdown',
+            extensions: ['md', 'markdown']
+          }
+        ]
+      });
+
+      if (!selected || Array.isArray(selected)) {
+        return;
+      }
+
+      isLoading = true;
+
+      const content = await readTextFile(selected);
+
+      const filename = selected.split(/[\\/]/).pop() ?? 'Imported Playbook';
+
+      const name = filename.replace(/\.(md|markdown)$/i, '');
+
+      await invoke<Playbook>('create_playbook', {
+        name,
+        content
+      });
+
+      await loadPlaybooks();
+
+    } catch (error) {
+      console.error('Failed to import playbook:', error);
+      alert(`Could not import playbook: ${error}`);
+    } finally {
+      isLoading = false;
+    }
+  }
+
+  // --------------------------------------------------
+  // Export Markdown
+  // --------------------------------------------------
+
+  async function exportPlaybook(playbook: Playbook) {
+    try {
+      const filename = playbook.name.replace(/[<>:"/\\|?*]/g, '-');
+
+      const destination = await save({
+        defaultPath: `${filename}.md`,
+        filters: [
+          {
+            name: 'Markdown',
+            extensions: ['md']
+          }
+        ]
+      });
+
+      if (!destination) return;
+
+      await invoke('export_playbook', {
+        id: playbook.id,
+        destination
+      });
+
+    } catch (error) {
+      console.error('Failed to export playbook:', error);
+      alert(`Could not export playbook: ${error}`);
+    }
+  }
+
+  // --------------------------------------------------
+  // Delete Playbook
+  // --------------------------------------------------
+
+  function confirmDeletePlaybook(playbook: Playbook) {
+    selectedPlaybook = playbook;
+    showDeleteDialog = true;
+  }
+
+  function closeDeleteDialog() {
+    if (isSaving) return;
+
+    showDeleteDialog = false;
+    selectedPlaybook = null;
+  }
+
+  async function deletePlaybook() {
+    if (!selectedPlaybook) return;
+
+    isSaving = true;
+
+    try {
+      await invoke('delete_playbook', {
+        id: selectedPlaybook.id
+      });
+
+      playbooks = playbooks.filter(
+        (playbook) => playbook.id !== selectedPlaybook!.id
+      );
+
+      showDeleteDialog = false;
+      selectedPlaybook = null;
+
+      currentPage = Math.min(
+        currentPage,
+        Math.max(1, Math.ceil(playbooks.length / pageSize))
+      );
+
+    } catch (error) {
+      console.error('Failed to delete playbook:', error);
+      alert(`Could not delete playbook: ${error}`);
+    } finally {
+      isSaving = false;
+    }
+  }
+
+  // --------------------------------------------------
+  // Search and Filtering
+  // --------------------------------------------------
+
+  function handleSearch(value: string) {
+    searchQuery = value;
+    currentPage = 1;
+  }
+
+  function setFilter(value: string) {
+    activeFilter = value;
+    currentPage = 1;
+  }
+
+  // --------------------------------------------------
+  // Derived Data
   // --------------------------------------------------
 
   let filteredPlaybooks = $derived(
@@ -133,39 +365,6 @@ function savePlaybook() {
     return status.charAt(0).toUpperCase() + status.slice(1);
   }
 
-  function handleSearch(value: string) {
-    searchQuery = value;
-    currentPage = 1;
-  }
-
-  function setFilter(value: string) {
-    activeFilter = value;
-    currentPage = 1;
-  }
-
-  // --------------------------------------------------
-  // Actions
-  // --------------------------------------------------
-
-  function openPlaybook(playbook: Playbook) {
-    // TODO: Load the Markdown file into the editor.
-    console.log('Open playbook:', playbook.filePath);
-  }
-
-  function exportPlaybook(playbook: Playbook) {
-    // TODO: Connect to the Rust/Tauri export command.
-    console.log('Export playbook:', playbook.filePath);
-  }
-
-  function deletePlaybook(id: string) {
-    // TODO: Add confirmation before permanent deletion.
-    playbooks = playbooks.filter(
-      (playbook) => playbook.id !== id
-    );
-
-    currentPage = Math.min(currentPage, totalPages);
-  }
-
   // --------------------------------------------------
   // Pagination
   // --------------------------------------------------
@@ -219,12 +418,23 @@ function savePlaybook() {
       />
     </label>
 
-    <button
-      class="primary-button"
-      onclick={createPlaybook}
-    >
-      + New playbook
-    </button>
+    <div class="toolbar-actions">
+      <button
+        class="secondary-button"
+        onclick={importPlaybook}
+        disabled={isLoading}
+      >
+        + Import Markdown
+      </button>
+
+      <button
+        class="primary-button"
+        onclick={createPlaybook}
+        disabled={isLoading}
+      >
+        + New playbook
+      </button>
+    </div>
 
   </div>
 
@@ -272,19 +482,18 @@ function savePlaybook() {
         <div class="playbook-row">
 
           <!-- Playbook Information -->
-<div>
- <button class="playbook-name"
+
+          <button
+            class="playbook-name"
             onclick={() => openPlaybook(playbook)}
           >
             <div class="file-icon">MD</div>
 
             <div>
               <strong>{playbook.name}</strong>
+              <small>{playbook.description || 'Markdown playbook'}</small>
             </div>
           </button>
-
-</div>
-         
 
           <!-- Version -->
 
@@ -326,13 +535,20 @@ function savePlaybook() {
               </button>
 
               <button
+                onclick={() => editPlaybook(playbook)}
+              >
+                Edit
+              </button>
+
+              <button
                 onclick={() => exportPlaybook(playbook)}
               >
                 Export Markdown
               </button>
 
               <button
-                onclick={() => deletePlaybook(playbook.id)}
+                class="danger-action"
+                onclick={() => confirmDeletePlaybook(playbook)}
               >
                 Delete
               </button>
@@ -356,15 +572,24 @@ function savePlaybook() {
           <p>
             {searchQuery
               ? 'Try another search term.'
-              : 'Create your first Markdown playbook to get started.'}
+              : 'Create or import your first Markdown playbook to get started.'}
           </p>
 
-          <button
-            class="primary-button"
-            onclick={createPlaybook}
-          >
-            + New playbook
-          </button>
+          <div class="empty-actions">
+            <button
+              class="primary-button"
+              onclick={createPlaybook}
+            >
+              + New playbook
+            </button>
+
+            <button
+              class="secondary-button"
+              onclick={importPlaybook}
+            >
+              Import Markdown
+            </button>
+          </div>
 
         </div>
 
@@ -374,94 +599,112 @@ function savePlaybook() {
 
     <!-- Pagination -->
 
-    <footer class="list-footer">
+    {#if filteredPlaybooks.length > 0}
 
-      <span>
-        Showing {showingStart}–{showingEnd}
-        of {filteredPlaybooks.length} playbooks
-      </span>
+      <footer class="list-footer">
 
-      <div class="pagination">
+        <span>
+          Showing {showingStart}–{showingEnd}
+          of {filteredPlaybooks.length} playbooks
+        </span>
 
-        <button
-          disabled={currentPage <= 1}
-          onclick={previousPage}
-        >
-          Previous
-        </button>
-
-        {#each Array.from(
-          { length: totalPages },
-          (_, index) => index + 1
-        ) as page (page)}
+        <div class="pagination">
 
           <button
-            class:current-page={currentPage === page}
-            aria-current={currentPage === page ? 'page' : undefined}
-            onclick={() => goToPage(page)}
+            disabled={currentPage <= 1}
+            onclick={previousPage}
           >
-            {page}
+            Previous
           </button>
 
-        {/each}
+          {#each Array.from(
+            { length: totalPages },
+            (_, index) => index + 1
+          ) as page (page)}
 
-        <button
-          disabled={currentPage >= totalPages}
-          onclick={nextPage}
-        >
-          Next
-        </button>
+            <button
+              class:current-page={currentPage === page}
+              aria-current={currentPage === page ? 'page' : undefined}
+              onclick={() => goToPage(page)}
+            >
+              {page}
+            </button>
 
-      </div>
+          {/each}
 
-    </footer>
-    
+          <button
+            disabled={currentPage >= totalPages}
+            onclick={nextPage}
+          >
+            Next
+          </button>
+
+        </div>
+
+      </footer>
+
+    {/if}
 
   </section>
 
+  <!-- Create / Edit Playbook Dialog -->
+
   {#if showCreateDialog}
-  <div
-    class="dialog-overlay"
-    role="presentation"
-    onclick={(event) => {
-      if (event.target === event.currentTarget) {
-        closeCreateDialog();
-      }
-    }}
-  >
-    <section
-      class="create-dialog"
-      aria-labelledby="dialog-title"
+
+    <div
+      class="dialog-overlay"
+      role="presentation"
+      onclick={(event) => {
+        if (event.target === event.currentTarget) {
+          closeCreateDialog();
+        }
+      }}
     >
-      <header class="dialog-header">
-        <div>
-          <h2 id="dialog-title">New playbook</h2>
-          <p>Create a reusable Markdown playbook for your agent.</p>
-        </div>
 
-        <button
-          class="close-button"
-          aria-label="Close dialog"
-          onclick={closeCreateDialog}
-        >
-        X
-        </button>
-      </header>
+      <section
+        class="create-dialog"
+        aria-labelledby="dialog-title"
+      >
 
-      <div class="dialog-body">
-        <label>
-          <span>Playbook name</span>
-          <input
-            type="text"
-            placeholder="e.g. Code Review"
-            bind:value={newPlaybookName}
-          />
-        </label>
+        <header class="dialog-header">
+          <div>
+            <h2 id="dialog-title">
+              {isEditing ? 'Edit playbook' : 'New playbook'}
+            </h2>
 
-        <label>
-          <span>Markdown content</span>
-          <textarea
-            placeholder="# My Playbook
+            <p>
+              {isEditing
+                ? 'Update your Markdown playbook.'
+                : 'Create a reusable Markdown playbook for your agent.'}
+            </p>
+          </div>
+
+          <button
+            class="close-button"
+            aria-label="Close dialog"
+            onclick={closeCreateDialog}
+          >
+            ×
+          </button>
+        </header>
+
+        <div class="dialog-body">
+
+          <label>
+            <span>Playbook name</span>
+
+            <input
+              type="text"
+              placeholder="e.g. Code Review"
+              bind:value={newPlaybookName}
+            />
+          </label>
+
+          <label>
+            <span>Markdown content</span>
+
+            <textarea
+              placeholder="# My Playbook
 
 You are an expert assistant...
 
@@ -471,36 +714,104 @@ You are an expert assistant...
 2. Analyze the requirements.
 3. Execute the workflow.
 4. Report the results."
-            bind:value={newPlaybookContent}
-            rows="14"
-          ></textarea>
-        </label>
-      </div>
+              bind:value={newPlaybookContent}
+              rows="14"
+            ></textarea>
+          </label>
 
-      <footer class="dialog-footer">
-        <button
-          class="cancel-button"
-          onclick={closeCreateDialog}
-        >
-          Cancel
-        </button>
+        </div>
 
-        <button
-          class="primary-button"
-          disabled={!newPlaybookName.trim() || !newPlaybookContent.trim()}
-          onclick={savePlaybook}
-        >
-          Create playbook
-        </button>
-      </footer>
-    </section>
-  </div>
-{/if}
+        <footer class="dialog-footer">
 
+          <button
+            class="cancel-button"
+            onclick={closeCreateDialog}
+            disabled={isSaving}
+          >
+            Cancel
+          </button>
+
+          <button
+            class="primary-button"
+            disabled={!newPlaybookName.trim() || !newPlaybookContent.trim() || isSaving}
+            onclick={savePlaybook}
+          >
+            {isSaving
+              ? 'Saving...'
+              : isEditing
+                ? 'Save changes'
+                : 'Create playbook'}
+          </button>
+
+        </footer>
+
+      </section>
+
+    </div>
+
+  {/if}
+
+  <!-- Delete Confirmation Dialog -->
+
+  {#if showDeleteDialog && selectedPlaybook}
+
+    <div
+      class="dialog-overlay"
+      role="presentation"
+      onclick={(event) => {
+        if (event.target === event.currentTarget) {
+          closeDeleteDialog();
+        }
+      }}
+    >
+
+      <section
+        class="confirm-dialog"
+        aria-labelledby="delete-dialog-title"
+      >
+
+        <header class="dialog-header">
+          <div>
+            <h2 id="delete-dialog-title">Delete playbook?</h2>
+
+            <p>
+              This will permanently delete
+              <strong>{selectedPlaybook.name}</strong>.
+            </p>
+          </div>
+        </header>
+
+        <footer class="dialog-footer">
+
+          <button
+            class="cancel-button"
+            onclick={closeDeleteDialog}
+            disabled={isSaving}
+          >
+            Cancel
+          </button>
+
+          <button
+            class="danger-button"
+            onclick={deletePlaybook}
+            disabled={isSaving}
+          >
+            {isSaving ? 'Deleting...' : 'Delete playbook'}
+          </button>
+
+        </footer>
+
+      </section>
+
+    </div>
+
+  {/if}
 
 </div>
+
+
 <style>
-    
+
 :global(*) {
   box-sizing: border-box;
 }
@@ -518,7 +829,9 @@ You are an expert assistant...
   padding: 32px;
 }
 
-/* Header */
+/* ----------------------------------
+   Header
+---------------------------------- */
 
 .page-header {
   display: flex;
@@ -527,7 +840,7 @@ You are an expert assistant...
   margin-bottom: 28px;
 }
 
-.page-header h1 {
+h1 {
   margin: 0;
   font-family: Georgia, "Times New Roman", serif;
   font-size: 34px;
@@ -547,7 +860,9 @@ You are an expert assistant...
   margin: 10px 0 0;
 }
 
-/* Toolbar */
+/* ----------------------------------
+   Toolbar
+---------------------------------- */
 
 .toolbar {
   display: flex;
@@ -555,6 +870,12 @@ You are an expert assistant...
   justify-content: space-between;
   gap: 14px;
   margin-bottom: 28px;
+}
+
+.toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 9px;
 }
 
 .search-box {
@@ -570,15 +891,6 @@ You are an expert assistant...
   color: #89867d;
 }
 
-.search-box:focus-within {
-  border-color: #aaa69b;
-}
-
-.search-box span {
-  font-size: 19px;
-  line-height: 1;
-}
-
 .search-box input {
   width: 100%;
   min-width: 0;
@@ -586,12 +898,7 @@ You are an expert assistant...
   outline: none;
   background: transparent;
   color: #292824;
-  font: inherit;
   font-size: 12px;
-}
-
-.search-box input::placeholder {
-  color: #a09c93;
 }
 
 button {
@@ -599,26 +906,44 @@ button {
   cursor: pointer;
 }
 
-.primary-button {
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.primary-button,
+.secondary-button {
   padding: 10px 14px;
-  border: 1px solid #34332e;
   border-radius: 7px;
-  background: #34332e;
-  color: #fffefa;
   font-size: 12px;
   white-space: nowrap;
-  transition: background 0.2s ease;
+  transition: background 0.15s ease, border-color 0.15s ease;
 }
 
-.primary-button:hover {
-  background: #514f47;
+.primary-button {
+  border: 1px solid #34332e;
+  background: #34332e;
+  color: #fffefa;
 }
 
-/* Section */
-
-.playbook-section {
-  width: 100%;
+.primary-button:hover:not(:disabled) {
+  background: #4b4942;
 }
+
+.secondary-button {
+  border: 1px solid #e5e2db;
+  background: #fffefa;
+  color: #555249;
+}
+
+.secondary-button:hover:not(:disabled) {
+  background: #f4f2ec;
+  border-color: #cbc7bd;
+}
+
+/* ----------------------------------
+   Playbook Section
+---------------------------------- */
 
 .section-header {
   display: flex;
@@ -643,14 +968,15 @@ button {
   padding: 8px 11px;
   border: 1px solid #e5e2db;
   border-radius: 6px;
-  outline: none;
   background: #fffefa;
   color: #555249;
   font-size: 11px;
-  cursor: pointer;
+  outline: none;
 }
 
-/* Playbook Table */
+/* ----------------------------------
+   Playbook Table
+---------------------------------- */
 
 .playbook-list {
   overflow-x: auto;
@@ -663,13 +989,13 @@ button {
   display: grid;
   grid-template-columns:
     minmax(230px, 2fr)
-    minmax(90px, 0.7fr)
+    minmax(80px, 0.7fr)
     minmax(115px, 1fr)
     minmax(100px, 0.8fr)
     28px;
   align-items: center;
   gap: 14px;
-  min-width: 640px;
+  min-width: 760px;
   padding: 14px 18px;
   border-bottom: 1px solid #efede7;
 }
@@ -686,7 +1012,9 @@ button {
   font-weight: 600;
 }
 
-/* Playbook Name */
+/* ----------------------------------
+   Playbook Name
+---------------------------------- */
 
 .playbook-name {
   display: flex;
@@ -716,7 +1044,6 @@ button {
   color: #8d725c;
   font-size: 9px;
   font-weight: 700;
-  letter-spacing: 0.3px;
 }
 
 .playbook-name strong {
@@ -727,24 +1054,29 @@ button {
   font-weight: 550;
   text-overflow: ellipsis;
   white-space: nowrap;
-  transition: color 0.2s ease;
+  transition: color 0.15s ease;
 }
 
-
-/* Version and Date */
-
-.version {
-  color: #69665e;
-  font-size: 11px;
-  font-variant-numeric: tabular-nums;
+.playbook-name small {
+  display: block;
+  overflow: hidden;
+  max-width: 260px;
+  margin-top: 5px;
+  color: #89867d;
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
+.version,
 .date {
   color: #69665e;
   font-size: 11px;
 }
 
-/* Status */
+/* ----------------------------------
+   Status
+---------------------------------- */
 
 .status {
   justify-self: start;
@@ -761,7 +1093,7 @@ button {
 
 .draft {
   background: #f7f0df;
-  color: #96743b;
+  color: #96783c;
 }
 
 .archived {
@@ -769,7 +1101,9 @@ button {
   color: #77746c;
 }
 
-/* More Options */
+/* ----------------------------------
+   More Options
+---------------------------------- */
 
 .more-menu {
   position: relative;
@@ -785,9 +1119,8 @@ button {
   border-radius: 5px;
   color: #77746c;
   font-size: 19px;
-  line-height: 1;
-  list-style: none;
   cursor: pointer;
+  list-style: none;
 }
 
 .more-menu summary::-webkit-details-marker {
@@ -795,22 +1128,22 @@ button {
 }
 
 .more-menu summary:hover {
-  background: #f2f0ea;
+  background: #f1efe9;
 }
 
 .menu-content {
   position: absolute;
   z-index: 10;
-  top: 30px;
+  top: calc(100% + 5px);
   right: 0;
   display: flex;
   flex-direction: column;
-  width: 155px;
+  width: 160px;
   padding: 5px;
   border: 1px solid #e8e5de;
   border-radius: 7px;
   background: #fffefa;
-  box-shadow: 0 5px 18px rgba(40, 38, 30, 0.08);
+  box-shadow: 0 6px 20px rgba(40, 38, 30, 0.08);
 }
 
 .menu-content button {
@@ -818,7 +1151,7 @@ button {
   border: 0;
   border-radius: 4px;
   background: transparent;
-  color: #555249;
+  color: #49473f;
   font-size: 11px;
   text-align: left;
 }
@@ -827,40 +1160,52 @@ button {
   background: #f5f3ed;
 }
 
-.menu-content button:last-child {
-  color: #a44e43;
+.menu-content .danger-action {
+  color: #b44c42;
 }
 
-/* Empty State */
+.menu-content .danger-action:hover {
+  background: #fbefed;
+}
+
+/* ----------------------------------
+   Empty State
+---------------------------------- */
 
 .empty-state {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  min-width: 760px;
-  padding: 55px 20px;
+  min-height: 280px;
+  padding: 35px 20px;
   text-align: center;
 }
 
-.empty-state .file-icon {
-  margin-bottom: 12px;
-}
-
 .empty-state h3 {
-  margin: 0;
+  margin: 14px 0 0;
   color: #393832;
   font-size: 14px;
   font-weight: 600;
 }
 
 .empty-state p {
-  margin: 7px 0 18px;
+  max-width: 340px;
+  margin: 8px 0 18px;
   color: #89867d;
   font-size: 11px;
+  line-height: 1.7;
 }
 
-/* Footer */
+.empty-actions {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+/* ----------------------------------
+   Pagination
+---------------------------------- */
 
 .list-footer {
   display: flex;
@@ -871,8 +1216,6 @@ button {
   color: #89867d;
   font-size: 11px;
 }
-
-/* Pagination */
 
 .pagination {
   display: flex;
@@ -888,13 +1231,8 @@ button {
   font-size: 10px;
 }
 
-.pagination button:hover:not(:disabled):not(.current-page) {
+.pagination button:hover:not(:disabled) {
   background: #f3f1eb;
-}
-
-.pagination button:disabled {
-  opacity: 0.45;
-  cursor: default;
 }
 
 .pagination .current-page {
@@ -903,52 +1241,51 @@ button {
   color: white;
 }
 
-/* Focus Accessibility */
-
-button:focus-visible,
-summary:focus-visible,
-select:focus-visible,
-input:focus-visible {
-  outline: 2px solid #9b8b70;
-  outline-offset: 3px;
-}
+/* ----------------------------------
+   Dialog Overlay
+---------------------------------- */
 
 .dialog-overlay {
   position: fixed;
-  inset: 0;
   z-index: 100;
+  inset: 0;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 20px;
-  background: rgba(35, 33, 28, 0.35);
+  background: rgba(35, 34, 29, 0.38);
+  backdrop-filter: blur(2px);
+}
+
+/* ----------------------------------
+   Create / Edit Dialog
+---------------------------------- */
+
+.create-dialog,
+.confirm-dialog {
+  width: 100%;
+  border: 1px solid #e8e5de;
+  border-radius: 11px;
+  background: #fffefa;
+  box-shadow: 0 15px 50px rgba(35, 34, 29, 0.14);
 }
 
 .create-dialog {
-  width: 100%;
-  max-width: 600px;
-  max-height: 90vh;
-  overflow-y: auto;
-  border: 1px solid #e8e5de;
-  border-radius: 10px;
-  background: #fffefa;
-  box-shadow: 0 15px 50px rgba(0, 0, 0, 0.12);
-}
-
-.dialog-header,
-.dialog-footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 18px 20px;
+  max-width: 620px;
 }
 
 .dialog-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 15px;
+  padding: 21px 23px;
   border-bottom: 1px solid #efede7;
 }
 
 .dialog-header h2 {
   margin: 0;
+  color: #34332e;
   font-size: 17px;
   font-weight: 600;
 }
@@ -957,20 +1294,32 @@ input:focus-visible {
   margin: 6px 0 0;
   color: #89867d;
   font-size: 11px;
+  line-height: 1.6;
 }
 
 .close-button {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
   border: 0;
+  border-radius: 5px;
   background: transparent;
   color: #77746c;
-  font-size: 23px;
+  font-size: 19px;
+}
+
+.close-button:hover {
+  background: #f2f0ea;
 }
 
 .dialog-body {
   display: flex;
   flex-direction: column;
-  gap: 18px;
-  padding: 20px;
+  gap: 19px;
+  padding: 22px 23px;
 }
 
 .dialog-body label {
@@ -980,8 +1329,8 @@ input:focus-visible {
 }
 
 .dialog-body label span {
-  color: #555249;
-  font-size: 12px;
+  color: #49473f;
+  font-size: 11px;
   font-weight: 600;
 }
 
@@ -993,66 +1342,92 @@ input:focus-visible {
   border-radius: 6px;
   outline: none;
   background: #fffefa;
-  color: #292824;
-  font: inherit;
+  color: #34332e;
+  font-family: inherit;
   font-size: 12px;
-}
-
-.dialog-body textarea {
-  min-height: 260px;
-  resize: vertical;
-  font-family: "SFMono-Regular", Consolas, monospace;
-  line-height: 1.6;
+  transition: border-color 0.15s ease;
 }
 
 .dialog-body input:focus,
 .dialog-body textarea:focus {
-  border-color: #aaa69b;
+  border-color: #a69a84;
+}
+
+.dialog-body input::placeholder,
+.dialog-body textarea::placeholder {
+  color: #aaa69c;
+}
+
+.dialog-body textarea {
+  min-height: 240px;
+  resize: vertical;
+  font-family: "SFMono-Regular", Consolas, monospace;
+  font-size: 11px;
+  line-height: 1.7;
 }
 
 .dialog-footer {
+  display: flex;
+  align-items: center;
   justify-content: flex-end;
-  gap: 10px;
+  gap: 9px;
+  padding: 15px 23px;
   border-top: 1px solid #efede7;
 }
 
 .cancel-button {
-  padding: 10px 14px;
+  padding: 9px 13px;
   border: 1px solid #e5e2db;
-  border-radius: 7px;
+  border-radius: 6px;
   background: #fffefa;
-  color: #555249;
-  font-size: 12px;
+  color: #69665e;
+  font-size: 11px;
 }
 
-.dialog-footer .primary-button:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
+.cancel-button:hover:not(:disabled) {
+  background: #f4f2ec;
 }
 
-@media (max-width: 600px) {
-  .create-dialog {
-    max-height: 95vh;
-  }
+/* ----------------------------------
+   Delete Confirmation
+---------------------------------- */
 
-  .dialog-body textarea {
-    min-height: 200px;
-  }
+.confirm-dialog {
+  max-width: 400px;
 }
 
-/* Responsive */
+.confirm-dialog .dialog-header {
+  padding: 23px;
+}
+
+.confirm-dialog .dialog-header p {
+  margin-top: 9px;
+}
+
+.confirm-dialog .dialog-header strong {
+  color: #49473f;
+}
+
+.danger-button {
+  padding: 9px 13px;
+  border: 1px solid #b44c42;
+  border-radius: 6px;
+  background: #b44c42;
+  color: white;
+  font-size: 11px;
+}
+
+.danger-button:hover:not(:disabled) {
+  background: #983d35;
+}
+
+/* ----------------------------------
+   Responsive
+---------------------------------- */
 
 @media (max-width: 650px) {
   .playbooks-page {
     padding: 24px 16px;
-  }
-
-  .page-header {
-    margin-bottom: 22px;
-  }
-
-  .page-header h1 {
-    font-size: 29px;
   }
 
   .toolbar {
@@ -1064,16 +1439,12 @@ input:focus-visible {
     width: 100%;
   }
 
-  .primary-button {
-    align-self: flex-start;
+  .toolbar-actions {
+    flex-wrap: wrap;
   }
 
   .section-header {
     align-items: flex-start;
-  }
-
-  .playbook-list {
-    overflow-x: auto;
   }
 
   .list-footer {
@@ -1081,8 +1452,34 @@ input:focus-visible {
     flex-direction: column;
   }
 
-  .pagination {
-    flex-wrap: wrap;
+  .dialog-overlay {
+    align-items: flex-start;
+    overflow-y: auto;
+    padding: 16px;
+  }
+
+  .create-dialog {
+    margin: auto 0;
+  }
+
+  .dialog-body textarea {
+    min-height: 190px;
+  }
+}
+
+@media (max-width: 400px) {
+  .toolbar-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .toolbar-actions button {
+    width: 100%;
+  }
+
+  .empty-actions {
+    flex-direction: column;
+    width: 100%;
   }
 }
 
