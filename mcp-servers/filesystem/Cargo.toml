@@ -12,3 +12,5 @@ zip = "9.2.2"
 # The Official Tier-1 Rust SDK for Model Context Protocol
 rmcp = { version = "3.8.0", features = ["server", "macros", "schemars", "transport-io"] }
 schemars = { version = "1.2.3", features = ["derive"] }
+dirs = "7"
+uuid = { version = "1", features = ["v4"] }
