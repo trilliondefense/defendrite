@@ -164,6 +164,8 @@
       alert(`Could not save playbook: ${error}`);
     } finally {
       isSaving = false;
+    closeCreateDialog();
+
     }
   }
 
@@ -482,8 +484,7 @@
         <div class="playbook-row">
 
           <!-- Playbook Information -->
-
-          <button
+<div> <button
             class="playbook-name"
             onclick={() => openPlaybook(playbook)}
           >
@@ -494,7 +495,8 @@
               <small>{playbook.description || 'Markdown playbook'}</small>
             </div>
           </button>
-
+</div>
+         
           <!-- Version -->
 
           <span class="version">
