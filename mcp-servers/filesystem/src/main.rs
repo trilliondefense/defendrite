@@ -19,6 +19,15 @@ struct UnzipArgs {
     output_dir: String,
 }
 
+#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
+struct CreatePlaybookArgs {
+    /// Playbook title.
+    name: String,
+
+    /// Markdown instructions for the playbook.
+    content: String,
+}
+
 #[derive(Clone)]
 struct FilesystemHandler;
 #[tool_router(server_handler)]
@@ -124,6 +133,35 @@ impl FilesystemHandler {
         Ok(format!(
             "Successfully extracted ZIP archive into: {}",
             args.output_dir
+        ))
+    }
+    #[tool(description = "Creates a new Markdown playbook for the AI agent.")]
+    fn create_playbook(
+        &self,
+        Parameters(args): Parameters<CreatePlaybookArgs>,
+    ) -> Result<String, String> {
+
+        let directory = dirs::data_local_dir()
+            .ok_or("Could not resolve application data directory")?
+            .join("YourApp")
+            .join("playbooks");
+
+        fs::create_dir_all(&directory)
+            .map_err(|e| format!("Could not create playbooks directory: {e}"))?;
+
+        let filename = format!(
+            "{}.md",
+            uuid::Uuid::new_v4()
+        );
+
+        let path = directory.join(filename);
+
+        fs::write(&path, args.content)
+            .map_err(|e| format!("Could not create playbook: {e}"))?;
+
+        Ok(format!(
+            "Playbook '{}' created successfully.",
+            args.name
         ))
     }
 }
