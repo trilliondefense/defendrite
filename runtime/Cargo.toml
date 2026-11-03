@@ -17,3 +17,4 @@ uuid = { version = "1.29.0", features = ["v4"] }
 futures-util = "0.3"
 bytes = "1"
 rmcp = { version = "3.8.0", features = ["client", "transport-child-process"] }
+serde_yaml = "0.9.34"

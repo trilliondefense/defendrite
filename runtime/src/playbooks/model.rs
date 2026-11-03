@@ -1,5 +1,16 @@
+
 use serde::{Deserialize, Serialize};
 
+/// Represents the lifecycle state of a playbook.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum PlaybookStatus {
+    Active,
+    Draft,
+    Archived,
+}
+
+/// Playbook metadata extracted from Markdown frontmatter.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Playbook {
@@ -15,14 +26,7 @@ pub struct Playbook {
     pub status: PlaybookStatus,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "lowercase")]
-pub enum PlaybookStatus {
-    Active,
-    Draft,
-    Archived,
-}
-
+/// Complete playbook including its Markdown body.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PlaybookContent {
