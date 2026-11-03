@@ -111,6 +111,67 @@ fn delete_chat(
 
 
 #[tauri::command]
+fn create_playbook(
+    app_handle: tauri::AppHandle,
+    name: String,
+    content: String,
+) -> Result<runtime::Playbook, String> {
+    runtime::create_new_playbook(&app_handle, name, content)
+}
+
+#[tauri::command]
+fn get_all_playbooks(
+    app_handle: tauri::AppHandle,
+) -> Result<Vec<runtime::Playbook>, String> {
+    runtime::get_all_playbooks(&app_handle)
+}
+
+#[tauri::command]
+fn get_playbook_by_id(
+    app_handle: tauri::AppHandle,
+    id: String,
+) -> Result<runtime::PlaybookContent, String> {
+    runtime::get_playbook_by_id(&app_handle, &id)
+}
+
+#[tauri::command]
+fn export_playbook(
+    app_handle: tauri::AppHandle,
+    id: String,
+    destination: String,
+) -> Result<(), String> {
+    runtime::export_existing_playbook(
+        &app_handle,
+        &id,
+        std::path::PathBuf::from(destination),
+    )
+}
+
+#[tauri::command]
+fn update_playbook(
+    app_handle: tauri::AppHandle,
+    id: String,
+    name: String,
+    content: String,
+) -> Result<runtime::Playbook, String> {
+    runtime::update_existing_playbook(
+        &app_handle,
+        &id,
+        name,
+        content,
+    )
+}
+
+#[tauri::command]
+fn delete_playbook(
+    app_handle: tauri::AppHandle,
+    id: String,
+) -> Result<(), String> {
+    runtime::delete_existing_playbook(&app_handle, &id)
+}
+
+
+#[tauri::command]
 fn log_to_terminal(message: String){
     println!("Frontend :{}",message);
 }
@@ -160,7 +221,13 @@ pub fn run() {
                 create_chat,
                 list_chats,
                 get_chat_messages,
-                delete_chat,log_to_terminal
+                delete_chat,log_to_terminal,
+                create_playbook,
+                get_all_playbooks,
+                get_playbook_by_id,
+                update_playbook,
+                delete_playbook,
+                export_playbook,
             ]
         )
 

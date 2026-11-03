@@ -7,8 +7,79 @@ use tauri_plugin_store::StoreExt;
 pub mod agent;
 pub mod mcp;
 pub mod providers;
-
+pub mod playbooks;
 pub use storage::models::{Conversation, Message,Attachment};
+pub use playbooks::models::{
+    Playbook,
+    PlaybookContent,
+};
+
+// --------------------------------------------------
+// Playbooks
+// --------------------------------------------------
+
+/// Create a new Markdown playbook.
+pub fn create_new_playbook(
+    app_handle: &AppHandle,
+    name: String,
+    content: String,
+) -> Result<Playbook, String> {
+    playbooks::create_playbook(app_handle, name, content)
+        .map_err(|e| format!("Could not create playbook: {e}"))
+}
+
+pub fn export_existing_playbook(
+    app_handle: &AppHandle,
+    id: &str,
+    destination: std::path::PathBuf,
+) -> Result<(), String> {
+    playbooks::export_playbook(app_handle, id, destination)
+        .map_err(|e| format!("Could not export playbook: {e}"))
+}
+
+/// Retrieve all playbooks.
+pub fn get_all_playbooks(
+    app_handle: &AppHandle,
+) -> Result<Vec<Playbook>, String> {
+    playbooks::list_playbooks(app_handle)
+        .map_err(|e| format!("Could not retrieve playbooks: {e}"))
+}
+
+/// Retrieve a playbook by ID, including its Markdown content.
+pub fn get_playbook_by_id(
+    app_handle: &AppHandle,
+    id: &str,
+) -> Result<PlaybookContent, String> {
+    playbooks::get_playbook(app_handle, id)
+        .map_err(|e| format!("Could not retrieve playbook: {e}"))
+}
+
+/// Update an existing playbook.
+pub fn update_existing_playbook(
+    app_handle: &AppHandle,
+    id: &str,
+    name: String,
+    content: String,
+) -> Result<Playbook, String> {
+    playbooks::update_playbook(
+        app_handle,
+        id,
+        name,
+        content,
+    )
+    .map_err(|e| format!("Could not update playbook: {e}"))
+}
+
+/// Delete an existing playbook.
+pub fn delete_existing_playbook(
+    app_handle: &AppHandle,
+    id: &str,
+) -> Result<(), String> {
+    playbooks::delete_playbook(app_handle, id)
+        .map_err(|e| format!("Could not delete playbook: {e}"))
+}
+
+
 // --------------------------------------------------
 // DATABASE INITIALIZATION
 // --------------------------------------------------
