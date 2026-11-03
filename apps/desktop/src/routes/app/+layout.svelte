@@ -26,8 +26,9 @@
 
   const navItems = [
     { label: "Investigations", href: "/app/investigations", icon: "🔍", keywords: "history conversations" ,shortcut:"p"},
-    { label: "Evidence Vault", href: "/app/evidence-vault", icon: "🏛️", keywords: "history conversations" ,shortcut:"y"},
-    { label: "Reports", href: "/app/reports", icon: "📊", keywords: "workspace files" ,shortcut:"o"},
+    { label: "Playbooks", href: "/app/playbooks", icon: "📊", keywords: "playbook" ,shortcut:"l"},
+    { label: "Evidence Vault", href: "/app/evidence-vault", icon: "🏛️", keywords: "evidence" ,shortcut:"y"},
+    { label: "Reports", href: "/app/reports", icon: "📊", keywords: "reports" ,shortcut:"o"},
     { label: "Customize", href: "/app/customize", icon: "⚙️", keywords: "settings appearance" ,shortcut:"u"},
     { label: "Help", href: "/app/help", icon: "❓", keywords: "help" ,shortcut:"i"},
   ];
@@ -139,6 +140,12 @@
     return;
   }
 
+
+    if (modifier && key === "l") {
+    event.preventDefault();
+    window.location.href = "/app/playbooks";
+    return;
+  }
 
   if (modifier && key === "i") {
     event.preventDefault();
