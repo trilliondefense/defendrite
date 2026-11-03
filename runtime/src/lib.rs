@@ -7,8 +7,69 @@ use tauri_plugin_store::StoreExt;
 pub mod agent;
 pub mod mcp;
 pub mod providers;
-
+pub mod playbooks;
 pub use storage::models::{Conversation, Message,Attachment};
+use playbooks::{
+    Playbook,
+    PlaybookContent,
+};
+
+// Playbooks functions 
+pub fn create_new_playbook(
+    app_handle: &AppHandle,
+    name: String,
+    content: String,
+) -> Result<Playbook, String> {
+    playbooks::create_new_playbook(
+        app_handle,
+        name,
+        content,
+    )
+    .map_err(|e| format!("Could not create playbook: {e}"))
+}
+
+// Get all playbooks
+pub fn get_all_playbooks(
+    app_handle: &AppHandle,
+) -> Result<Vec<Playbook>, String> {
+    playbooks::get_playbooks(app_handle)
+        .map_err(|e| format!("Could not retrieve playbooks: {e}"))
+}
+
+// Get a specific playbook
+pub fn get_playbook_by_id(
+    app_handle: &AppHandle,
+    id: &str,
+) -> Result<PlaybookContent, String> {
+    playbooks::get_playbook(app_handle, id)
+        .map_err(|e| format!("Could not retrieve playbook: {e}"))
+}
+
+// Update an existing playbook
+pub fn update_existing_playbook(
+    app_handle: &AppHandle,
+    id: &str,
+    name: String,
+    content: String,
+) -> Result<Playbook, String> {
+    playbooks::update_playbook(
+        app_handle,
+        id,
+        name,
+        content,
+    )
+    .map_err(|e| format!("Could not update playbook: {e}"))
+}
+
+// Delete a playbook
+pub fn delete_existing_playbook(
+    app_handle: &AppHandle,
+    id: &str,
+) -> Result<(), String> {
+    playbooks::delete_playbook(app_handle, id)
+        .map_err(|e| format!("Could not delete playbook: {e}"))
+}
+
 // --------------------------------------------------
 // DATABASE INITIALIZATION
 // --------------------------------------------------
