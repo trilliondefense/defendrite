@@ -1,6 +1,7 @@
 use rmcp::{
     handler::server::wrapper::Parameters,
     schemars,
+    serde::Serialize,
     tool,
     tool_router,
     ServiceExt,
@@ -9,6 +10,7 @@ use rmcp::{
 
 use std::fs;
 use std::path::Path;
+use uuid::Uuid;
 
 #[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
 struct UnzipArgs {
@@ -18,6 +20,20 @@ struct UnzipArgs {
     /// Absolute destination directory.
     output_dir: String,
 }
+
+#[derive(Serialize)]
+struct PlaybookMetadata {
+    id: String,
+    name: String,
+    description: String,
+    version: String,
+    author: String,
+    tags: Vec<String>,
+    status: String,
+    created_at: String,
+    updated_at: String,
+}
+
 
 #[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
 struct CreatePlaybookArgs {
@@ -135,46 +151,98 @@ impl FilesystemHandler {
             args.output_dir
         ))
     }
-  #[tool(description = "Creates a new Markdown playbook for the AI agent.")]
-fn create_playbook(
-    &self,
-    Parameters(args): Parameters<CreatePlaybookArgs>,
-) -> Result<String, String> {
-    // 1. Resolve the base directory safely using standard dirs
-    let base_directory = dirs::data_local_dir()
-        .ok_or("Could not resolve application data directory")?
-        .join("Defendrite")
-        .join("playbooks");
+    #[tool(description = "Creates a new Markdown playbook with metadata.")]
+    fn create_playbook(
+        &self,
+        Parameters(args): Parameters<CreatePlaybookArgs>,
+    ) -> Result<String, String> {
 
-    // Ensure the base directory exists
-    fs::create_dir_all(&base_directory)
-        .map_err(|e| format!("Could not create playbooks directory: {e}"))?;
 
-    // 2. Canonicalize the base directory to resolve any symlinks for strict comparison
-    let base_directory_canonical = base_directory
-        .canonicalize()
-        .map_err(|e| format!("Failed to canonicalize base directory: {e}"))?;
+        let log_path = "/tmp/filesystem-mcp.log";
 
-    // 3. Prevent arbitrary filenames/extensions (Use UUID to completely decouple user input from file path)
-    let safe_filename = format!("{}.md", uuid::Uuid::new_v4());
+        let log = |message: &str| {
+            use std::io::Write;
 
-    // 4. Join paths and canonicalize the final target path
-    let target_path = base_directory_canonical.join(safe_filename);
+            if let Ok(mut file) = fs::OpenOptions::new()
+                .create(true)
+                .append(true)
+                .open(log_path)
+            {
+                let _ = writeln!(file, "{message}");
+            }
+        };
 
-    // 5. Explicitly verify the final path is strictly inside the sandbox directory
-    if !target_path.starts_with(&base_directory_canonical) {
-        return Err("Security Violation: Target path is outside the designated playbooks directory.".to_string());
+        log("========== CREATE PLAYBOOK REQUEST ==========");
+        // 1. Validate input
+        let name = args.name.trim();
+
+        if name.is_empty() {
+            return Err("Playbook name cannot be empty".into());
+        }
+
+        if args.content.trim().is_empty() {
+            return Err("Playbook content cannot be empty".into());
+        }
+
+        // 2. Resolve playbooks directory
+        let base_directory = dirs::data_local_dir()
+            .ok_or("Could not resolve application data directory")?
+            .join("com.defendrite.desktop-app")
+            .join("playbooks");
+
+        fs::create_dir_all(&base_directory)
+            .map_err(|e| format!("Could not create playbooks directory: {e}"))?;
+
+        let base_directory = base_directory
+            .canonicalize()
+            .map_err(|e| format!("Failed to canonicalize playbooks directory: {e}"))?;
+
+        // 3. Generate metadata
+        let id = Uuid::new_v4().to_string();
+
+        let now = chrono::Utc::now().to_rfc3339();
+
+        let metadata = PlaybookMetadata {
+            id: id.clone(),
+            name: name.to_string(),
+            description: String::new(),
+            version: "1.0.0".into(),
+            author: "Local".into(),
+            tags: Vec::new(),
+            status: "active".into(),
+            created_at: now.clone(),
+            updated_at: now,
+        };
+
+        // 4. Serialize metadata into YAML frontmatter
+        let frontmatter = serde_yaml::to_string(&metadata)
+            .map_err(|e| format!("Could not serialize playbook metadata: {e}"))?;
+
+        let markdown = format!(
+            "---\n{}---\n\n{}",
+            frontmatter,
+            args.content.trim()
+        );
+
+        // 5. Generate UUID-based filename
+        let target_path = base_directory.join(format!("{}.md", id));
+
+        if !target_path.starts_with(&base_directory) {
+            return Err("Security Violation: Invalid playbook path.".into());
+        }
+
+        // 6. Save playbook
+        fs::write(&target_path, markdown)
+            .map_err(|e| format!("Could not create playbook: {e}"))?;
+
+        log(&format!("Saved file to path: {:?}", target_path));
+
+        Ok(format!(
+            "Playbook '{}' created successfully. ID: {}",
+            name, id
+        ))
     }
 
-    // 6. Safely write the content to disk
-    fs::write(&target_path, args.content)
-        .map_err(|e| format!("Could not create playbook: {e}"))?;
-
-    Ok(format!(
-        "Playbook '{}' created successfully.",
-        args.name
-    ))
-}
 
 }
 #[tokio::main]

@@ -1196,11 +1196,13 @@ dependencies = [
 name = "filesystem"
 version = "0.8.0"
 dependencies = [
+ "chrono",
  "dirs",
  "rmcp",
  "schemars 1.2.3",
  "serde",
  "serde_json",
+ "serde_yaml",
  "tokio",
  "uuid",
  "zip",
