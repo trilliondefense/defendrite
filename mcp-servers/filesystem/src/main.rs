@@ -207,7 +207,7 @@ impl FilesystemHandler {
             name: name.to_string(),
             description: String::new(),
             version: "1.0.0".into(),
-            author: "Local".into(),
+            author: "Agent".into(),
             tags: Vec::new(),
             status: "active".into(),
             created_at: now.clone(),
