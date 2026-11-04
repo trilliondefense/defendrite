@@ -7,7 +7,8 @@ use rmcp::{
     ServiceExt,
     transport::stdio,
 };
-
+use serde::Deserialize;
+use rmcp::handler::server::wrapper::Json;
 use std::fs;
 use std::path::Path;
 use uuid::Uuid;
@@ -20,8 +21,8 @@ struct UnzipArgs {
     /// Absolute destination directory.
     output_dir: String,
 }
-
-#[derive(Serialize)]
+#[derive(Serialize,Deserialize)]
+#[serde(rename_all = "camelCase")]
 struct PlaybookMetadata {
     id: String,
     name: String,
@@ -34,6 +35,21 @@ struct PlaybookMetadata {
     updated_at: String,
 }
 
+#[derive(serde::Serialize, schemars::JsonSchema)]
+pub struct GetPlaybooksResponse {
+    pub playbooks: Vec<PlaybookInfo>,
+}
+
+
+#[derive(serde::Serialize, schemars::JsonSchema)]
+pub struct PlaybookInfo {
+    pub id: String,
+    pub name: String,
+    pub description: String,
+    pub tags: Vec<String>,
+pub updated_at: String,
+
+}
 
 #[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
 struct CreatePlaybookArgs {
@@ -241,6 +257,82 @@ impl FilesystemHandler {
             "Playbook '{}' created successfully. ID: {}",
             name, id
         ))
+    }
+
+    #[tool(description = "Retrieves a list of all existing Markdown playbooks with their metadata.")]
+    fn list_playbooks(&self) -> Result<Json<GetPlaybooksResponse>, String> {
+
+        let directory = dirs::data_local_dir()
+            .ok_or("Could not resolve application data directory")?
+            .join("com.defendrite.desktop-app")
+            .join("playbooks");
+
+        let entries = fs::read_dir(directory)
+            .map_err(|e| format!("Could not read playbooks directory: {e}"))?;
+
+        let mut playbooks = Vec::new();
+
+        for entry in entries {
+            let entry = entry
+                .map_err(|e| format!("Could not read directory entry: {e}"))?;
+
+            let path = entry.path();
+
+            // Only process Markdown files
+            if path.extension().and_then(|ext| ext.to_str()) != Some("md") {
+                continue;
+            }
+
+            let content = fs::read_to_string(&path)
+                .map_err(|e| format!("Could not read playbook file: {e}"))?;
+
+            // Extract YAML frontmatter
+            let content = content.trim_start();
+
+            let remaining = content
+                .strip_prefix("---")
+                .ok_or_else(|| {
+                    format!(
+                        "Invalid playbook '{}': missing YAML frontmatter",
+                        path.display()
+                    )
+                })?;
+
+            let end = remaining
+                .find("\n---")
+                .ok_or_else(|| {
+                    format!(
+                        "Invalid playbook '{}': unterminated frontmatter",
+                        path.display()
+                    )
+                })?;
+
+            let yaml = &remaining[..end];
+
+            let metadata: PlaybookMetadata =
+                serde_yaml::from_str(yaml)
+                    .map_err(|e| {
+                        format!(
+                            "Invalid playbook metadata in '{}': {e}",
+                            path.display()
+                        )
+                    })?;
+
+            playbooks.push(PlaybookInfo {
+                id: metadata.id,
+                name: metadata.name,
+                description:metadata.description,
+                tags: metadata.tags,
+                updated_at:metadata.updated_at,
+            });
+        }
+
+        // Sort alphabetically by title
+        playbooks.sort_by(|a, b| a.updated_at.cmp(&b.updated_at));
+
+        Ok(Json(GetPlaybooksResponse {
+            playbooks,
+        }))
     }
 
 
