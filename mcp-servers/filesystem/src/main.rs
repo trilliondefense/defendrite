@@ -34,6 +34,11 @@ struct PlaybookMetadata {
     created_at: String,
     updated_at: String,
 }
+#[derive(serde::Deserialize, schemars::JsonSchema)]
+pub struct GetPlaybookContentArgs {
+    /// Playbook id.
+    pub id: String,
+}
 
 #[derive(serde::Serialize, schemars::JsonSchema)]
 pub struct GetPlaybooksResponse {
@@ -333,6 +338,66 @@ impl FilesystemHandler {
         Ok(Json(GetPlaybooksResponse {
             playbooks,
         }))
+    }
+    #[tool(description = "Retrieves the full Markdown content of a playbook using its ID.")]
+    fn get_playbook_content(
+        &self,
+        Parameters(args): Parameters<GetPlaybookContentArgs>,
+    ) -> Result<String, String> {
+        use std::fs;
+
+        let directory = dirs::data_local_dir()
+            .ok_or("Could not resolve application data directory")?
+            .join("com.defendrite.desktop-app")
+            .join("playbooks");
+
+        let entries = fs::read_dir(directory)
+            .map_err(|e| format!("Could not read playbooks directory: {e}"))?;
+
+        for entry in entries {
+            let entry = entry
+                .map_err(|e| format!("Could not read directory entry: {e}"))?;
+
+            let path = entry.path();
+
+            if path.extension().and_then(|ext| ext.to_str()) != Some("md") {
+                continue;
+            }
+
+            let content = fs::read_to_string(&path)
+                .map_err(|e| format!("Could not read playbook file: {e}"))?;
+
+            let trimmed = content.trim_start();
+
+            let remaining = trimmed
+                .strip_prefix("---")
+                .ok_or_else(|| {
+                    format!("Invalid playbook '{}': missing YAML frontmatter", path.display())
+                })?;
+
+            let end = remaining
+                .find("\n---")
+                .ok_or_else(|| {
+                    format!("Invalid playbook '{}': unterminated frontmatter", path.display())
+                })?;
+
+            let yaml = &remaining[..end];
+
+            let metadata: PlaybookMetadata =
+                serde_yaml::from_str(yaml)
+                    .map_err(|e| format!("Invalid playbook metadata: {e}"))?;
+
+            if metadata.id == args.id {
+                let body_start = end + 4;
+                let body = remaining[body_start..].trim_start();
+
+                return Ok(
+                    body.to_string()
+                );
+            }
+        }
+
+        Err(format!("Playbook with ID '{}' not found", args.id))
     }
 
 
