@@ -7,6 +7,7 @@ use serde::Deserialize;
 use std::fs;
 use std::path::Path;
 use uuid::Uuid;
+use anydoc::to_markdown_bytes;
 
 #[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
 struct UnzipArgs {
