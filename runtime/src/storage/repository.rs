@@ -1,10 +1,9 @@
-
 use rusqlite::{params, Connection};
 use std::path::Path;
 use std::time::{SystemTime, UNIX_EPOCH};
 use uuid::Uuid;
 
-use super::models::{Conversation, Message,Attachment};
+use super::models::{Attachment, Conversation, Message};
 
 fn current_timestamp() -> i64 {
     SystemTime::now()
@@ -57,22 +56,16 @@ pub fn open_db(path: &Path, key: &str) -> rusqlite::Result<Connection> {
     {
         let mut stmt = conn.prepare("PRAGMA table_info(messages)")?;
 
-        let rows = stmt.query_map([], |row| {
-            row.get::<_, String>(1)
-        })?;
+        let rows = stmt.query_map([], |row| row.get::<_, String>(1))?;
 
         for column in rows {
             columns.push(column?);
         }
     }
 
-    let has_conversation_id = columns
-        .iter()
-        .any(|column| column == "conversation_id");
+    let has_conversation_id = columns.iter().any(|column| column == "conversation_id");
 
-    let has_created_at = columns
-        .iter()
-        .any(|column| column == "created_at");
+    let has_created_at = columns.iter().any(|column| column == "created_at");
 
     // Perform the legacy migration transactionally.
     {
@@ -98,11 +91,8 @@ pub fn open_db(path: &Path, key: &str) -> rusqlite::Result<Connection> {
             )?;
         }
 
-        let existing_count: i64 = tx.query_row(
-            "SELECT COUNT(*) FROM messages",
-            [],
-            |row| row.get(0),
-        )?;
+        let existing_count: i64 =
+            tx.query_row("SELECT COUNT(*) FROM messages", [], |row| row.get(0))?;
 
         // Move all legacy messages into one conversation.
         if existing_count > 0 {
@@ -157,7 +147,6 @@ pub fn open_db(path: &Path, key: &str) -> rusqlite::Result<Connection> {
 
         tx.commit()?;
     }
-   
 
     // Index messages for efficient conversation-specific retrieval.
     conn.execute_batch(
@@ -170,7 +159,7 @@ pub fn open_db(path: &Path, key: &str) -> rusqlite::Result<Connection> {
         ",
     )?;
 
-     // Create message attachments table.
+    // Create message attachments table.
     conn.execute_batch(
         "
         CREATE TABLE IF NOT EXISTS message_attachments (
@@ -211,9 +200,7 @@ pub fn open_db(path: &Path, key: &str) -> rusqlite::Result<Connection> {
 }
 
 // Create a new independent conversation.
-pub fn create_conversation(
-    conn: &mut Connection,
-) -> rusqlite::Result<Conversation> {
+pub fn create_conversation(conn: &mut Connection) -> rusqlite::Result<Conversation> {
     let tx = conn.transaction()?;
 
     let chat_number: i64 = tx.query_row(
@@ -256,9 +243,7 @@ pub fn create_conversation(
 }
 
 // Retrieve all conversations, most recently active first.
-pub fn list_conversations(
-    conn: &Connection,
-) -> rusqlite::Result<Vec<Conversation>> {
+pub fn list_conversations(conn: &Connection) -> rusqlite::Result<Vec<Conversation>> {
     let mut stmt = conn.prepare(
         "
         SELECT id, title, chat_number, created_at, updated_at
@@ -281,11 +266,7 @@ pub fn list_conversations(
 }
 
 // Retrieve messages belonging to one specific conversation.
-pub fn load_history(
-    conn: &Connection,
-    conversation_id: &str,
-) -> rusqlite::Result<Vec<Message>> {
-
+pub fn load_history(conn: &Connection, conversation_id: &str) -> rusqlite::Result<Vec<Message>> {
     let mut stmt = conn.prepare(
         "
         SELECT id, role, content
@@ -316,18 +297,15 @@ pub fn load_history(
             ",
         )?;
 
-        let attachment_rows = attachment_stmt.query_map(
-            params![message_id],
-            |row| {
-                Ok(Attachment {
-                    id: row.get(0)?,
-                    name: row.get(1)?,
-                    path: row.get(2)?,
-                    size: row.get(3)?,
-                    mime_type: row.get(4)?,
-                })
-            },
-        )?;
+        let attachment_rows = attachment_stmt.query_map(params![message_id], |row| {
+            Ok(Attachment {
+                id: row.get(0)?,
+                name: row.get(1)?,
+                path: row.get(2)?,
+                size: row.get(3)?,
+                mime_type: row.get(4)?,
+            })
+        })?;
 
         let attachments = attachment_rows.collect::<rusqlite::Result<Vec<_>>>()?;
 
@@ -417,23 +395,23 @@ pub fn save_exchange(
     let user_message_id = tx.last_insert_rowid();
 
     for attachment in attachments {
-    tx.execute(
-        "
+        tx.execute(
+            "
         INSERT INTO message_attachments
             (id, message_id, name, path, size, mime_type, created_at)
         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
         ",
-        params![
-            attachment.id,
-            user_message_id,
-            attachment.name,
-            attachment.path,
-            attachment.size,
-            attachment.mime_type,
-            now
-        ],
-    )?;
-}
+            params![
+                attachment.id,
+                user_message_id,
+                attachment.name,
+                attachment.path,
+                attachment.size,
+                attachment.mime_type,
+                now
+            ],
+        )?;
+    }
 
     // Save model response.
     tx.execute(
@@ -461,10 +439,7 @@ pub fn save_exchange(
 }
 
 // Delete a conversation and its associated messages.
-pub fn delete_conversation(
-    conn: &Connection,
-    conversation_id: &str,
-) -> rusqlite::Result<()> {
+pub fn delete_conversation(conn: &Connection, conversation_id: &str) -> rusqlite::Result<()> {
     conn.execute(
         "DELETE FROM conversations WHERE id = ?1",
         params![conversation_id],

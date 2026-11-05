@@ -1,4 +1,3 @@
-
 use std::fs;
 mod storage;
 use serde_json::{json, Value};
@@ -6,13 +5,10 @@ use tauri::{AppHandle, Emitter, Manager};
 use tauri_plugin_store::StoreExt;
 pub mod agent;
 pub mod mcp;
-pub mod providers;
 pub mod playbooks;
-pub use storage::models::{Conversation, Message,Attachment};
-pub use playbooks::models::{
-    Playbook,
-    PlaybookContent,
-};
+pub mod providers;
+pub use playbooks::models::{Playbook, PlaybookContent};
+pub use storage::models::{Attachment, Conversation, Message};
 
 // --------------------------------------------------
 // Playbooks
@@ -38,20 +34,13 @@ pub fn export_existing_playbook(
 }
 
 /// Retrieve all playbooks.
-pub fn get_all_playbooks(
-    app_handle: &AppHandle,
-) -> Result<Vec<Playbook>, String> {
-    playbooks::list_playbooks(app_handle)
-        .map_err(|e| format!("Could not retrieve playbooks: {e}"))
+pub fn get_all_playbooks(app_handle: &AppHandle) -> Result<Vec<Playbook>, String> {
+    playbooks::list_playbooks(app_handle).map_err(|e| format!("Could not retrieve playbooks: {e}"))
 }
 
 /// Retrieve a playbook by ID, including its Markdown content.
-pub fn get_playbook_by_id(
-    app_handle: &AppHandle,
-    id: &str,
-) -> Result<PlaybookContent, String> {
-    playbooks::get_playbook(app_handle, id)
-        .map_err(|e| format!("Could not retrieve playbook: {e}"))
+pub fn get_playbook_by_id(app_handle: &AppHandle, id: &str) -> Result<PlaybookContent, String> {
+    playbooks::get_playbook(app_handle, id).map_err(|e| format!("Could not retrieve playbook: {e}"))
 }
 
 /// Update an existing playbook.
@@ -61,33 +50,21 @@ pub fn update_existing_playbook(
     name: String,
     content: String,
 ) -> Result<Playbook, String> {
-    playbooks::update_playbook(
-        app_handle,
-        id,
-        name,
-        content,
-    )
-    .map_err(|e| format!("Could not update playbook: {e}"))
+    playbooks::update_playbook(app_handle, id, name, content)
+        .map_err(|e| format!("Could not update playbook: {e}"))
 }
 
 /// Delete an existing playbook.
-pub fn delete_existing_playbook(
-    app_handle: &AppHandle,
-    id: &str,
-) -> Result<(), String> {
+pub fn delete_existing_playbook(app_handle: &AppHandle, id: &str) -> Result<(), String> {
     playbooks::delete_playbook(app_handle, id)
         .map_err(|e| format!("Could not delete playbook: {e}"))
 }
-
 
 // --------------------------------------------------
 // DATABASE INITIALIZATION
 // --------------------------------------------------
 
-
-fn open_conversation_db(
-    app_handle: &AppHandle,
-) -> Result<rusqlite::Connection, String> {
+fn open_conversation_db(app_handle: &AppHandle) -> Result<rusqlite::Connection, String> {
     let mut storage_path = app_handle
         .path()
         .app_data_dir()
@@ -104,11 +81,7 @@ fn open_conversation_db(
 
     let db_key = store
         .get("HARNESS_HISTORY_DB_KEY")
-        .and_then(|v| {
-            v.get("value")
-                .and_then(|v| v.as_str())
-                .map(str::to_owned)
-        })
+        .and_then(|v| v.get("value").and_then(|v| v.as_str()).map(str::to_owned))
         .filter(|s| !s.trim().is_empty())
         .ok_or_else(|| "Conversation database key is missing.".to_string())?;
 
@@ -122,13 +95,10 @@ fn open_conversation_db(
 // CREATE NEW CONVERSATION
 // --------------------------------------------------
 
-pub fn create_new_conversation(
-    app_handle: &AppHandle,
-) -> Result<Conversation, String> {
+pub fn create_new_conversation(app_handle: &AppHandle) -> Result<Conversation, String> {
     let mut db = open_conversation_db(app_handle)?;
 
-    storage::create_conversation(&mut db)
-        .map_err(|e| format!("Could not create conversation: {e}"))
+    storage::create_conversation(&mut db).map_err(|e| format!("Could not create conversation: {e}"))
 }
 // Retrieve messages for a selected conversation.
 pub fn get_chat_messages(
@@ -142,10 +112,7 @@ pub fn get_chat_messages(
 }
 
 // Delete a selected conversation.
-pub fn delete_chat(
-    app_handle: &AppHandle,
-    conversation_id: &str,
-) -> Result<(), String> {
+pub fn delete_chat(app_handle: &AppHandle, conversation_id: &str) -> Result<(), String> {
     let db = open_conversation_db(app_handle)?;
 
     storage::delete_conversation(&db, conversation_id)
@@ -156,13 +123,10 @@ pub fn delete_chat(
 // GET ALL CONVERSATIONS
 // --------------------------------------------------
 
-pub fn get_conversations(
-    app_handle: &AppHandle,
-) -> Result<Vec<Conversation>, String> {
+pub fn get_conversations(app_handle: &AppHandle) -> Result<Vec<Conversation>, String> {
     let db = open_conversation_db(app_handle)?;
 
-    storage::list_conversations(&db)
-        .map_err(|e| format!("Could not retrieve conversations: {e}"))
+    storage::list_conversations(&db).map_err(|e| format!("Could not retrieve conversations: {e}"))
 }
 
 // --------------------------------------------------
@@ -175,14 +139,10 @@ pub async fn handle_agent_request(
     attachments: &[Attachment],
     app_handle: &AppHandle,
 ) -> String {
-
     // 1. Validate conversation ID.
 
     if conversation_id.trim().is_empty() {
-        return emit_error(
-            app_handle,
-            "A valid conversation ID is required.",
-        );
+        return emit_error(app_handle, "A valid conversation ID is required.");
     }
 
     // 2. Open the encrypted conversation database.
@@ -191,10 +151,7 @@ pub async fn handle_agent_request(
         Ok(db) => db,
         Err(error) => {
             eprintln!("Database initialization failed: {error}");
-            return emit_error(
-                app_handle,
-                "Could not open conversation history.",
-            );
+            return emit_error(app_handle, "Could not open conversation history.");
         }
     };
 
@@ -204,10 +161,7 @@ pub async fn handle_agent_request(
         Ok(conversations) => conversations,
         Err(error) => {
             eprintln!("Could not retrieve conversations: {error}");
-            return emit_error(
-                app_handle,
-                "Could not retrieve conversations.",
-            );
+            return emit_error(app_handle, "Could not retrieve conversations.");
         }
     };
 
@@ -215,10 +169,7 @@ pub async fn handle_agent_request(
         .iter()
         .any(|conversation| conversation.id == conversation_id)
     {
-        return emit_error(
-            app_handle,
-            "The requested conversation does not exist.",
-        );
+        return emit_error(app_handle, "The requested conversation does not exist.");
     }
 
     // 4. Read application settings.
@@ -269,119 +220,105 @@ pub async fn handle_agent_request(
         Ok(history) => history,
         Err(error) => {
             eprintln!("Could not load conversation history: {error}");
-            return emit_error(
-                app_handle,
-                "Could not load conversation history.",
-            );
+            return emit_error(app_handle, "Could not load conversation history.");
         }
     };
     // Validate attachment references.
 
-        for attachment in attachments {
-            if attachment.id.trim().is_empty()
-                || attachment.name.trim().is_empty()
-                || attachment.path.trim().is_empty()
-            {
-                return emit_error(
-                    app_handle,
-                    "Invalid attachment information.",
-                );
-            }
-
-            let path = std::path::Path::new(&attachment.path);
-
-            if !path.is_absolute() || !path.is_file() {
-                return emit_error(
-                    app_handle,
-                    &format!(
-                        "Attachment is unavailable: {}",
-                        attachment.name
-                    ),
-                );
-            }
+    for attachment in attachments {
+        if attachment.id.trim().is_empty()
+            || attachment.name.trim().is_empty()
+            || attachment.path.trim().is_empty()
+        {
+            return emit_error(app_handle, "Invalid attachment information.");
         }
+
+        let path = std::path::Path::new(&attachment.path);
+
+        if !path.is_absolute() || !path.is_file() {
+            return emit_error(
+                app_handle,
+                &format!("Attachment is unavailable: {}", attachment.name),
+            );
+        }
+    }
 
     // 8. Convert history into Gemini contents format.
 
-   // 8. Convert history into Gemini contents format.
+    // 8. Convert history into Gemini contents format.
 
+    // let mcp_tools = match crate::mcp::manager::discover_tools().await {
+    //     Ok(tools) => {
+    //         println!("Discovered MCP tools: {tools:#?}");
+    //         tools
+    //     }
+    //     Err(error) => {
+    //         eprintln!("MCP tool discovery failed: {error}");
+    //         Vec::new()
+    //     }
+    // };
 
-// let mcp_tools = match crate::mcp::manager::discover_tools().await {
-//     Ok(tools) => {
-//         println!("Discovered MCP tools: {tools:#?}");
-//         tools
-//     }
-//     Err(error) => {
-//         eprintln!("MCP tool discovery failed: {error}");
-//         Vec::new()
-//     }
-// };
+    let mut contents: Vec<Value> = history
+        .into_iter()
+        .map(|message| {
+            let mut text = message.content;
 
-let mut contents: Vec<Value> = history
-    .into_iter()
-    .map(|message| {
-        let mut text = message.content;
+            if !message.attachments.is_empty() {
+                text.push_str("\n\nAttachments in this message:\n");
 
-        if !message.attachments.is_empty() {
-            text.push_str("\n\nAttachments in this message:\n");
-
-            for attachment in &message.attachments {
-                text.push_str(&format!(
-                    "- {} (Attachment Path: {})\n",
-                    attachment.name,
-                    attachment.path
-                ));
+                for attachment in &message.attachments {
+                    text.push_str(&format!(
+                        "- {} (Attachment Path: {})\n",
+                        attachment.name, attachment.path
+                    ));
+                }
             }
-        }
 
-        json!({
-            "role": message.role,
-            "parts": [
-                { "text": text }
-            ]
+            json!({
+                "role": message.role,
+                "parts": [
+                    { "text": text }
+                ]
+            })
         })
-    })
-    .collect();
+        .collect();
 
-        // 9. Append current user prompt and attachment metadata.
+    // 9. Append current user prompt and attachment metadata.
 
-        let mut user_prompt = prompt.to_string();
+    let mut user_prompt = prompt.to_string();
 
-        if !attachments.is_empty() {
-            user_prompt.push_str("\n\nAttached files:\n");
+    if !attachments.is_empty() {
+        user_prompt.push_str("\n\nAttached files:\n");
 
-            for attachment in attachments {
-                user_prompt.push_str(&format!(
-                    "- {} (Path: {})\n",
-                    attachment.name,
-                    attachment.path
-                ));
-            }
+        for attachment in attachments {
+            user_prompt.push_str(&format!(
+                "- {} (Path: {})\n",
+                attachment.name, attachment.path
+            ));
         }
-        // if !mcp_tools.is_empty() {
-        //     user_prompt.push_str("\n\nAvailable filesystem tools:\n");
+    }
+    // if !mcp_tools.is_empty() {
+    //     user_prompt.push_str("\n\nAvailable filesystem tools:\n");
 
-        //     for tool in &mcp_tools {
-        //         user_prompt.push_str(&format!(
-        //             "- {}: {}\n",
-        //             tool.name,
-        //             tool.description
-        //         ));
-        //     }
-        // }
+    //     for tool in &mcp_tools {
+    //         user_prompt.push_str(&format!(
+    //             "- {}: {}\n",
+    //             tool.name,
+    //             tool.description
+    //         ));
+    //     }
+    // }
 
-        contents.push(json!({
-            "role": "user",
-            "parts": [
-                { "text": user_prompt }
-            ]
-        }));
-
+    contents.push(json!({
+        "role": "user",
+        "parts": [
+            { "text": user_prompt }
+        ]
+    }));
 
     // --------------------------------------------------
     // GEMINI STREAMING API REQUEST
     // --------------------------------------------------
-
 
     // let client = match reqwest::Client::builder()
     //     .timeout(Duration::from_secs(120))
@@ -646,16 +583,10 @@ let mut contents: Vec<Value> = history
     // }
 
     // --------------------------------------------------
-// RUN AGENT
-// --------------------------------------------------
+    // RUN AGENT
+    // --------------------------------------------------
 
-    let answer = match crate::agent::r#loop::run(
-        contents,
-        &api_key,
-        &model,
-        app_handle,
-    ).await {
-
+    let answer = match crate::agent::r#loop::run(contents, &api_key, &model, app_handle).await {
         Ok(answer) => answer,
 
         Err(error) => {
@@ -668,57 +599,35 @@ let mut contents: Vec<Value> = history
         }
     };
 
-
     if answer.trim().is_empty() {
-
         eprintln!("Gemini returned no generated text.");
 
-        return emit_error(
-            app_handle,
-            "Gemini returned an empty response.",
-        );
+        return emit_error(app_handle, "Gemini returned an empty response.");
     }
 
     // --------------------------------------------------
     // SAVE CONVERSATION EXCHANGE
     // --------------------------------------------------
 
-    if let Err(error) = storage::save_exchange(
-        &mut db,
-        conversation_id,
-        prompt,
-        &answer,
-        attachments,
-    ) {
-        eprintln!(
-            "Failed to save conversation exchange: {error}"
-        );
+    if let Err(error) =
+        storage::save_exchange(&mut db, conversation_id, prompt, &answer, attachments)
+    {
+        eprintln!("Failed to save conversation exchange: {error}");
 
-        return emit_error(
-            app_handle,
-            "Could not save conversation history.",
-        );
+        return emit_error(app_handle, "Could not save conversation history.");
     }
 
     answer
-
-
 }
 
 // --------------------------------------------------
 // ERROR EVENT
 // --------------------------------------------------
 
-fn emit_error(
-    app_handle: &AppHandle,
-    message: &str,
-) -> String {
+fn emit_error(app_handle: &AppHandle, message: &str) -> String {
     let display_message = format!("Error: {message}");
 
-    if let Err(error) = app_handle.emit(
-        "agent-token",
-        display_message.as_str(),
-    ) {
+    if let Err(error) = app_handle.emit("agent-token", display_message.as_str()) {
         eprintln!("Failed to emit error event: {error}");
     }
 

@@ -1,4 +1,3 @@
-
 use std::fs;
 use std::path::PathBuf;
 
@@ -7,11 +6,7 @@ use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Manager};
 use uuid::Uuid;
 
-use super::models::{
-    Playbook,
-    PlaybookContent,
-    PlaybookStatus,
-};
+use super::models::{Playbook, PlaybookContent, PlaybookStatus};
 
 // --------------------------------------------------
 // Internal Metadata
@@ -46,9 +41,7 @@ fn default_status() -> PlaybookStatus {
 // Storage Helpers
 // --------------------------------------------------
 
-fn get_playbooks_directory(
-    app_handle: &AppHandle,
-) -> Result<PathBuf, String> {
+fn get_playbooks_directory(app_handle: &AppHandle) -> Result<PathBuf, String> {
     let directory = app_handle
         .path()
         .app_data_dir()
@@ -61,31 +54,21 @@ fn get_playbooks_directory(
     Ok(directory)
 }
 
-fn get_playbook_path(
-    app_handle: &AppHandle,
-    id: &str,
-) -> Result<PathBuf, String> {
-    let uuid = Uuid::parse_str(id)
-        .map_err(|_| "Invalid playbook ID".to_string())?;
+fn get_playbook_path(app_handle: &AppHandle, id: &str) -> Result<PathBuf, String> {
+    let uuid = Uuid::parse_str(id).map_err(|_| "Invalid playbook ID".to_string())?;
 
-    Ok(get_playbooks_directory(app_handle)?
-        .join(format!("{uuid}.md")))
+    Ok(get_playbooks_directory(app_handle)?.join(format!("{uuid}.md")))
 }
 
 fn current_timestamp() -> String {
-    Utc::now().to_rfc3339_opts(
-        SecondsFormat::Secs,
-        true,
-    )
+    Utc::now().to_rfc3339_opts(SecondsFormat::Secs, true)
 }
 
 // --------------------------------------------------
 // Markdown Helpers
 // --------------------------------------------------
 
-fn parse_markdown(
-    content: &str,
-) -> Result<(PlaybookFrontmatter, String), String> {
+fn parse_markdown(content: &str) -> Result<(PlaybookFrontmatter, String), String> {
     let content = content.trim_start();
 
     let remaining = content
@@ -102,26 +85,19 @@ fn parse_markdown(
     let body = remaining[body_start..].trim_start();
 
     let metadata: PlaybookFrontmatter =
-        serde_yaml::from_str(yaml)
-            .map_err(|e| format!("Invalid playbook metadata: {e}"))?;
+        serde_yaml::from_str(yaml).map_err(|e| format!("Invalid playbook metadata: {e}"))?;
 
     Ok((metadata, body.to_string()))
 }
 
-fn serialize_markdown(
-    metadata: &PlaybookFrontmatter,
-    body: &str,
-) -> Result<String, String> {
+fn serialize_markdown(metadata: &PlaybookFrontmatter, body: &str) -> Result<String, String> {
     let yaml = serde_yaml::to_string(metadata)
         .map_err(|e| format!("Could not serialize playbook metadata: {e}"))?;
 
     Ok(format!("---\n{yaml}---\n\n{body}"))
 }
 
-fn to_playbook(
-    metadata: PlaybookFrontmatter,
-    file_path: PathBuf,
-) -> Playbook {
+fn to_playbook(metadata: PlaybookFrontmatter, file_path: PathBuf) -> Playbook {
     Playbook {
         id: metadata.id,
         name: metadata.name,
@@ -174,8 +150,7 @@ pub fn create_playbook(
 
     let path = get_playbook_path(app_handle, &id)?;
 
-    fs::write(&path, markdown)
-        .map_err(|e| format!("Could not save playbook: {e}"))?;
+    fs::write(&path, markdown).map_err(|e| format!("Could not save playbook: {e}"))?;
 
     Ok(to_playbook(metadata, path))
 }
@@ -184,19 +159,16 @@ pub fn create_playbook(
 // List Playbooks
 // --------------------------------------------------
 
-pub fn list_playbooks(
-    app_handle: &AppHandle,
-) -> Result<Vec<Playbook>, String> {
+pub fn list_playbooks(app_handle: &AppHandle) -> Result<Vec<Playbook>, String> {
     let directory = get_playbooks_directory(app_handle)?;
 
-    let entries = fs::read_dir(&directory)
-        .map_err(|e| format!("Could not read playbooks directory: {e}"))?;
+    let entries =
+        fs::read_dir(&directory).map_err(|e| format!("Could not read playbooks directory: {e}"))?;
 
     let mut playbooks = Vec::new();
 
     for entry in entries {
-        let entry = entry
-            .map_err(|e| format!("Could not read directory entry: {e}"))?;
+        let entry = entry.map_err(|e| format!("Could not read directory entry: {e}"))?;
 
         let path = entry.path();
 
@@ -204,8 +176,8 @@ pub fn list_playbooks(
             continue;
         }
 
-        let content = fs::read_to_string(&path)
-            .map_err(|e| format!("Could not read playbook file: {e}"))?;
+        let content =
+            fs::read_to_string(&path).map_err(|e| format!("Could not read playbook file: {e}"))?;
 
         let (metadata, _) = parse_markdown(&content)?;
 
@@ -221,14 +193,10 @@ pub fn list_playbooks(
 // Get Playbook
 // --------------------------------------------------
 
-pub fn get_playbook(
-    app_handle: &AppHandle,
-    id: &str,
-) -> Result<PlaybookContent, String> {
+pub fn get_playbook(app_handle: &AppHandle, id: &str) -> Result<PlaybookContent, String> {
     let path = get_playbook_path(app_handle, id)?;
 
-    let content = fs::read_to_string(&path)
-        .map_err(|e| format!("Could not read playbook: {e}"))?;
+    let content = fs::read_to_string(&path).map_err(|e| format!("Could not read playbook: {e}"))?;
 
     let (metadata, body) = parse_markdown(&content)?;
 
@@ -280,8 +248,7 @@ pub fn update_playbook(
 
     let path = get_playbook_path(app_handle, id)?;
 
-    fs::write(&path, markdown)
-        .map_err(|e| format!("Could not update playbook: {e}"))?;
+    fs::write(&path, markdown).map_err(|e| format!("Could not update playbook: {e}"))?;
 
     Ok(to_playbook(metadata, path))
 }
@@ -290,17 +257,13 @@ pub fn update_playbook(
 // Delete Playbook
 // --------------------------------------------------
 
-pub fn delete_playbook(
-    app_handle: &AppHandle,
-    id: &str,
-) -> Result<(), String> {
+pub fn delete_playbook(app_handle: &AppHandle, id: &str) -> Result<(), String> {
     // Verify that the playbook exists and its ID matches.
     get_playbook(app_handle, id)?;
 
     let path = get_playbook_path(app_handle, id)?;
 
-    fs::remove_file(&path)
-        .map_err(|e| format!("Could not delete playbook: {e}"))?;
+    fs::remove_file(&path).map_err(|e| format!("Could not delete playbook: {e}"))?;
 
     Ok(())
 }
@@ -326,8 +289,7 @@ pub fn export_playbook(
 
     let markdown = serialize_markdown(&metadata, &playbook.content)?;
 
-    fs::write(&destination, markdown)
-        .map_err(|e| format!("Could not export playbook: {e}"))?;
+    fs::write(&destination, markdown).map_err(|e| format!("Could not export playbook: {e}"))?;
 
     Ok(())
 }

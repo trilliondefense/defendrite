@@ -1,10 +1,7 @@
 use serde_json::{json, Value};
 use tauri::AppHandle;
 
-use crate::{
-    mcp::manager,
-    providers::gemini,
-};
+use crate::{mcp::manager, providers::gemini};
 const SYSTEM_PROMPT: &str = include_str!("system_prompt.md");
 pub async fn run(
     mut contents: Vec<Value>,
@@ -12,7 +9,6 @@ pub async fn run(
     model: &str,
     app_handle: &AppHandle,
 ) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
-
     const MAX_ITERATIONS: usize = 8;
 
     // 1. Discover available MCP tools.
@@ -51,17 +47,13 @@ pub async fn run(
         let function_calls: Vec<Value> = response
             .parts
             .iter()
-            .filter_map(|part| {
-                part.get("functionCall").cloned()
-            })
+            .filter_map(|part| part.get("functionCall").cloned())
             .collect();
 
         // 6. No function calls: return Gemini's final response.
         if function_calls.is_empty() {
             if response.text.trim().is_empty() {
-                return Err(
-                    "Gemini returned an empty response".into()
-                );
+                return Err("Gemini returned an empty response".into());
             }
 
             return Ok(response.text);
@@ -82,53 +74,33 @@ pub async fn run(
                 .and_then(Value::as_str)
                 .ok_or("Function call has no name")?;
 
-            let args = call
-                .get("args")
-                .cloned()
-                .unwrap_or_else(|| json!({}));
+            let args = call.get("args").cloned().unwrap_or_else(|| json!({}));
 
             println!("Executing MCP tool: {}", name);
             println!("Arguments: {}", args);
 
             // Find the MCP server responsible for this tool.
-            let result = match mcp_tools
-                .iter()
-                .find(|tool| tool.name == name)
-            {
-                Some(tool) => {
-                    mcp_manager
-                        .execute_tool(
-                            &tool.server,
-                            name,
-                            args,
-                        )
-                        .await
-                }
+            let result = match mcp_tools.iter().find(|tool| tool.name == name) {
+                Some(tool) => mcp_manager.execute_tool(&tool.server, name, args).await,
 
-                None => {
-                    Err(std::io::Error::new(
-                        std::io::ErrorKind::NotFound,
-                        format!("Unknown MCP tool: {}", name),
-                    ).into())
-                }
+                None => Err(std::io::Error::new(
+                    std::io::ErrorKind::NotFound,
+                    format!("Unknown MCP tool: {}", name),
+                )
+                .into()),
             };
 
             // 9. Normalize MCP results into JSON objects.
             let response_body = match result {
-                Ok(value) => {
-                    match value {
-                        Value::Object(_) => value,
-                        other => json!({
-                            "content": other
-                        }),
-                    }
-                }
+                Ok(value) => match value {
+                    Value::Object(_) => value,
+                    other => json!({
+                        "content": other
+                    }),
+                },
 
                 Err(error) => {
-                    eprintln!(
-                        "MCP tool execution failed: {}",
-                        error
-                    );
+                    eprintln!("MCP tool execution failed: {}", error);
 
                     json!({
                         "error": error.to_string()
@@ -146,8 +118,7 @@ pub async fn run(
 
             // Preserve ID if provided by the API.
             if let Some(id) = call.get("id") {
-                function_response["function_response"]["id"] =
-                    id.clone();
+                function_response["function_response"]["id"] = id.clone();
             }
 
             function_responses.push(function_response);
@@ -160,7 +131,5 @@ pub async fn run(
         }));
     }
 
-    Err(
-        "Agent exceeded maximum tool-call iterations".into()
-    )
+    Err("Agent exceeded maximum tool-call iterations".into())
 }

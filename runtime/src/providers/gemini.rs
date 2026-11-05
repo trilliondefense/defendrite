@@ -1,6 +1,6 @@
+use futures_util::StreamExt;
 use serde_json::{json, Value};
 use tauri::{AppHandle, Emitter};
-use futures_util::StreamExt;
 
 use crate::mcp::types::McpTool;
 
@@ -26,7 +26,7 @@ pub fn convert_tools(tools: &[McpTool]) -> Value {
         })
         .collect();
 
-    // Correct nesting structure: An array containing a single Tool Object 
+    // Correct nesting structure: An array containing a single Tool Object
     // that wraps the function declarations list.
     json!([
         {
@@ -52,7 +52,7 @@ fn clean_gemini_schema(value: &mut Value) {
                 }
             }
         }
-        
+
         // Also clean items array schemas if the parameter type is an "array"
         if let Some(items) = obj.get_mut("items") {
             clean_gemini_schema(items);
@@ -66,10 +66,9 @@ pub async fn generate(
     model: &str,
     contents: &[Value],
     tools: &Value,
-    system_prompt:&str,
+    system_prompt: &str,
     app_handle: &AppHandle,
 ) -> Result<GeminiTurn, Box<dyn std::error::Error + Send + Sync>> {
-
     let url = format!(
         "https://generativelanguage.googleapis.com/v1beta/models/{model}:streamGenerateContent?alt=sse"
     );
@@ -80,7 +79,7 @@ pub async fn generate(
         .header("Accept", "text/event-stream")
         .json(&json!({
             "contents": contents,
-            "tools": tools, 
+            "tools": tools,
             "system_instruction": {
                 "parts": [
                     {
@@ -105,7 +104,6 @@ pub async fn generate(
     let mut parts = Vec::new();
     let mut text = String::new();
     while let Some(chunk_result) = stream.next().await {
-
         let chunk = chunk_result?;
 
         buffer.extend_from_slice(&chunk);
@@ -119,23 +117,13 @@ pub async fn generate(
                 line.pop();
             }
 
-            process_sse_line(
-                &line,
-                &mut parts,
-                &mut text,
-                app_handle,
-            )?;
+            process_sse_line(&line, &mut parts, &mut text, app_handle)?;
         }
     }
 
     // Process a final line without a newline.
     if !buffer.is_empty() {
-        process_sse_line(
-            &buffer,
-            &mut parts,
-            &mut text,
-            app_handle,
-        )?;
+        process_sse_line(&buffer, &mut parts, &mut text, app_handle)?;
     }
 
     Ok(GeminiTurn { parts, text })
@@ -147,7 +135,6 @@ fn process_sse_line(
     text: &mut String,
     app_handle: &AppHandle,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-
     let line = String::from_utf8_lossy(line);
 
     let Some(data) = line.strip_prefix("data:") else {
@@ -162,10 +149,7 @@ fn process_sse_line(
 
     let parsed: Value = serde_json::from_str(data)?;
 
-    let Some(event_parts) = parsed["candidates"][0]
-        ["content"]["parts"]
-        .as_array()
-    else {
+    let Some(event_parts) = parsed["candidates"][0]["content"]["parts"].as_array() else {
         return Ok(());
     };
 
@@ -175,10 +159,7 @@ fn process_sse_line(
         if let Some(generated_text) = part["text"].as_str() {
             text.push_str(generated_text);
 
-            let _ = app_handle.emit(
-                "agent-token",
-                generated_text.to_string(),
-            );
+            let _ = app_handle.emit("agent-token", generated_text.to_string());
         }
     }
 

@@ -1,14 +1,9 @@
+use rmcp::handler::server::wrapper::Json;
 use rmcp::{
-    handler::server::wrapper::Parameters,
-    schemars,
-    serde::Serialize,
-    tool,
-    tool_router,
-    ServiceExt,
-    transport::stdio,
+    ServiceExt, handler::server::wrapper::Parameters, schemars, serde::Serialize, tool,
+    tool_router, transport::stdio,
 };
 use serde::Deserialize;
-use rmcp::handler::server::wrapper::Json;
 use std::fs;
 use std::path::Path;
 use uuid::Uuid;
@@ -21,7 +16,7 @@ struct UnzipArgs {
     /// Absolute destination directory.
     output_dir: String,
 }
-#[derive(Serialize,Deserialize)]
+#[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct PlaybookMetadata {
     id: String,
@@ -45,15 +40,13 @@ pub struct GetPlaybooksResponse {
     pub playbooks: Vec<PlaybookInfo>,
 }
 
-
 #[derive(serde::Serialize, schemars::JsonSchema)]
 pub struct PlaybookInfo {
     pub id: String,
     pub name: String,
     pub description: String,
     pub tags: Vec<String>,
-pub updated_at: String,
-
+    pub updated_at: String,
 }
 
 #[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
@@ -70,11 +63,7 @@ struct FilesystemHandler;
 #[tool_router(server_handler)]
 impl FilesystemHandler {
     #[tool(description = "Extracts a local ZIP archive into a target destination directory.")]
-    fn unzip_file(
-        &self,
-        Parameters(args): Parameters<UnzipArgs>,
-    ) -> Result<String, String> {
-
+    fn unzip_file(&self, Parameters(args): Parameters<UnzipArgs>) -> Result<String, String> {
         let log_path = "/tmp/filesystem-mcp.log";
 
         let log = |message: &str| {
@@ -177,8 +166,6 @@ impl FilesystemHandler {
         &self,
         Parameters(args): Parameters<CreatePlaybookArgs>,
     ) -> Result<String, String> {
-
-
         let log_path = "/tmp/filesystem-mcp.log";
 
         let log = |message: &str| {
@@ -239,11 +226,7 @@ impl FilesystemHandler {
         let frontmatter = serde_yaml::to_string(&metadata)
             .map_err(|e| format!("Could not serialize playbook metadata: {e}"))?;
 
-        let markdown = format!(
-            "---\n{}---\n\n{}",
-            frontmatter,
-            args.content.trim()
-        );
+        let markdown = format!("---\n{}---\n\n{}", frontmatter, args.content.trim());
 
         // 5. Generate UUID-based filename
         let target_path = base_directory.join(format!("{}.md", id));
@@ -253,8 +236,7 @@ impl FilesystemHandler {
         }
 
         // 6. Save playbook
-        fs::write(&target_path, markdown)
-            .map_err(|e| format!("Could not create playbook: {e}"))?;
+        fs::write(&target_path, markdown).map_err(|e| format!("Could not create playbook: {e}"))?;
 
         log(&format!("Saved file to path: {:?}", target_path));
 
@@ -264,9 +246,10 @@ impl FilesystemHandler {
         ))
     }
 
-    #[tool(description = "Retrieves a list of all existing Markdown playbooks with their metadata.")]
+    #[tool(
+        description = "Retrieves a list of all existing Markdown playbooks with their metadata."
+    )]
     fn list_playbooks(&self) -> Result<Json<GetPlaybooksResponse>, String> {
-
         let directory = dirs::data_local_dir()
             .ok_or("Could not resolve application data directory")?
             .join("com.defendrite.desktop-app")
@@ -278,8 +261,7 @@ impl FilesystemHandler {
         let mut playbooks = Vec::new();
 
         for entry in entries {
-            let entry = entry
-                .map_err(|e| format!("Could not read directory entry: {e}"))?;
+            let entry = entry.map_err(|e| format!("Could not read directory entry: {e}"))?;
 
             let path = entry.path();
 
@@ -294,50 +276,38 @@ impl FilesystemHandler {
             // Extract YAML frontmatter
             let content = content.trim_start();
 
-            let remaining = content
-                .strip_prefix("---")
-                .ok_or_else(|| {
-                    format!(
-                        "Invalid playbook '{}': missing YAML frontmatter",
-                        path.display()
-                    )
-                })?;
+            let remaining = content.strip_prefix("---").ok_or_else(|| {
+                format!(
+                    "Invalid playbook '{}': missing YAML frontmatter",
+                    path.display()
+                )
+            })?;
 
-            let end = remaining
-                .find("\n---")
-                .ok_or_else(|| {
-                    format!(
-                        "Invalid playbook '{}': unterminated frontmatter",
-                        path.display()
-                    )
-                })?;
+            let end = remaining.find("\n---").ok_or_else(|| {
+                format!(
+                    "Invalid playbook '{}': unterminated frontmatter",
+                    path.display()
+                )
+            })?;
 
             let yaml = &remaining[..end];
 
-            let metadata: PlaybookMetadata =
-                serde_yaml::from_str(yaml)
-                    .map_err(|e| {
-                        format!(
-                            "Invalid playbook metadata in '{}': {e}",
-                            path.display()
-                        )
-                    })?;
+            let metadata: PlaybookMetadata = serde_yaml::from_str(yaml)
+                .map_err(|e| format!("Invalid playbook metadata in '{}': {e}", path.display()))?;
 
             playbooks.push(PlaybookInfo {
                 id: metadata.id,
                 name: metadata.name,
-                description:metadata.description,
+                description: metadata.description,
                 tags: metadata.tags,
-                updated_at:metadata.updated_at,
+                updated_at: metadata.updated_at,
             });
         }
 
         // Sort alphabetically by title
         playbooks.sort_by(|a, b| a.updated_at.cmp(&b.updated_at));
 
-        Ok(Json(GetPlaybooksResponse {
-            playbooks,
-        }))
+        Ok(Json(GetPlaybooksResponse { playbooks }))
     }
     #[tool(description = "Retrieves the full Markdown content of a playbook using its ID.")]
     fn get_playbook_content(
@@ -355,8 +325,7 @@ impl FilesystemHandler {
             .map_err(|e| format!("Could not read playbooks directory: {e}"))?;
 
         for entry in entries {
-            let entry = entry
-                .map_err(|e| format!("Could not read directory entry: {e}"))?;
+            let entry = entry.map_err(|e| format!("Could not read directory entry: {e}"))?;
 
             let path = entry.path();
 
@@ -369,44 +338,39 @@ impl FilesystemHandler {
 
             let trimmed = content.trim_start();
 
-            let remaining = trimmed
-                .strip_prefix("---")
-                .ok_or_else(|| {
-                    format!("Invalid playbook '{}': missing YAML frontmatter", path.display())
-                })?;
+            let remaining = trimmed.strip_prefix("---").ok_or_else(|| {
+                format!(
+                    "Invalid playbook '{}': missing YAML frontmatter",
+                    path.display()
+                )
+            })?;
 
-            let end = remaining
-                .find("\n---")
-                .ok_or_else(|| {
-                    format!("Invalid playbook '{}': unterminated frontmatter", path.display())
-                })?;
+            let end = remaining.find("\n---").ok_or_else(|| {
+                format!(
+                    "Invalid playbook '{}': unterminated frontmatter",
+                    path.display()
+                )
+            })?;
 
             let yaml = &remaining[..end];
 
-            let metadata: PlaybookMetadata =
-                serde_yaml::from_str(yaml)
-                    .map_err(|e| format!("Invalid playbook metadata: {e}"))?;
+            let metadata: PlaybookMetadata = serde_yaml::from_str(yaml)
+                .map_err(|e| format!("Invalid playbook metadata: {e}"))?;
 
             if metadata.id == args.id {
                 let body_start = end + 4;
                 let body = remaining[body_start..].trim_start();
 
-                return Ok(
-                    body.to_string()
-                );
+                return Ok(body.to_string());
             }
         }
 
         Err(format!("Playbook with ID '{}' not found", args.id))
     }
-
-
 }
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let service = FilesystemHandler
-        .serve(stdio())
-        .await?;
+    let service = FilesystemHandler.serve(stdio()).await?;
 
     service.waiting().await?;
 
