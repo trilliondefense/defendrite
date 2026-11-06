@@ -1,9 +1,45 @@
-use runtime::Attachment;
+use runtime::{Attachment,McpConfig,McpServerConfig};
 use tauri::Manager;
 use tauri_plugin_store::StoreExt;
-// --------------------------------------------------
-// ASK AGENT
-// --------------------------------------------------
+
+// Read complete MCP configuration.
+#[tauri::command]
+fn get_mcp_config(
+    app_handle: tauri::AppHandle,
+) -> Result<McpConfig, String> {
+    runtime::get_mcp_config(&app_handle)
+        .map_err(|e| format!("Could not read MCP config: {e}"))
+}
+
+// Save complete MCP configuration.
+#[tauri::command]
+fn save_mcp_config(
+    app_handle: tauri::AppHandle,
+    config: McpConfig,
+) -> Result<(), String> {
+    runtime::save_mcp_config(&app_handle, &config)
+        .map_err(|e| format!("Could not save MCP config: {e}"))
+}
+
+// Add or update an MCP server.
+#[tauri::command]
+fn add_mcp_server(
+    app_handle: tauri::AppHandle,
+    server: McpServerConfig,
+) -> Result<McpConfig, String> {
+    runtime::add_mcp_server(&app_handle, server)
+        .map_err(|e| format!("Could not add MCP server: {e}"))
+}
+
+// Remove an MCP server.
+#[tauri::command]
+fn remove_mcp_server(
+    app_handle: tauri::AppHandle,
+    name: String,
+) -> Result<McpConfig, String> {
+    runtime::remove_mcp_server(&app_handle, &name)
+        .map_err(|e| format!("Could not remove MCP server: {e}"))
+}
 
 #[tauri::command]
 async fn ask_agent(
@@ -171,6 +207,7 @@ pub fn run() {
             update_playbook,
             delete_playbook,
             export_playbook,
+            get_mcp_config,save_mcp_config,add_mcp_server,remove_mcp_server
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

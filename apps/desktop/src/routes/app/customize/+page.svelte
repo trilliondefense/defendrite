@@ -16,7 +16,11 @@
   let enterToSend = $state(true);
   let launchAtStartup = $state(false);
   let saved = $state(false);
-
+  
+  let config = $state("");
+  let editing = $state(false);
+  let loading = $state(false);
+  let error = $state("");
 
 
   let apiKey = $state('');
@@ -40,18 +44,52 @@
 
 
   async function saveConfig() {
+            error = "";
     try {
       if (store){
         await store.set('HARNESS_MODEL_API_KEY', { value: apiKey });
         await store.set('HARNESS_MODEL_NAME', { value: modelName });
         await store.set('HARNESS_HISTORY_DB_KEY', { value: dbHistoryKey });
+        const parsed = JSON.parse(config);
+
+        loading = true;
+
+        await invoke("save_mcp_config", {
+            config: parsed
+        });
+
+        config = JSON.stringify(parsed, null, 2);
+        editing = false;
+
         await store.save(); // Permanently flushes settings cache to disk
       }
       statusLog = "Configuration saved successfully.";
     } catch (err) {
       statusLog = `Failed to save configuration: ${err}`;
-    }
+                  error = String(err);
+    }finally {
+            loading = false;
+        }
   }
+  async function cancelEdit() {
+        editing = false;
+        await loadConfig();
+    }
+  async function loadConfig() {
+        loading = true;
+        error = "";
+
+        try {
+            const result = await invoke("get_mcp_config");
+            config = JSON.stringify(result, null, 2);
+        } catch (e) {
+            error = String(e);
+        } finally {
+            loading = false;
+        }
+    }
+
+
 
   
   onMount(() => {
@@ -62,6 +100,7 @@
       soundEnabled = localStorage.getItem("workspace-sound") === "true";
       enterToSend = localStorage.getItem("workspace-enter-send") !== "false";
       launchAtStartup = localStorage.getItem("workspace-startup") === "true";
+     
     } catch (error) {
       console.warn("Unable to load workspace preferences:", error);
     }
@@ -74,6 +113,7 @@
     async function initStoreAndListeners() {
       try {
         // Load the store instance safely
+         loadConfig();
         store = await Store.load('settings.json');
 
         // Read persisted values from disk
@@ -359,7 +399,7 @@
       </div>
        <div class="setting-row credentials-row" style="flex-direction: column; align-items: flex-start; gap: 0.75rem;">
         <div class="setting-copy">
-          <h3>DB Histor Key</h3>
+          <h3>DB History Key</h3>
           <p>Configure your personal developer key to authenticate with to encrypt database history.</p>
         </div>
         
@@ -371,7 +411,55 @@
             style="flex: 1; padding: 0.5rem 0.75rem; border-radius: 4px; border: 1px solid #ccc; font-family: monospace; font-size: 0.9rem;"
           />
         </div>
-      </div>
+      </div><div class="mcp-config">
+    <div class="mcp-config-header">
+        <span class="mcp-config-title">MCP Configuration</span>
+
+        {#if editing}
+            <div class="mcp-config-actions">
+                <button
+                    class="mcp-config-cancel"
+                    onclick={cancelEdit}
+                    disabled={loading}
+                >
+                    Cancel
+                </button>
+
+                <button
+                    class="mcp-config-save"
+                    onclick={saveConfig}
+                    disabled={loading}
+                >
+                    {loading ? "Saving..." : "✓"}
+                </button>
+            </div>
+        {:else}
+            <button
+                class="mcp-config-edit"
+                onclick={() => editing = true}
+                disabled={loading}
+            >
+                Edit
+            </button>
+        {/if}
+    </div>
+
+    {#if loading}
+        <p class="mcp-config-loading">Loading configuration...</p>
+    {:else if editing}
+        <textarea
+            class="mcp-config-editor"
+            bind:value={config}
+            spellcheck="false"
+        ></textarea>
+    {:else}
+        <pre class="mcp-config-preview">{config}</pre>
+    {/if}
+
+    {#if error}
+        <p class="mcp-config-error">{error}</p>
+    {/if}
+</div>
 
       <!-- App Preferences Toggle Row -->
       <div class="setting-row">
@@ -444,6 +532,114 @@
     font-weight: 600;
     letter-spacing: .13em;
   }
+
+  .mcp-config {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    width: 100%;
+}
+
+.mcp-config-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.mcp-config-title {
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.mcp-config-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.mcp-config-edit,
+.mcp-config-cancel,
+.mcp-config-save {
+    padding: 6px 12px;
+    border: 1px solid var(--border-color, #444);
+    border-radius: 6px;
+    background: transparent;
+    color: inherit;
+    font-size: 13px;
+    cursor: pointer;
+}
+
+.mcp-config-edit:hover,
+.mcp-config-cancel:hover {
+    background: rgba(128, 128, 128, 0.12);
+}
+
+.mcp-config-save {
+    min-width: 36px;
+    background: var(--accent-color, #3b82f6);
+    border-color: var(--accent-color, #3b82f6);
+    color: white;
+}
+
+.mcp-config-save:hover {
+    opacity: 0.85;
+}
+
+.mcp-config-edit:disabled,
+.mcp-config-cancel:disabled,
+.mcp-config-save:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.mcp-config-editor,
+.mcp-config-preview {
+    width: 100%;
+    min-height: 300px;
+    max-height: 600px;
+    box-sizing: border-box;
+    padding: 14px;
+    border: 1px solid var(--border-color, #444);
+    border-radius: 8px;
+    background: var(--editor-bg, #171717);
+    color: var(--editor-text, #d4d4d4);
+    font-family: "JetBrains Mono", "Fira Code", monospace;
+    font-size: 13px;
+    line-height: 1.6;
+    overflow: auto;
+    white-space: pre;
+    tab-size: 2;
+}
+
+.mcp-config-editor {
+    resize: vertical;
+    outline: none;
+}
+
+.mcp-config-editor:focus {
+    border-color: var(--accent-color, #3b82f6);
+}
+
+.mcp-config-preview {
+    margin: 0;
+}
+
+.mcp-config-loading {
+    padding: 20px;
+    text-align: center;
+    color: var(--text-secondary, #999);
+    font-size: 13px;
+}
+
+.mcp-config-error {
+    margin: 0;
+    padding: 10px 12px;
+    border-radius: 6px;
+    background: rgba(220, 38, 38, 0.1);
+    color: #ef4444;
+    font-size: 13px;
+}
 
   h1 {
     margin: 0;
@@ -582,6 +778,8 @@
     padding: 15px 0;
     border-bottom: 1px solid var(--line);
   }
+
+  
 
   .setting-copy {
     min-width: 0;
