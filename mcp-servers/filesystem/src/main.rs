@@ -376,8 +376,8 @@ impl FilesystemHandler {
         Err(format!("Playbook with ID '{}' not found", args.id))
     }
 
-    #[tool(description = "Read any pdf file by converting it to markdown")]
-    async fn read_pdf_file(
+    #[tool(description = "Read any file by converting it to markdown")]
+    async fn read_any_file(
         &self,
         Parameters(args): Parameters<ConvertArgs>,
     ) -> Result<String, String> {
