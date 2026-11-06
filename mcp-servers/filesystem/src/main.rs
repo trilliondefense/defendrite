@@ -411,7 +411,7 @@ impl FilesystemHandler {
             };
 
             // Convert the bytes natively - handles PDFs effortlessly
-            match to_markdown_bytes(&file_bytes,anydoc::Format::Pdf) {
+            match to_markdown_bytes(&file_bytes,None) {
                 Ok(markdown_output) => {
 
                     log(&format!("Sucessful {:?}",markdown_output));
