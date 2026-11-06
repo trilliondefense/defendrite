@@ -16,6 +16,7 @@ rusqlite = { version = "0.41.1", features = ["bundled-sqlcipher-vendored-openssl
 uuid = { version = "1.29.0", features = ["v4"] }
 futures-util = "0.3"
 bytes = "1"
-rmcp = { version = "3.8.0", features = ["client", "transport-child-process"] }
+rmcp = { version = "3.8.0", features = ["client", "transport-child-process", "transport-streamable-http-client-reqwest"] }
 serde_yaml = "0.9.34"
 chrono = { version = "0.4.45", features = ["serde"] }
+url = "2"

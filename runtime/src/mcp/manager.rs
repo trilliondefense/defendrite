@@ -1,12 +1,13 @@
+
 use std::{
     collections::HashMap,
     error::Error,
+    fs,
     path::PathBuf,
     sync::{OnceLock, RwLock},
 };
 
 use serde_json::{json, Value};
-use tauri::path::BaseDirectory;
 use tauri::{AppHandle, Manager};
 use tokio::sync::Mutex;
 
@@ -22,82 +23,61 @@ type McpClient = rmcp::service::RunningService<rmcp::RoleClient, ()>;
 
 pub struct McpManager {
     config: RwLock<McpConfig>,
+    config_path: PathBuf,
     clients: Mutex<HashMap<String, McpClient>>,
 }
 
 static MCP_MANAGER: OnceLock<McpManager> = OnceLock::new();
 
 impl McpManager {
-    pub fn new(config: McpConfig) -> Self {
+    pub fn new(config: McpConfig, config_path: PathBuf) -> Self {
         Self {
             config: RwLock::new(config),
+            config_path,
             clients: Mutex::new(HashMap::new()),
         }
     }
 
-    // Get or initialize the application-wide manager.
+    /// Get or initialize the application-wide MCP manager.
+    ///
+    /// Loads all MCP server configurations from mcp.json.
     pub fn global(app: &AppHandle) -> McpResult<&'static Self> {
         if let Some(manager) = MCP_MANAGER.get() {
             return Ok(manager);
         }
 
-        // Determine platform-specific resource path.
-        #[cfg(target_os = "windows")]
-        let (platform, binary_name) = ("windows", "filesystem.exe");
+        // Resolve application configuration directory.
+        let config_dir = app.path().app_config_dir()?;
 
-        #[cfg(target_os = "macos")]
-        let (platform, binary_name) = ("macos", "filesystem");
+        // Ensure the directory exists.
+        fs::create_dir_all(&config_dir)?;
 
-        #[cfg(target_os = "linux")]
-        let (platform, binary_name) = ("linux", "filesystem");
+        let config_path = config_dir.join("mcp.json");
 
-        // Production: resolve bundled Tauri resource.
-        let resource_name = format!("resources/filesystem/{platform}/{binary_name}");
+        // Load existing configuration or create an empty one.
+        let config = if config_path.exists() {
+            let contents = fs::read_to_string(&config_path)?;
 
-        let bundled = app
-            .path()
-            .resolve(&resource_name, BaseDirectory::Resource)
-            .ok();
-
-        // Development: workspace target/debug.
-        let workspace = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-            .parent()
-            .ok_or("Cannot resolve workspace directory")?
-            .to_path_buf();
-
-        let development = workspace.join("target").join("debug").join(binary_name);
-
-        // Environment override > bundled > development.
-        let executable = if let Some(path) = std::env::var_os("FILESYSTEM_MCP_BIN") {
-            PathBuf::from(path)
-        } else if let Some(path) = bundled.filter(|p| p.is_file()) {
-            path
+            serde_json::from_str::<McpConfig>(&contents).map_err(|e| {
+                format!(
+                    "Failed to parse MCP configuration {}: {}",
+                    config_path.display(),
+                    e
+                )
+            })?
         } else {
-            development
+            let config = McpConfig {
+                servers: Vec::new(),
+            };
+
+            let contents = serde_json::to_string_pretty(&config)?;
+
+            fs::write(&config_path, contents)?;
+
+            config
         };
 
-        // Validate executable.
-        if !executable.is_file() {
-            return Err(format!(
-                "Filesystem MCP executable not found: {}",
-                executable.display()
-            )
-            .into());
-        }
-
-        // Initial configuration.
-        let config = McpConfig {
-            servers: vec![McpServerConfig {
-                name: "filesystem".to_string(),
-                enabled: true,
-                transport: "stdio".to_string(),
-                command: executable.to_string_lossy().to_string(),
-                args: Vec::new(),
-                env: HashMap::new(),
-            }],
-        };
-
-        let manager = Self::new(config);
+        let manager = Self::new(config, config_path);
 
         // Initialize only once.
         let _ = MCP_MANAGER.set(manager);
@@ -107,27 +87,69 @@ impl McpManager {
             .ok_or_else(|| "Failed to initialize MCP manager".into())
     }
 
-    // Register or update an MCP server configuration.
+    /// Save the current configuration to mcp.json.
+    fn save_config(&self, config: &McpConfig) -> McpResult<()> {
+        let contents = serde_json::to_string_pretty(config)?;
+
+        fs::write(&self.config_path, contents)?;
+
+        Ok(())
+    }
+
+    /// Register or update an MCP server configuration.
+    ///
+    /// Changes are persisted to mcp.json.
     pub fn register_server(&self, server: McpServerConfig) -> McpResult<()> {
         let mut config = self
             .config
             .write()
             .map_err(|e| format!("Config lock failed: {e}"))?;
 
-        if let Some(existing) = config
+        let mut updated_config = config.clone();
+
+        if let Some(existing) = updated_config
             .servers
             .iter_mut()
             .find(|item| item.name == server.name)
         {
             *existing = server;
         } else {
-            config.servers.push(server);
+            updated_config.servers.push(server);
         }
+
+        // Persist before updating in-memory configuration.
+        self.save_config(&updated_config)?;
+
+        *config = updated_config;
 
         Ok(())
     }
 
-    // Connect only if this server isn't already connected.
+    /// Remove an MCP server configuration.
+    pub async fn remove_server(&self, name: &str) -> McpResult<()> {
+        // Disconnect the server if currently connected.
+        {
+            let mut clients = self.clients.lock().await;
+            clients.remove(name);
+        }
+
+        let mut config = self
+            .config
+            .write()
+            .map_err(|e| format!("Config lock failed: {e}"))?;
+
+        let mut updated_config = config.clone();
+
+        updated_config.servers.retain(|server| server.name != name);
+
+        self.save_config(&updated_config)?;
+
+        *config = updated_config;
+
+        Ok(())
+    }
+
+    /// Get or initialize a persistent MCP connection.
     async fn ensure_connected(&self, name: &str) -> McpResult<()> {
         let mut clients = self.clients.lock().await;
 
@@ -146,9 +168,13 @@ impl McpManager {
                 .iter()
                 .find(|server| server.name == name && server.enabled)
                 .cloned()
-                .ok_or_else(|| format!("MCP server not found or disabled: {name}"))?
+                .ok_or_else(|| {
+                    format!("MCP server not found or disabled: {name}")
+                })?
         };
 
+        // Transport selection happens inside client::connect().
+        // It must support both stdio and streamable_http.
         let connection = client::connect(&server).await?;
 
         clients.insert(name.to_string(), connection);
@@ -156,7 +182,7 @@ impl McpManager {
         Ok(())
     }
 
-    // Discover tools from every enabled server.
+    /// Discover tools from every enabled MCP server.
     pub async fn discover_tools(&self) -> McpResult<Vec<McpTool>> {
         let server_names: Vec<String> = {
             let config = self
@@ -179,7 +205,9 @@ impl McpManager {
 
             let clients = self.clients.lock().await;
 
-            let client = clients.get(&server).ok_or("MCP connection missing")?;
+            let client = clients
+                .get(&server)
+                .ok_or("MCP connection missing")?;
 
             let result = client.list_all_tools().await?;
 
@@ -187,7 +215,11 @@ impl McpManager {
                 all_tools.push(McpTool {
                     server: server.clone(),
                     name: tool.name.to_string(),
-                    description: tool.description.as_deref().unwrap_or("").to_string(),
+                    description: tool
+                        .description
+                        .as_deref()
+                        .unwrap_or("")
+                        .to_string(),
                     input_schema: serde_json::to_value(&tool.input_schema)?,
                 });
             }
@@ -196,13 +228,20 @@ impl McpManager {
         Ok(all_tools)
     }
 
-    // Execute a tool using its persistent server connection.
-    pub async fn execute_tool(&self, server: &str, name: &str, args: Value) -> McpResult<Value> {
+    /// Execute a tool using its persistent server connection.
+    pub async fn execute_tool(
+        &self,
+        server: &str,
+        name: &str,
+        args: Value,
+    ) -> McpResult<Value> {
         self.ensure_connected(server).await?;
 
         let clients = self.clients.lock().await;
 
-        let client = clients.get(server).ok_or("MCP connection missing")?;
+        let client = clients
+            .get(server)
+            .ok_or("MCP connection missing")?;
 
         let arguments = args
             .as_object()
@@ -211,12 +250,23 @@ impl McpManager {
 
         let result = client
             .call_tool(
-                rmcp::model::CallToolRequestParams::new(name.to_string()).with_arguments(arguments),
+                rmcp::model::CallToolRequestParams::new(name.to_string())
+                    .with_arguments(arguments),
             )
             .await?;
 
         Ok(json!({
             "result": format!("{result:#?}")
         }))
+    }
+
+    /// Get a copy of the current MCP configuration.
+    pub fn get_config(&self) -> McpResult<McpConfig> {
+        let config = self
+            .config
+            .read()
+            .map_err(|e| format!("Config lock failed: {e}"))?;
+
+        Ok(config.clone())
     }
 }
