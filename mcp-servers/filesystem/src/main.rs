@@ -7,6 +7,7 @@ use serde::Deserialize;
 use std::fs;
 use std::path::Path;
 use uuid::Uuid;
+use anydoc::to_markdown_bytes;
 
 #[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
 struct UnzipArgs {
@@ -57,6 +58,13 @@ struct CreatePlaybookArgs {
     /// Markdown instructions for the playbook.
     content: String,
 }
+
+#[derive(Deserialize, Serialize, schemars::JsonSchema)]
+pub struct ConvertArgs {
+    /// The absolute path to the local file (e.g. .docx, .pptx, .xlsx, .html, .csv) to convert.
+    pub file_path: String,
+}
+
 
 #[derive(Clone)]
 struct FilesystemHandler;
@@ -366,6 +374,57 @@ impl FilesystemHandler {
         }
 
         Err(format!("Playbook with ID '{}' not found", args.id))
+    }
+
+    #[tool(description = "Read any pdf file by converting it to markdown")]
+    async fn read_pdf_file(
+        &self,
+        Parameters(args): Parameters<ConvertArgs>,
+    ) -> Result<String, String> {
+        {
+            let log_path = "/tmp/filesystem-mcp.log";
+
+            let log = |message: &str| {
+                use std::io::Write;
+
+                if let Ok(mut file) = fs::OpenOptions::new()
+                    .create(true)
+                    .append(true)
+                    .open(log_path)
+                {
+                    let _ = writeln!(file, "{message}");
+                }
+            };
+            log("========== CONVERT DOCUMENT REQUEST ==========");
+
+            let path = Path::new(&args.file_path);
+
+            if !path.exists() {
+                log(&format!("The specified file path could not be found {:?}",path));
+                return Err("The specified file path could not be found:".to_string());
+
+            }
+                    // Read the file bytes directly (Anydoc parses by checking magic bytes)
+            let file_bytes = match std::fs::read(&args.file_path) {
+                Ok(bytes) => bytes,
+                Err(e) => return Err(format!("Failed to read file bytes: {}", e)),
+            };
+
+            // Convert the bytes natively - handles PDFs effortlessly
+            match to_markdown_bytes(&file_bytes,anydoc::Format::Pdf) {
+                Ok(markdown_output) => {
+
+                    log(&format!("Sucessful {:?}",markdown_output));
+                    Ok(markdown_output)
+                },
+                Err(e) => {
+                    log(&format!("Failed to parse document {:?}",e));
+
+                    Err(format!("Failed to parse document: {}", e))
+                },
+            }
+
+        }
     }
 }
 #[tokio::main]
