@@ -25,16 +25,18 @@ pub struct McpManager {
     config: RwLock<McpConfig>,
     config_path: PathBuf,
     clients: Mutex<HashMap<String, McpClient>>,
+    app: AppHandle,
 }
 
 static MCP_MANAGER: OnceLock<McpManager> = OnceLock::new();
 
 impl McpManager {
-    pub fn new(config: McpConfig, config_path: PathBuf) -> Self {
+    pub fn new(app: AppHandle,config: McpConfig, config_path: PathBuf) -> Self {
         Self {
             config: RwLock::new(config),
             config_path,
             clients: Mutex::new(HashMap::new()),
+            app,
         }
     }
 
@@ -77,7 +79,7 @@ impl McpManager {
             config
         };
 
-        let manager = Self::new(config, config_path);
+        let manager = Self::new(app.clone(),config, config_path);
 
         // Initialize only once.
         let _ = MCP_MANAGER.set(manager);
@@ -175,7 +177,7 @@ impl McpManager {
 
         // Transport selection happens inside client::connect().
         // It must support both stdio and streamable_http.
-        let connection = client::connect(&server).await?;
+        let connection = client::connect(&self.app,&server).await?;
 
         clients.insert(name.to_string(), connection);
 
