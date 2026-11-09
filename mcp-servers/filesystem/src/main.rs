@@ -7,6 +7,10 @@ use serde::Deserialize;
 use std::fs;
 use std::path::Path;
 use uuid::Uuid;
+use base64::{
+    engine::general_purpose::STANDARD,
+    Engine as _,
+};
 use anydoc::to_markdown_bytes;
 
 #[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
@@ -63,6 +67,11 @@ struct CreatePlaybookArgs {
 pub struct ConvertArgs {
     /// The absolute path to the local file (e.g. .docx, .pptx, .xlsx, .html, .csv) to convert.
     pub file_path: String,
+}
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+pub struct ImageBase64Args {
+    /// Path to the image file (JPEG, PNG or WebP).
+    pub image_path: String,
 }
 
 
@@ -253,6 +262,52 @@ impl FilesystemHandler {
             name, id
         ))
     }
+
+    #[tool(
+    description = "Read a JPEG, PNG or WebP image from a file path and return its Base64-encoded contents. The returned Base64 string can be passed directly to classify_image."
+        )]
+        fn image_base64(
+            &self,
+            Parameters(args): Parameters<ImageBase64Args>,
+        ) -> Result<String, String> {
+
+            let path = std::path::Path::new(&args.image_path);
+
+            // Validate file extension
+            let extension = path
+                .extension()
+                .and_then(|ext| ext.to_str())
+                .unwrap_or("")
+                .to_lowercase();
+
+            if !["jpg", "jpeg", "png", "webp"].contains(&extension.as_str()) {
+                return Err(
+                    "Unsupported image format. Use JPG, JPEG, PNG or WebP.".to_string()
+                );
+            }
+
+            // Read original image bytes
+            let image_bytes = fs::read(path)
+                .map_err(|e| {
+                    format!("Failed to read image file: {}", e)
+                })?;
+
+            if image_bytes.is_empty() {
+                return Err("Image file is empty".to_string());
+            }
+
+            // Enforce the same maximum size as classification
+            const MAX_IMAGE_SIZE: usize = 15 * 1024 * 1024;
+
+            if image_bytes.len() > MAX_IMAGE_SIZE {
+                return Err("Image exceeds the 15 MB file size limit".to_string());
+            }
+
+            // Encode raw image bytes into Base64
+            let encoded = STANDARD.encode(&image_bytes);
+
+            Ok(encoded)
+        }
 
     #[tool(
         description = "Retrieves a list of all existing Markdown playbooks with their metadata."
