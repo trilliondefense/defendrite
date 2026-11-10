@@ -247,13 +247,35 @@ pub fn list_conversations(conn: &Connection) -> rusqlite::Result<Vec<Conversatio
     let mut stmt = conn.prepare(
         "
         SELECT id, title, chat_number, created_at, updated_at
+        FROM conversations
+        ORDER BY updated_at DESC, chat_number DESC
+        ",
+    )?;
+
+    let rows = stmt.query_map([], |row| {
+        Ok(Conversation {
+            id: row.get(0)?,
+            title: row.get(1)?,
+            chat_number: row.get(2)?,
+            created_at: row.get(3)?,
+            updated_at: row.get(4)?,
+        })
+    })?;
+
+    rows.collect()
+}
+
+pub fn list_active_conversations(conn: &Connection) -> rusqlite::Result<Vec<Conversation>> {
+    let mut stmt = conn.prepare(
+        "
+        SELECT id, title, chat_number, created_at, updated_at
         FROM conversations c
         WHERE EXISTS (
-            SELECT 1 
-            FROM messages m 
+            SELECT 1
+            FROM messages m
             WHERE m.conversation_id = c.id
         )
-        ORDER BY updated_at DESC, chat_number DESC
+        ORDER BY c.updated_at DESC, c.chat_number DESC
         ",
     )?;
 

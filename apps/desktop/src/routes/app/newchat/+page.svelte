@@ -475,7 +475,7 @@ async function handleSendMessage(event: SubmitEvent) {
 
             <div class="message-content">
               <div class="sender-label">
-                {msg.sender === "user" ? "You" : "Assistant"}
+                {msg.sender === "user" ? "You" : "Agent"}
               </div>
 
               <div class="message-text">
@@ -752,6 +752,12 @@ async function handleSendMessage(event: SubmitEvent) {
   min-height: 0;
   overflow: hidden;
 }
+.chat-conversation {
+  width: 100%;
+  flex: 1;
+  min-width: 0;
+}
+
 
 .message-list {
   flex: 1;
@@ -759,6 +765,13 @@ async function handleSendMessage(event: SubmitEvent) {
   margin: 0 auto;
   padding: 28px 0;
   overflow-y: auto;
+}
+
+.message-list {
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding-inline: 64px;
 }
 
 .message-row {
@@ -783,6 +796,16 @@ async function handleSendMessage(event: SubmitEvent) {
   min-width: 0;
 }
 
+.message-content {
+  width: 100%;
+  min-width: 0;
+}
+
+.message-content {
+  max-width: 100%;
+  flex: 1;
+}
+
 .sender-label {
   margin-bottom: 6px;
   color: #89877f;
@@ -802,6 +825,32 @@ async function handleSendMessage(event: SubmitEvent) {
   border-radius: 13px 13px 3px 13px;
   background: #f0eee7;
 }
+.message-row.agent {
+  width: 80%;
+  margin-right: auto;
+  justify-content: flex-start;
+}
+
+/* User messages - right aligned, 40% width */
+.message-row.user {
+  width: 40%;
+  margin-left: auto;
+  justify-content: flex-end;
+}
+.message-row {
+  width: 100%;
+}
+
+/* Prevent content overflow */
+.message-text {
+  overflow-wrap: anywhere;
+}
+
+.message-text :global(li) {
+  margin-bottom: 2px;
+}
+
+
 
 .conversation-footer {
   width: min(100%, 700px);
