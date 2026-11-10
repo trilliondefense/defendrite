@@ -1,16 +1,16 @@
 use std::fs;
 mod storage;
-use std::collections::HashSet;
 use serde_json::{json, Value};
+use std::collections::HashSet;
 use tauri::{AppHandle, Emitter, Manager};
 use tauri_plugin_store::StoreExt;
 pub mod agent;
 pub mod mcp;
 pub mod playbooks;
 pub mod providers;
+pub use mcp::config::{McpConfig, McpServerConfig};
 pub use playbooks::models::{Playbook, PlaybookContent};
 pub use storage::models::{Attachment, Conversation, Message};
-pub use mcp::config::{McpConfig,McpServerConfig};
 
 // Resolve the shared MCP configuration file.
 fn mcp_config_path(app_handle: &tauri::AppHandle) -> Result<std::path::PathBuf, String> {
@@ -46,14 +46,14 @@ fn validate_server(server: &McpServerConfig) -> Result<(), String> {
         }
 
         "streamable_http" => {
-            let url = server.url.as_deref()
+            let url = server
+                .url
+                .as_deref()
                 .filter(|url| !url.trim().is_empty())
-                .ok_or_else(|| {
-                    format!("URL is required for server '{}'", server.name)
-                })?;
+                .ok_or_else(|| format!("URL is required for server '{}'", server.name))?;
 
-            let parsed = url::Url::parse(url)
-                .map_err(|e| format!("Invalid MCP server URL: {e}"))?;
+            let parsed =
+                url::Url::parse(url).map_err(|e| format!("Invalid MCP server URL: {e}"))?;
 
             if !["http", "https"].contains(&parsed.scheme()) {
                 return Err("Only HTTP and HTTPS URLs are supported".into());
@@ -63,13 +63,8 @@ fn validate_server(server: &McpServerConfig) -> Result<(), String> {
                 return Err("MCP server URL must contain a hostname".into());
             }
 
-            if !server.command.is_empty()
-                || !server.args.is_empty()
-                || !server.env.is_empty()
-            {
-                return Err(
-                    "HTTP server cannot contain stdio command, args or env".into()
-                );
+            if !server.command.is_empty() || !server.args.is_empty() || !server.env.is_empty() {
+                return Err("HTTP server cannot contain stdio command, args or env".into());
             }
         }
 
@@ -89,10 +84,7 @@ fn validate_config(config: &McpConfig) -> Result<(), String> {
         validate_server(server)?;
 
         if !names.insert(server.name.trim().to_lowercase()) {
-            return Err(format!(
-                "Duplicate MCP server name: {}",
-                server.name
-            ));
+            return Err(format!("Duplicate MCP server name: {}", server.name));
         }
     }
 
@@ -100,9 +92,7 @@ fn validate_config(config: &McpConfig) -> Result<(), String> {
 }
 
 // Read the complete MCP configuration.
-pub fn get_mcp_config(
-    app_handle: &tauri::AppHandle,
-) -> Result<McpConfig, String> {
+pub fn get_mcp_config(app_handle: &tauri::AppHandle) -> Result<McpConfig, String> {
     let path = mcp_config_path(app_handle)?;
 
     if !path.exists() {
@@ -111,18 +101,14 @@ pub fn get_mcp_config(
         });
     }
 
-    let contents = fs::read_to_string(&path)
-        .map_err(|e| format!("Could not read mcp.json: {e}"))?;
+    let contents =
+        fs::read_to_string(&path).map_err(|e| format!("Could not read mcp.json: {e}"))?;
 
-    serde_json::from_str(&contents)
-        .map_err(|e| format!("Could not parse mcp.json: {e}"))
+    serde_json::from_str(&contents).map_err(|e| format!("Could not parse mcp.json: {e}"))
 }
 
 // Save the complete MCP configuration.
-pub fn save_mcp_config(
-    app_handle: &tauri::AppHandle,
-    config: &McpConfig,
-) -> Result<(), String> {
+pub fn save_mcp_config(app_handle: &tauri::AppHandle, config: &McpConfig) -> Result<(), String> {
     validate_config(config)?;
 
     let path = mcp_config_path(app_handle)?;
@@ -132,11 +118,9 @@ pub fn save_mcp_config(
 
     let temp_path = path.with_extension("json.tmp");
 
-    fs::write(&temp_path, contents)
-        .map_err(|e| format!("Could not write MCP config: {e}"))?;
+    fs::write(&temp_path, contents).map_err(|e| format!("Could not write MCP config: {e}"))?;
 
-    fs::rename(&temp_path, &path)
-        .map_err(|e| format!("Could not replace mcp.json: {e}"))?;
+    fs::rename(&temp_path, &path).map_err(|e| format!("Could not replace mcp.json: {e}"))?;
 
     Ok(())
 }
@@ -150,7 +134,9 @@ pub fn add_mcp_server(
 
     let mut config = get_mcp_config(app_handle)?;
 
-    if let Some(existing) = config.servers.iter_mut()
+    if let Some(existing) = config
+        .servers
+        .iter_mut()
         .find(|s| s.name.eq_ignore_ascii_case(&server.name))
     {
         *existing = server;
@@ -164,10 +150,7 @@ pub fn add_mcp_server(
 }
 
 // Remove an MCP server.
-pub fn remove_mcp_server(
-    app_handle: &tauri::AppHandle,
-    name: &str,
-) -> Result<McpConfig, String> {
+pub fn remove_mcp_server(app_handle: &tauri::AppHandle, name: &str) -> Result<McpConfig, String> {
     if name.trim().is_empty() {
         return Err("MCP server name cannot be empty".into());
     }
@@ -176,9 +159,9 @@ pub fn remove_mcp_server(
 
     let original_len = config.servers.len();
 
-    config.servers.retain(|s| {
-        !s.name.eq_ignore_ascii_case(name)
-    });
+    config
+        .servers
+        .retain(|s| !s.name.eq_ignore_ascii_case(name));
 
     if original_len == config.servers.len() {
         return Err(format!("MCP server not found: {name}"));
@@ -311,7 +294,8 @@ pub fn get_conversations(app_handle: &AppHandle) -> Result<Vec<Conversation>, St
 pub fn get_active_conversations(app_handle: &AppHandle) -> Result<Vec<Conversation>, String> {
     let db = open_conversation_db(app_handle)?;
 
-    storage::list_active_conversations(&db).map_err(|e| format!("Could not retrieve conversations: {e}"))
+    storage::list_active_conversations(&db)
+        .map_err(|e| format!("Could not retrieve conversations: {e}"))
 }
 
 // --------------------------------------------------

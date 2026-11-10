@@ -1,4 +1,3 @@
-
 use std::{
     collections::HashMap,
     error::Error,
@@ -31,7 +30,7 @@ pub struct McpManager {
 static MCP_MANAGER: OnceLock<McpManager> = OnceLock::new();
 
 impl McpManager {
-    pub fn new(app: AppHandle,config: McpConfig, config_path: PathBuf) -> Self {
+    pub fn new(app: AppHandle, config: McpConfig, config_path: PathBuf) -> Self {
         Self {
             config: RwLock::new(config),
             config_path,
@@ -79,7 +78,7 @@ impl McpManager {
             config
         };
 
-        let manager = Self::new(app.clone(),config, config_path);
+        let manager = Self::new(app.clone(), config, config_path);
 
         // Initialize only once.
         let _ = MCP_MANAGER.set(manager);
@@ -170,14 +169,12 @@ impl McpManager {
                 .iter()
                 .find(|server| server.name == name && server.enabled)
                 .cloned()
-                .ok_or_else(|| {
-                    format!("MCP server not found or disabled: {name}")
-                })?
+                .ok_or_else(|| format!("MCP server not found or disabled: {name}"))?
         };
 
         // Transport selection happens inside client::connect().
         // It must support both stdio and streamable_http.
-        let connection = client::connect(&self.app,&server).await?;
+        let connection = client::connect(&self.app, &server).await?;
 
         clients.insert(name.to_string(), connection);
 
@@ -207,9 +204,7 @@ impl McpManager {
 
             let clients = self.clients.lock().await;
 
-            let client = clients
-                .get(&server)
-                .ok_or("MCP connection missing")?;
+            let client = clients.get(&server).ok_or("MCP connection missing")?;
 
             let result = client.list_all_tools().await?;
 
@@ -217,11 +212,7 @@ impl McpManager {
                 all_tools.push(McpTool {
                     server: server.clone(),
                     name: tool.name.to_string(),
-                    description: tool
-                        .description
-                        .as_deref()
-                        .unwrap_or("")
-                        .to_string(),
+                    description: tool.description.as_deref().unwrap_or("").to_string(),
                     input_schema: serde_json::to_value(&tool.input_schema)?,
                 });
             }
@@ -231,19 +222,12 @@ impl McpManager {
     }
 
     /// Execute a tool using its persistent server connection.
-    pub async fn execute_tool(
-        &self,
-        server: &str,
-        name: &str,
-        args: Value,
-    ) -> McpResult<Value> {
+    pub async fn execute_tool(&self, server: &str, name: &str, args: Value) -> McpResult<Value> {
         self.ensure_connected(server).await?;
 
         let clients = self.clients.lock().await;
 
-        let client = clients
-            .get(server)
-            .ok_or("MCP connection missing")?;
+        let client = clients.get(server).ok_or("MCP connection missing")?;
 
         let arguments = args
             .as_object()
@@ -252,8 +236,7 @@ impl McpManager {
 
         let result = client
             .call_tool(
-                rmcp::model::CallToolRequestParams::new(name.to_string())
-                    .with_arguments(arguments),
+                rmcp::model::CallToolRequestParams::new(name.to_string()).with_arguments(arguments),
             )
             .await?;
 

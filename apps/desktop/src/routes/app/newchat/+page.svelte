@@ -353,15 +353,16 @@ async function handleSendMessage(event: SubmitEvent) {
 
 <div class="chat-page">
   {#if messages.length === 0}
-  <NewChat {handleSendMessage} bind:inputElement bind:input 
-  bind:modelName {isLoading} {isSelecting} {addAttachments}
-  {removeAttachment} {attachments}
-  />
+    <NewChat {handleSendMessage} bind:inputElement bind:input 
+      bind:modelName {isLoading} {isSelecting} {addAttachments}
+      {removeAttachment} {attachments}
+    />  
    
   {:else}
    <ContinueChat {handleSendMessage} bind:inputElement bind:input 
-  bind:modelName {isLoading} {isSelecting} {addAttachments} {activeAgentMsgId} 
-  {removeAttachment} {attachments} {messages} {viewportElement} bind:bottomElement/>
+      bind:modelName {isLoading} {isSelecting} {addAttachments} {activeAgentMsgId} 
+      {removeAttachment} {attachments} {messages} {viewportElement} bind:bottomElement
+    />
   {/if}
 </div>
 
