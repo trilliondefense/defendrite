@@ -59,7 +59,7 @@
 
   });
   
-  const pageSize = 4;
+  const pageSize = 3;
   let paginatedCases = $derived(
       cases.slice(0,pageSize
       )
