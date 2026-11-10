@@ -7,58 +7,67 @@
   import { stat } from "@tauri-apps/plugin-fs";
   import NewChat from "#lib/components/NewChat.svelte";
   import ContinueChat from "#lib/components/ContinueChat.svelte";
-  import type { Attachment, Message } from "#lib/utils/types";
+  import type { Message, Conversation, DraftAttachment, Attachment } from "#lib/utils/types.ts";
 
 
-  let attachments = $state<Attachment[]>([]);
+  let attachments = $state<DraftAttachment[]>([]);
+
+
   let isSelecting = $state(false);
 
   async function addAttachments() {
-    if (isSelecting) return;
+  if (isSelecting) return;
+    const now = Math.floor(Date.now() / 1000);
 
-    try {
-      isSelecting = true;
 
-      const selected = await open({
-        multiple: true,
-        directory: false,
-        title: 'Select attachments'
-      });
+  try {
+    isSelecting = true;
 
-      if (!selected) return;
+    const selected = await open({
+      multiple: true,
+      directory: false,
+      title: "Select attachments"
+    });
 
-      const paths = Array.isArray(selected)
-        ? selected
-        : [selected];
+    if (!selected) return;
 
-      const newAttachments = await Promise.all(
-        paths
-          .filter(path =>
-            !attachments.some(item => item.path === path)
-          )
-          .map(async (path) => {
-            const metadata = await stat(path);
+    const paths = Array.isArray(selected)
+      ? selected
+      : [selected];
 
-            return {
-              id: crypto.randomUUID(),
-              name: path.split(/[\\/]/).pop() || "Unknown file",
-              path,
-              size: metadata.size,
-              mimeType: null
-            };
-          })
-      );
+    const newAttachments: Attachment[] = await Promise.all(
+      paths
+        .filter(
+          (path) => !attachments.some((item) => item.path === path)
+        )
+        .map(async (path) => {
+          const metadata = await stat(path);
 
-      attachments = [...attachments, ...newAttachments];
+          return {
+            id: crypto.randomUUID(),
+            messageId: 0,
+            name: path.split(/[\\/]/).pop() || "Unknown file",
+            path,
+            createdAt:now,
+            size: metadata.size,
+            mimeType: null
+          };
+        })
+    );
 
-    } catch (error) {
-      console.error('Failed to select attachments:', error);
-      consoleLogTerminal(`Message ${error}`)
+    attachments = [
+      ...attachments,
+      ...newAttachments
+    ];
 
-    } finally {
-      isSelecting = false;
-    }
+  } catch (error) {
+    console.error("Failed to select attachments:", error);
+    consoleLogTerminal(`Message ${error}`);
+
+  } finally {
+    isSelecting = false;
   }
+}
 
   async function consoleLogTerminal(message:String){
      await invoke("log_to_terminal", {
@@ -72,13 +81,6 @@
     );
   }
 
-interface Conversation {
-  id: string;
-  title: string;
-  chatNumber: number;
-  createdAt: number;
-  updatedAt: number;
-}
 
 // --------------------------------------------------
 // STATE
@@ -184,37 +186,32 @@ onMount(() => {
   modelName = localStorage.getItem("modelName");
 
   // Listen for Gemini streaming tokens.
-  listen<string>("agent-token", (event) => {
-    if (disposed || !activeAgentMsgId) return;
+ listen<string>("agent-token", (event) => {
+  if (disposed || !activeAgentMsgId) return;
 
-    const messageId = activeAgentMsgId;
+  const messageId = activeAgentMsgId;
 
-    // Append token to the active assistant message.
-    messages = messages.map((message) =>
-      message.id === messageId
-        ? {
-            ...message,
-            text: message.text + event.payload
-          }
-        : message
-    );
+  messages = messages.map((message) =>
+    message.id === messageId
+      ? {
+          ...message,
+          content: message.content + event.payload
+        }
+      : message
+  );
 
-    void scrollToBottom();
+  void scrollToBottom();
+})
+  .then((unsubscribe) => {
+    if (disposed) {
+      unsubscribe();
+    } else {
+      unlisten = unsubscribe;
+    }
   })
-    .then((unsubscribe) => {
-      if (disposed) {
-        unsubscribe();
-      } else {
-        unlisten = unsubscribe;
-      }
-    })
-    .catch((error) => {
-      console.error(
-        "Failed to register agent listener:",
-        error
-      );
-    });
-
+  .catch((error) => {
+    console.error("Failed to register agent listener:", error);
+  });
   // Register keyboard shortcuts.
   window.addEventListener(
     "keydown",
@@ -269,33 +266,49 @@ async function handleSendMessage(event: SubmitEvent) {
   // Snapshot attachments for this message.
   const messageAttachments = [...attachments];
 
+  const userMessageId = crypto.randomUUID();
+  const agentMessageId = crypto.randomUUID();
   // Clear selected attachments.
   attachments = [];
-
-  const userMessage: Message = {
-    id: crypto.randomUUID(),
-    sender: "user",
-    text: prompt
-  };
-
-  const agentMessageId = crypto.randomUUID();
-
-  messages = [
-    ...messages,
-    userMessage,
-    {
-      id: agentMessageId,
-      sender: "agent",
-      text: ""
-    }
-  ];
-
-  activeAgentMsgId = agentMessageId;
+  
 
   void scrollToBottom();
 
   try {
     const chatId = await ensureConversation();
+    const now = Math.floor(Date.now() / 1000);
+
+
+  const userMessage: Message = {
+    id: userMessageId,
+    conversationId:chatId,
+    role: "user",
+    content: prompt,
+    createdAt: now,
+    attachments: messageAttachments.map((attachment) => ({
+      ...attachment,
+      messageId: 0,
+      createdAt: now
+    }))
+  };
+
+
+  const agentMessage: Message = {
+    id: agentMessageId,
+    conversationId:chatId,
+    role: "model",
+    content: "",
+    createdAt: now,
+    attachments: []
+  };
+
+  messages = [
+    ...messages,
+    userMessage,
+    agentMessage
+  ];
+
+  activeAgentMsgId = agentMessageId;
 
     await invoke("ask_agent", {
       prompt,
