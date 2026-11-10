@@ -66,7 +66,7 @@
   
   async function loadChats() {
     try {
-      const result = await invoke<Conversation[]>("list_chats");
+      const result = await invoke<Conversation[]>("list_active_chats");
       cases = result.sort(
         (a, b) => b.updatedAt - a.updatedAt
       );
