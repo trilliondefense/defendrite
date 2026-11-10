@@ -334,15 +334,13 @@
           </span>
           {#if !collapsed}
             <span class="nav-case-label">{item.title.toLocaleUpperCase()}</span>
-            <kbd>{isMac ? "⌘" : "Ctrl"} {index+1}</kbd>
-          {:else}
-          <span class="nav-case-label">{index+1}</span>
-            
+            <kbd>{isMac ? "⌘" : "Ctrl"} {index+1}</kbd>  
           {/if}
         </a>
       {/each}
     </nav>
-    <button class="new-chat" onclick={()=>{goto("/app/investigations")}}>Show all</button>
+    <button class="new-chat" onclick={()=>{goto("/app/investigations")}}>
+          {#if !collapsed}Show all{:else}All{/if}</button>
 
       
     {/if}
