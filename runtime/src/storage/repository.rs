@@ -247,7 +247,12 @@ pub fn list_conversations(conn: &Connection) -> rusqlite::Result<Vec<Conversatio
     let mut stmt = conn.prepare(
         "
         SELECT id, title, chat_number, created_at, updated_at
-        FROM conversations
+        FROM conversations c
+        WHERE EXISTS (
+            SELECT 1 
+            FROM messages m 
+            WHERE m.conversation_id = c.id
+        )
         ORDER BY updated_at DESC, chat_number DESC
         ",
     )?;
