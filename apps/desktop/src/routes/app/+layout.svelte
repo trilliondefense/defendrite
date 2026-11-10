@@ -1,5 +1,6 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
+  import { page } from '$app/state';
   import { invoke } from '@tauri-apps/api/core';
   import { listen } from '@tauri-apps/api/event';
   import { onMount, tick } from 'svelte';
@@ -392,8 +393,11 @@
 
     <button
       class="new-chat"
+      class:active={page.url.pathname === '/app/newchat'}
       onclick={() => (window.location.href = '/app/newchat')}
       title="New Investigation"
+      aria-label={"New Chat"}
+      aria-current={page.url.pathname === '/app/newchat' ? 'page' : undefined}
     >
       <span class="nav-svg-icon">
         <svg
@@ -430,8 +434,11 @@
 
     <button
       class="search-trigger"
+      class:active={page.url.pathname === '/app/search'}
       onclick={() => void openPalette()}
       title="Search navigation (Ctrl+K)"
+      aria-label={"Search navigation"}
+      aria-current={page.url.pathname === '/app/search' ? 'page' : undefined}
     >
       <span class="nav-svg-icon">
         <svg
@@ -473,9 +480,11 @@
       {#each navItems as item (item.href)}
         <a
           class="nav-item"
+          class:active={page.url.pathname === item.href}
           href={item.href}
           title={collapsed ? item.label : undefined}
           aria-label={item.label}
+          aria-current={page.url.pathname === item.href ? 'page' : undefined}
         >
           <!-- <span class="nav-icon">{item.icon}</span> -->
           <span class="nav-svg-icon">
@@ -502,9 +511,11 @@
         {#each paginatedCases as item, index (item.id)}
           <a
             class="nav-item"
+            class:active={page.url.pathname === `/app/investigations/${encodeURIComponent(item.id)}`}
             href="/app/investigations/{encodeURIComponent(item.id)}"
             title={collapsed ? item.title : undefined}
             aria-label={item.title}
+            aria-current={page.url.pathname === `/app/investigations/${encodeURIComponent(item.id)}` ? 'page' : undefined}
             data-sveltekit-replacestate
           >
             <span class="nav-svg-icon">
@@ -727,6 +738,25 @@
     font-size: 12px;
     cursor: pointer;
     white-space: nowrap;
+  }
+
+  .nav-item.active  {
+    background: #eeece5;
+    color: #383731;
+    font-weight: 600;
+  }
+  
+
+  .new-chat.active  {
+    background: #eeece5;
+    color: #383731;
+    font-weight: 600;
+  }
+
+  .search-trigger.active  {
+    background: #eeece5;
+    color: #383731;
+    font-weight: 600;
   }
 
   .new-chat {
