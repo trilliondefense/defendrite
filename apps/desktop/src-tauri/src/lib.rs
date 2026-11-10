@@ -99,6 +99,11 @@ fn list_chats(app_handle: tauri::AppHandle) -> Result<Vec<runtime::Conversation>
     runtime::get_conversations(&app_handle)
 }
 
+#[tauri::command]
+fn list_active_chats(app_handle: tauri::AppHandle) -> Result<Vec<runtime::Conversation>, String> {
+    runtime::get_active_conversations(&app_handle)
+}
+
 // --------------------------------------------------
 // GET MESSAGES FOR A CHAT
 // --------------------------------------------------
@@ -198,6 +203,7 @@ pub fn run() {
             ask_agent,
             create_chat,
             list_chats,
+            list_active_chats,
             get_chat_messages,
             delete_chat,
             log_to_terminal,
