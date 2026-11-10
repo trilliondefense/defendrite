@@ -1,8 +1,7 @@
-
 <script lang="ts">
-  import { onMount } from "svelte";
-  import { invoke } from "@tauri-apps/api/core";
-  import { goto } from "$app/navigation";
+  import { onMount } from 'svelte';
+  import { invoke } from '@tauri-apps/api/core';
+  import { goto } from '$app/navigation';
 
   interface Conversation {
     id: string;
@@ -11,13 +10,12 @@
     createdAt: number;
     updatedAt: number;
   }
-  
 
   // State
   let cases = $state<Conversation[]>([]);
   let isLoading = $state(true);
   let error = $state<string | null>(null);
-  let search = $state("");
+  let search = $state('');
 
   // Pagination
   const pageSize = 8;
@@ -29,33 +27,23 @@
 
     if (!query) return cases;
 
-    return cases.filter((item) =>
-      (item.title ?? "").toLowerCase().includes(query) ||
-      (item.id ?? "").toLowerCase().includes(query) ||
-      String(item.chatNumber ?? "").includes(query)
+    return cases.filter(
+      (item) =>
+        (item.title ?? '').toLowerCase().includes(query) ||
+        (item.id ?? '').toLowerCase().includes(query) ||
+        String(item.chatNumber ?? '').includes(query)
     );
   });
 
-  let totalPages = $derived(
-    Math.max(1, Math.ceil(filteredCases.length / pageSize))
-  );
+  let totalPages = $derived(Math.max(1, Math.ceil(filteredCases.length / pageSize)));
 
   let paginatedCases = $derived(
-    filteredCases.slice(
-      (currentPage - 1) * pageSize,
-      currentPage * pageSize
-    )
+    filteredCases.slice((currentPage - 1) * pageSize, currentPage * pageSize)
   );
 
-  let startItem = $derived(
-    filteredCases.length === 0
-      ? 0
-      : (currentPage - 1) * pageSize + 1
-  );
+  let startItem = $derived(filteredCases.length === 0 ? 0 : (currentPage - 1) * pageSize + 1);
 
-  let endItem = $derived(
-    Math.min(currentPage * pageSize, filteredCases.length)
-  );
+  let endItem = $derived(Math.min(currentPage * pageSize, filteredCases.length));
 
   // Load conversations
   onMount(() => {
@@ -67,16 +55,14 @@
     error = null;
 
     try {
-      const result = await invoke<Conversation[]>("list_chats");
+      const result = await invoke<Conversation[]>('list_active_chats');
 
-      cases = result.sort(
-        (a, b) => b.updatedAt - a.updatedAt
-      );
+      cases = result.sort((a, b) => b.updatedAt - a.updatedAt);
 
       currentPage = 1;
     } catch (err) {
-      console.error("Failed to load chats:", err);
-      error = "Could not load conversation history.";
+      console.error('Failed to load chats:', err);
+      error = 'Could not load conversation history.';
     } finally {
       isLoading = false;
     }
@@ -84,24 +70,22 @@
 
   // Navigation
   async function openChat(chatId: string) {
-    await goto(
-      `/app/investigations/${encodeURIComponent(chatId)}`
-    );
+    await goto(`/app/investigations/${encodeURIComponent(chatId)}`);
   }
 
   function createInvestigation() {
-    goto("/app/newchat");
+    goto('/app/newchat');
   }
 
   // Date formatting
   function formatDate(timestamp: number) {
     if (!timestamp || !Number.isFinite(timestamp)) {
-      return "Unknown";
+      return 'Unknown';
     }
 
-    return new Intl.DateTimeFormat("en", {
-      dateStyle: "medium",
-      timeStyle: "short"
+    return new Intl.DateTimeFormat('en', {
+      dateStyle: 'medium',
+      timeStyle: 'short',
     }).format(timestamp * 1000);
   }
 
@@ -112,7 +96,7 @@
   }
 
   function clearSearch() {
-    handleSearch("");
+    handleSearch('');
   }
 
   // Pagination
@@ -143,12 +127,10 @@
     const target = event.target as HTMLElement | null;
 
     const isTyping =
-      target?.tagName === "INPUT" ||
-      target?.tagName === "TEXTAREA" ||
-      target?.isContentEditable;
+      target?.tagName === 'INPUT' || target?.tagName === 'TEXTAREA' || target?.isContentEditable;
 
     // Ctrl + F / Cmd + F: Focus search
-    if (modifierPressed && event.key.toLowerCase() === "f") {
+    if (modifierPressed && event.key.toLowerCase() === 'f') {
       event.preventDefault();
       searchInput?.focus();
       return;
@@ -172,202 +154,163 @@
     }
 
     // Ctrl + Left / Cmd + Left: Previous page
-    if (event.key === "ArrowLeft") {
+    if (event.key === 'ArrowLeft') {
       event.preventDefault();
       previousPage();
       return;
     }
 
     // Ctrl + Right / Cmd + Right: Next page
-    if (event.key === "ArrowRight") {
+    if (event.key === 'ArrowRight') {
       event.preventDefault();
       nextPage();
       return;
     }
   }
 
-let searchInput: HTMLInputElement;
-let isMac = $state(false);
+  let searchInput: HTMLInputElement;
+  let isMac = $state(false);
 
-onMount(() => {
-  isMac = /Mac|iPhone|iPad/.test(navigator.userAgent);
-  loadChats();
-});
+  onMount(() => {
+    isMac = /Mac|iPhone|iPad/.test(navigator.userAgent);
+    loadChats();
+  });
 
-let shortcutModifier = $derived(isMac ? "⌘" : "Ctrl");
+  let shortcutModifier = $derived(isMac ? '⌘' : 'Ctrl');
 </script>
 
 <svelte:window onkeydown={handleGlobalKeydown} />
 
 <div class="investigations-page">
-
   <!-- Page Header -->
   <header class="page-header">
     <h1>Investigations</h1>
 
     <p>
-      Manage forensic cases, track examination progress, and organize
-      digital evidence in one workspace.
+      Manage forensic cases, track examination progress, and organize digital evidence in one
+      workspace.
     </p>
   </header>
 
   <!-- Toolbar -->
- 
-<!-- Toolbar -->
-<div class="toolbar">
 
-  <label class="search-box">
-    <span aria-hidden="true">⌕</span>
+  <!-- Toolbar -->
+  <div class="toolbar">
+    <label class="search-box">
+      <span aria-hidden="true">⌕</span>
 
-    <input
-      bind:this={searchInput}
-      id="investigation-search"
-      type="search"
-      placeholder="Search investigations..."
-      aria-label="Search investigations"
-      value={search}
-      oninput={(event) =>
-        handleSearch(event.currentTarget.value)}
-      onkeydown={(event) => {
-        if (event.key === "Escape" && search) {
-          event.preventDefault();
-          clearSearch();
-        }
-      }}
-    />
-  </label>
+      <input
+        bind:this={searchInput}
+        id="investigation-search"
+        type="search"
+        placeholder="Search investigations..."
+        aria-label="Search investigations"
+        value={search}
+        oninput={(event) => handleSearch(event.currentTarget.value)}
+        onkeydown={(event) => {
+          if (event.key === 'Escape' && search) {
+            event.preventDefault();
+            clearSearch();
+          }
+        }}
+      />
+    </label>
 
-  <div
-    class="stat-card"
-    aria-label={`${cases.length} total investigations`}
-  >
-    <span>Total investigations</span>
-    <strong>{cases.length}</strong>
+    <div class="stat-card" aria-label={`${cases.length} total investigations`}>
+      <span>Total investigations</span>
+      <strong>{cases.length}</strong>
+    </div>
+
+    <button class="primary-button" onclick={createInvestigation}>
+      <span aria-hidden="true">+</span>
+      New investigation
+    </button>
   </div>
 
-  <button
-    class="primary-button"
-    onclick={createInvestigation}
-  >
-    <span aria-hidden="true">+</span>
-    New investigation
-  </button>
+  <!-- Keyboard Shortcuts -->
+  <div class="keyboard-shortcuts" aria-label="Keyboard shortcuts">
+    <div class="shortcut-group">
+      <div class="shortcut-item">
+        <span>Search</span>
+        <span class="shortcut-keys">
+          <kbd class="shortcut-key">{shortcutModifier}</kbd>
+          <kbd class="shortcut-key">F</kbd>
+        </span>
+      </div>
 
-</div>
+      <div class="shortcut-item">
+        <span>Open investigation</span>
+        <span class="shortcut-keys">
+          <kbd class="shortcut-key">{shortcutModifier}</kbd>
+          <kbd class="shortcut-key">1–8</kbd>
+        </span>
+      </div>
 
-<!-- Keyboard Shortcuts -->
-<div class="keyboard-shortcuts" aria-label="Keyboard shortcuts">
-
-  <div class="shortcut-group">
-
-    <div class="shortcut-item">
-      <span>Search</span>
-      <span class="shortcut-keys">
-        <kbd class="shortcut-key">{shortcutModifier}</kbd>
-        <kbd class="shortcut-key">F</kbd>
-      </span>
+      <div class="shortcut-item">
+        <span>Previous / Next page</span>
+        <span class="shortcut-keys">
+          <kbd class="shortcut-key">{shortcutModifier}</kbd>
+          <kbd class="shortcut-key">←</kbd>
+          <kbd class="shortcut-key">→</kbd>
+        </span>
+      </div>
     </div>
 
-    <div class="shortcut-item">
-      <span>Open investigation</span>
-      <span class="shortcut-keys">
-        <kbd class="shortcut-key">{shortcutModifier}</kbd>
-        <kbd class="shortcut-key">1–8</kbd>
-      </span>
-    </div>
-
-    <div class="shortcut-item">
-      <span>Previous / Next page</span>
-      <span class="shortcut-keys">
-        <kbd class="shortcut-key">{shortcutModifier}</kbd>
-        <kbd class="shortcut-key">←</kbd>
-        <kbd class="shortcut-key">→</kbd>
-      </span>
-    </div>
-
+    <span class="shortcut-item">
+      {isMac ? 'Mac shortcuts' : 'Windows / Linux shortcuts'}
+    </span>
   </div>
-
-  <span class="shortcut-item">
-    {isMac ? "Mac shortcuts" : "Windows / Linux shortcuts"}
-  </span>
-
-</div>
-
 
   <!-- Investigation Section -->
-  <section
-    class="investigation-section"
-    aria-labelledby="investigation-heading"
-  >
-
+  <section class="investigation-section" aria-labelledby="investigation-heading">
     <div class="section-header">
       <div>
         <h2 id="investigation-heading">All investigations</h2>
 
-        <p>
-          Review and continue your previous investigations.
-        </p>
+        <p>Review and continue your previous investigations.</p>
       </div>
     </div>
 
     <!-- Loading -->
     {#if isLoading}
+      <div class="empty-state" role="status" aria-live="polite">Loading investigations...</div>
 
-      <div class="empty-state" role="status" aria-live="polite">
-        Loading investigations...
-      </div>
-
-    <!-- Error -->
+      <!-- Error -->
     {:else if error}
-
       <div class="empty-state" role="alert">
         <p>{error}</p>
 
-        <button onclick={loadChats}>
-          Try again
-        </button>
+        <button onclick={loadChats}> Try again </button>
       </div>
 
-    <!-- Empty -->
+      <!-- Empty -->
     {:else if cases.length === 0}
-
       <div class="empty-state">
         <p>No investigations found.</p>
 
-        <p>
-          Create a new investigation to get started.
-        </p>
+        <p>Create a new investigation to get started.</p>
 
-        <button onclick={createInvestigation}>
-          + New investigation
-        </button>
+        <button onclick={createInvestigation}> + New investigation </button>
       </div>
 
-    <!-- No Search Results -->
+      <!-- No Search Results -->
     {:else if filteredCases.length === 0}
-
       <div class="empty-state">
         <p>No matching investigations.</p>
 
-        <p>
-          Try searching with another investigation title or ID.
-        </p>
+        <p>Try searching with another investigation title or ID.</p>
 
-        <button onclick={clearSearch}>
-          Clear search
-        </button>
+        <button onclick={clearSearch}> Clear search </button>
       </div>
 
-    <!-- Investigation List -->
+      <!-- Investigation List -->
     {:else}
-
       <div
         class="investigation-list"
         role="table"
         aria-label="Investigation history"
         aria-rowcount={filteredCases.length + 1}
       >
-
         <!-- Table Header -->
         <div class="investigation-row table-header" role="row">
           <span role="columnheader">Investigation</span>
@@ -378,34 +321,22 @@ let shortcutModifier = $derived(isMac ? "⌘" : "Ctrl");
 
         <!-- Investigation Rows -->
         {#each paginatedCases as chat, index (chat.id)}
-
-          <div
-            class="investigation-row"
-            role="row"
-            aria-rowindex={startItem + index + 1}
-          >
-
+          <div class="investigation-row" role="row" aria-rowindex={startItem + index + 1}>
             <!-- Investigation -->
             <div class="case-name" role="cell">
-
               <div class="case-icon" aria-hidden="true">
                 #{getCaseNumber(index)}
               </div>
 
               <div>
                 <strong>
-                  {chat.title || "Untitled investigation"}
+                  {chat.title || 'Untitled investigation'}
                 </strong>
               </div>
-
             </div>
 
             <!-- Case ID -->
-            <span
-              class="case-id"
-              role="cell"
-              title={chat.id}
-            >
+            <span class="case-id" role="cell" title={chat.id}>
               {chat.id}
             </span>
 
@@ -419,33 +350,24 @@ let shortcutModifier = $derived(isMac ? "⌘" : "Ctrl");
               <button
                 class="chat-action"
                 onclick={() => openChat(chat.id)}
-                aria-label={`Continue ${chat.title || "investigation"}`}
+                aria-label={`Continue ${chat.title || 'investigation'}`}
               >
                 Continue
               </button>
             </div>
-
           </div>
-
         {/each}
-
       </div>
 
       <!-- Pagination -->
       <footer class="list-footer">
-
         <span aria-live="polite">
           Showing {startItem}–{endItem}
           of {filteredCases.length} investigations
         </span>
 
         <nav class="pagination" aria-label="Investigation pages">
-
-          <button
-            onclick={previousPage}
-            disabled={currentPage === 1}
-            aria-label="Previous page"
-          >
+          <button onclick={previousPage} disabled={currentPage === 1} aria-label="Previous page">
             Previous
           </button>
 
@@ -458,24 +380,14 @@ let shortcutModifier = $derived(isMac ? "⌘" : "Ctrl");
             {currentPage}
           </button>
 
-          <button
-            onclick={nextPage}
-            disabled={currentPage >= totalPages}
-            aria-label="Next page"
-          >
+          <button onclick={nextPage} disabled={currentPage >= totalPages} aria-label="Next page">
             Next
           </button>
-
         </nav>
-
       </footer>
-
     {/if}
-
   </section>
-
 </div>
-
 
 <style>
   :global(*) {
@@ -486,7 +398,12 @@ let shortcutModifier = $derived(isMac ? "⌘" : "Ctrl");
     margin: 0;
     background: #faf9f6;
     color: #292824;
-    font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-family:
+      Inter,
+      -apple-system,
+      BlinkMacSystemFont,
+      'Segoe UI',
+      sans-serif;
   }
 
   :global(button),
@@ -515,7 +432,7 @@ let shortcutModifier = $derived(isMac ? "⌘" : "Ctrl");
 
   .page-header h1 {
     margin: 0;
-    font-family: Georgia, "Times New Roman", serif;
+    font-family: Georgia, 'Times New Roman', serif;
     font-size: 34px;
     font-weight: 400;
     line-height: 1.2;
@@ -836,72 +753,70 @@ let shortcutModifier = $derived(isMac ? "⌘" : "Ctrl");
     color: #fffefa;
   }
 
-/* Keyboard shortcuts */
+  /* Keyboard shortcuts */
 
-.keyboard-shortcuts {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 12px 20px;
-  margin: -12px 0 26px;
-  padding: 11px 14px;
-  border: 1px solid #e8e5de;
-  border-radius: 7px;
-  background: #f5f4ef;
-}
-
-.shortcut-group {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 16px;
-}
-
-.shortcut-item {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  color: #77746c;
-  font-size: 11px;
-  white-space: nowrap;
-}
-
-.shortcut-keys {
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-}
-
-.shortcut-key {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 23px;
-  height: 22px;
-  padding: 0 6px;
-  border: 1px solid #dedbd3;
-  border-bottom-width: 2px;
-  border-radius: 4px;
-  background: #fffefa;
-  color: #504e46;
-  font-family: inherit;
-  font-size: 10px;
-  font-weight: 600;
-}
-
-
-@media (max-width: 650px) {
   .keyboard-shortcuts {
-    align-items: flex-start;
-    flex-direction: column;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px 20px;
+    margin: -12px 0 26px;
+    padding: 11px 14px;
+    border: 1px solid #e8e5de;
+    border-radius: 7px;
+    background: #f5f4ef;
   }
 
   .shortcut-group {
-    gap: 10px 14px;
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 16px;
   }
-}
 
+  .shortcut-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    color: #77746c;
+    font-size: 11px;
+    white-space: nowrap;
+  }
+
+  .shortcut-keys {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+  }
+
+  .shortcut-key {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 23px;
+    height: 22px;
+    padding: 0 6px;
+    border: 1px solid #dedbd3;
+    border-bottom-width: 2px;
+    border-radius: 4px;
+    background: #fffefa;
+    color: #504e46;
+    font-family: inherit;
+    font-size: 10px;
+    font-weight: 600;
+  }
+
+  @media (max-width: 650px) {
+    .keyboard-shortcuts {
+      align-items: flex-start;
+      flex-direction: column;
+    }
+
+    .shortcut-group {
+      gap: 10px 14px;
+    }
+  }
 
   /* Keyboard accessibility */
 

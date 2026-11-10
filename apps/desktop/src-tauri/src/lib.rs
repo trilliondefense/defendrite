@@ -1,22 +1,16 @@
-use runtime::{Attachment,McpConfig,McpServerConfig};
+use runtime::{Attachment, McpConfig, McpServerConfig};
 use tauri::Manager;
 use tauri_plugin_store::StoreExt;
 
 // Read complete MCP configuration.
 #[tauri::command]
-fn get_mcp_config(
-    app_handle: tauri::AppHandle,
-) -> Result<McpConfig, String> {
-    runtime::get_mcp_config(&app_handle)
-        .map_err(|e| format!("Could not read MCP config: {e}"))
+fn get_mcp_config(app_handle: tauri::AppHandle) -> Result<McpConfig, String> {
+    runtime::get_mcp_config(&app_handle).map_err(|e| format!("Could not read MCP config: {e}"))
 }
 
 // Save complete MCP configuration.
 #[tauri::command]
-fn save_mcp_config(
-    app_handle: tauri::AppHandle,
-    config: McpConfig,
-) -> Result<(), String> {
+fn save_mcp_config(app_handle: tauri::AppHandle, config: McpConfig) -> Result<(), String> {
     runtime::save_mcp_config(&app_handle, &config)
         .map_err(|e| format!("Could not save MCP config: {e}"))
 }
@@ -33,10 +27,7 @@ fn add_mcp_server(
 
 // Remove an MCP server.
 #[tauri::command]
-fn remove_mcp_server(
-    app_handle: tauri::AppHandle,
-    name: String,
-) -> Result<McpConfig, String> {
+fn remove_mcp_server(app_handle: tauri::AppHandle, name: String) -> Result<McpConfig, String> {
     runtime::remove_mcp_server(&app_handle, &name)
         .map_err(|e| format!("Could not remove MCP server: {e}"))
 }
@@ -97,6 +88,11 @@ fn create_chat(app_handle: tauri::AppHandle) -> Result<runtime::Conversation, St
 #[tauri::command]
 fn list_chats(app_handle: tauri::AppHandle) -> Result<Vec<runtime::Conversation>, String> {
     runtime::get_conversations(&app_handle)
+}
+
+#[tauri::command]
+fn list_active_chats(app_handle: tauri::AppHandle) -> Result<Vec<runtime::Conversation>, String> {
+    runtime::get_active_conversations(&app_handle)
 }
 
 // --------------------------------------------------
@@ -198,6 +194,7 @@ pub fn run() {
             ask_agent,
             create_chat,
             list_chats,
+            list_active_chats,
             get_chat_messages,
             delete_chat,
             log_to_terminal,
@@ -207,7 +204,10 @@ pub fn run() {
             update_playbook,
             delete_playbook,
             export_playbook,
-            get_mcp_config,save_mcp_config,add_mcp_server,remove_mcp_server
+            get_mcp_config,
+            save_mcp_config,
+            add_mcp_server,
+            remove_mcp_server
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

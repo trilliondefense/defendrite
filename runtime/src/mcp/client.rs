@@ -1,11 +1,7 @@
-
 use std::error::Error;
 
 use rmcp::{
-    transport::{
-        StreamableHttpClientTransport,
-        TokioChildProcess,
-    },
+    transport::{StreamableHttpClientTransport, TokioChildProcess},
     ServiceExt,
 };
 
@@ -15,13 +11,10 @@ use super::config::McpServerConfig;
 
 type McpResult<T> = Result<T, Box<dyn Error + Send + Sync>>;
 
-use tauri::{AppHandle, Manager};
 use std::path::PathBuf;
+use tauri::{AppHandle, Manager};
 
-fn resolve_mcp_command(
-    app: &tauri::AppHandle,
-    command: &str,
-) -> Result<PathBuf, String> {
+fn resolve_mcp_command(app: &tauri::AppHandle, command: &str) -> Result<PathBuf, String> {
     if command == "filesystem" {
         let platform = if cfg!(target_os = "windows") {
             "windows"
@@ -50,7 +43,7 @@ fn resolve_mcp_command(
 }
 
 pub async fn connect(
-    app:&AppHandle,
+    app: &AppHandle,
     config: &McpServerConfig,
 ) -> McpResult<rmcp::service::RunningService<rmcp::RoleClient, ()>> {
     match config.transport.as_str() {
@@ -59,8 +52,7 @@ pub async fn connect(
                 return Err("stdio MCP server requires a command".into());
             }
 
-            let resolved_command =
-                resolve_mcp_command(app, &config.command)?;
+            let resolved_command = resolve_mcp_command(app, &config.command)?;
 
             let mut command = Command::new(resolved_command);
 
@@ -90,8 +82,6 @@ pub async fn connect(
             Ok(client)
         }
 
-        other => {
-            Err(format!("Unsupported MCP transport: {other}").into())
-        }
+        other => Err(format!("Unsupported MCP transport: {other}").into()),
     }
 }

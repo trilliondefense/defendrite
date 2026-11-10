@@ -1,15 +1,14 @@
-
 <script lang="ts">
-  import { onMount } from "svelte";
-  import { goto } from "$app/navigation";
+  import { onMount } from 'svelte';
+  import { goto } from '$app/navigation';
 
   onMount(() => {
-    const userName = localStorage.getItem("userName");
+    const userName = localStorage.getItem('userName');
 
     if (userName?.trim()) {
-      goto("/app/newchat", { replaceState: true });
+      goto('/app/newchat', { replaceState: true });
     } else {
-      goto("/onboard", { replaceState: true });
+      goto('/onboard', { replaceState: true });
     }
   });
 </script>
@@ -38,13 +37,11 @@
     gap: 12px;
   }
 
-  
-
-.message-avatar {
-  width: 27px;
-  height: 27px;
-  object-fit: contain;
-}
+  .message-avatar {
+    width: 27px;
+    height: 27px;
+    object-fit: contain;
+  }
 
   p {
     margin: 0;
