@@ -1,15 +1,14 @@
-
 <script lang="ts">
-  import { goto } from "$app/navigation";
+  import { goto } from '$app/navigation';
 
-  let { message = "Something went wrong." }: { message?: string } = $props();
+  let { message = 'Something went wrong.' }: { message?: string } = $props();
 
   function goHome() {
-    goto("/app/newchat");
+    goto('/app/newchat');
   }
 
   function goBack() {
-    if (typeof window !== "undefined" && window.history.length > 1) {
+    if (typeof window !== 'undefined' && window.history.length > 1) {
       window.history.back();
     } else {
       goHome();
@@ -35,9 +34,7 @@
         Go to Home <span>↗</span>
       </button>
 
-      <button class="secondary-button" onclick={goBack}>
-        Go Back
-      </button>
+      <button class="secondary-button" onclick={goBack}> Go Back </button>
     </div>
 
     <p class="footer-text">Golden Hour Workspace</p>
@@ -51,7 +48,12 @@
 
   :global(body) {
     margin: 0;
-    font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-family:
+      Inter,
+      -apple-system,
+      BlinkMacSystemFont,
+      'Segoe UI',
+      sans-serif;
     background: #fbfaf7;
     color: #302f2a;
   }
@@ -69,7 +71,6 @@
     text-align: center;
   }
 
-
   .eyebrow {
     margin: 0 0 12px;
     color: #d461c6;
@@ -80,17 +81,17 @@
 
   h1 {
     margin: 0;
-    font-family: Georgia, "Times New Roman", serif;
+    font-family: Georgia, 'Times New Roman', serif;
     font-size: clamp(28px, 5vw, 38px);
     font-weight: 400;
     letter-spacing: -1px;
   }
 
-.message-avatar {
-  width: 64px;
-  height: 64px;
-  object-fit: contain;
-}
+  .message-avatar {
+    width: 64px;
+    height: 64px;
+    object-fit: contain;
+  }
 
   .description {
     margin: 16px 0 28px;

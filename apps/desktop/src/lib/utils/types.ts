@@ -17,7 +17,7 @@ export interface Attachment {
   createdAt: number;
 }
 
-export type MessageRole = "user" | "model";
+export type MessageRole = 'user' | 'model';
 
 export interface Message {
   id: number | string;

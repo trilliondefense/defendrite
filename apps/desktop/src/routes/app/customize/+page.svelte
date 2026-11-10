@@ -1,52 +1,47 @@
-
 <script lang="ts">
-  import { onMount } from "svelte";
-  
+  import { onMount } from 'svelte';
+
   import { Store } from '@tauri-apps/plugin-store';
   import { invoke } from '@tauri-apps/api/core';
   import { listen } from '@tauri-apps/api/event';
 
+  type Theme = 'light' | 'dark' | 'system';
 
-  type Theme = "light" | "dark" | "system";
-
-  let theme = $state<Theme>("light");
-  let accentColor = $state("#d78261");
+  let theme = $state<Theme>('light');
+  let accentColor = $state('#d78261');
   let compactMode = $state(false);
   let soundEnabled = $state(false);
   let enterToSend = $state(true);
   let launchAtStartup = $state(false);
   let saved = $state(false);
-  
-  let config = $state("");
+
+  let config = $state('');
   let editing = $state(false);
   let loading = $state(false);
-  let error = $state("");
-
+  let error = $state('');
 
   let apiKey = $state('');
   let modelName = $state('gemini-1.5-flash');
-  let dbHistoryKey = $state("")
+  let dbHistoryKey = $state('');
   let currentPrompt = $state('');
   let streamingOutput = $state('');
   let statusLog = $state('');
   let isProcessing = $state(false);
 
-    let store: Store | null = null;
+  let store: Store | null = null;
 
   const accents = [
-    { name: "Terracotta", value: "#d78261" },
-    { name: "Blue", value: "#6488c7" },
-    { name: "Green", value: "#659b78" },
-    { name: "Violet", value: "#9176c5" },
-    { name: "Rose", value: "#ce7890" }
+    { name: 'Terracotta', value: '#d78261' },
+    { name: 'Blue', value: '#6488c7' },
+    { name: 'Green', value: '#659b78' },
+    { name: 'Violet', value: '#9176c5' },
+    { name: 'Rose', value: '#ce7890' },
   ];
 
-
-
   async function saveConfig() {
-            error = "";
+    error = '';
     try {
-      if (store){
+      if (store) {
         await store.set('HARNESS_MODEL_API_KEY', { value: apiKey });
         await store.set('HARNESS_MODEL_NAME', { value: modelName });
         await store.set('HARNESS_HISTORY_DB_KEY', { value: dbHistoryKey });
@@ -54,8 +49,8 @@
 
         loading = true;
 
-        await invoke("save_mcp_config", {
-            config: parsed
+        await invoke('save_mcp_config', {
+          config: parsed,
         });
 
         config = JSON.stringify(parsed, null, 2);
@@ -63,46 +58,42 @@
 
         await store.save(); // Permanently flushes settings cache to disk
       }
-      statusLog = "Configuration saved successfully.";
+      statusLog = 'Configuration saved successfully.';
     } catch (err) {
       statusLog = `Failed to save configuration: ${err}`;
-                  error = String(err);
-    }finally {
-            loading = false;
-        }
+      error = String(err);
+    } finally {
+      loading = false;
+    }
   }
   async function cancelEdit() {
-        editing = false;
-        await loadConfig();
-    }
+    editing = false;
+    await loadConfig();
+  }
   async function loadConfig() {
-        loading = true;
-        error = "";
+    loading = true;
+    error = '';
 
-        try {
-            const result = await invoke("get_mcp_config");
-            config = JSON.stringify(result, null, 2);
-        } catch (e) {
-            error = String(e);
-        } finally {
-            loading = false;
-        }
+    try {
+      const result = await invoke('get_mcp_config');
+      config = JSON.stringify(result, null, 2);
+    } catch (e) {
+      error = String(e);
+    } finally {
+      loading = false;
     }
+  }
 
-
-
-  
   onMount(() => {
     try {
-      theme = (localStorage.getItem("workspace-theme") as Theme) || "light";
-      accentColor = localStorage.getItem("workspace-accent") || "#d78261";
-      compactMode = localStorage.getItem("workspace-compact") === "true";
-      soundEnabled = localStorage.getItem("workspace-sound") === "true";
-      enterToSend = localStorage.getItem("workspace-enter-send") !== "false";
-      launchAtStartup = localStorage.getItem("workspace-startup") === "true";
-     
+      theme = (localStorage.getItem('workspace-theme') as Theme) || 'light';
+      accentColor = localStorage.getItem('workspace-accent') || '#d78261';
+      compactMode = localStorage.getItem('workspace-compact') === 'true';
+      soundEnabled = localStorage.getItem('workspace-sound') === 'true';
+      enterToSend = localStorage.getItem('workspace-enter-send') !== 'false';
+      launchAtStartup = localStorage.getItem('workspace-startup') === 'true';
     } catch (error) {
-      console.warn("Unable to load workspace preferences:", error);
+      console.warn('Unable to load workspace preferences:', error);
     }
 
     applyTheme();
@@ -113,7 +104,7 @@
     async function initStoreAndListeners() {
       try {
         // Load the store instance safely
-         loadConfig();
+        loadConfig();
         store = await Store.load('settings.json');
 
         // Read persisted values from disk
@@ -124,8 +115,8 @@
         if (savedKey) apiKey = savedKey.value;
         if (savedModel) modelName = savedModel.value;
         if (savedDBKey) dbHistoryKey = savedDBKey.value;
-        
-        localStorage.setItem("modelName",modelName)
+
+        localStorage.setItem('modelName', modelName);
         // Listen to token-by-token stream emissions from Rust runtime
         const unlistenToken = await listen<{ token: string }>('agent-token', (event) => {
           streamingOutput += event.payload.token;
@@ -138,7 +129,6 @@
           isProcessing = false;
         });
         unlistenFunctions.push(unlistenError);
-
       } catch (err) {
         statusLog = `Initialization error: ${err}`;
       }
@@ -154,38 +144,40 @@
   });
 
   function applyTheme() {
-    if (typeof document === "undefined") return;
+    if (typeof document === 'undefined') return;
 
     const resolvedTheme =
-      theme === "system"
-        ? (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light")
+      theme === 'system'
+        ? window.matchMedia('(prefers-color-scheme: dark)').matches
+          ? 'dark'
+          : 'light'
         : theme;
 
     document.documentElement.dataset.theme = resolvedTheme;
-    document.documentElement.style.setProperty("--workspace-accent", accentColor);
+    document.documentElement.style.setProperty('--workspace-accent', accentColor);
     document.documentElement.dataset.compact = String(compactMode);
   }
 
   function savePreferences() {
     try {
-      localStorage.setItem("workspace-theme", theme);
-      localStorage.setItem("workspace-accent", accentColor);
-      localStorage.setItem("workspace-compact", String(compactMode));
-      localStorage.setItem("workspace-sound", String(soundEnabled));
-      localStorage.setItem("workspace-enter-send", String(enterToSend));
-      localStorage.setItem("workspace-startup", String(launchAtStartup));
+      localStorage.setItem('workspace-theme', theme);
+      localStorage.setItem('workspace-accent', accentColor);
+      localStorage.setItem('workspace-compact', String(compactMode));
+      localStorage.setItem('workspace-sound', String(soundEnabled));
+      localStorage.setItem('workspace-enter-send', String(enterToSend));
+      localStorage.setItem('workspace-startup', String(launchAtStartup));
       saveConfig();
       applyTheme();
       saved = true;
       window.setTimeout(() => (saved = false), 1800);
     } catch (error) {
-      console.error("Unable to save workspace preferences:", error);
+      console.error('Unable to save workspace preferences:', error);
     }
   }
 
   function resetPreferences() {
-    theme = "light";
-    accentColor = "#d78261";
+    theme = 'light';
+    accentColor = '#d78261';
     compactMode = false;
     soundEnabled = false;
     enterToSend = true;
@@ -194,11 +186,11 @@
   }
 
   function handleKeydown(event: KeyboardEvent) {
-    if (event.key === "Escape") {
+    if (event.key === 'Escape') {
       (event.target as HTMLElement)?.blur?.();
     }
 
-    if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "s") {
+    if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 's') {
       event.preventDefault();
       savePreferences();
     }
@@ -223,7 +215,7 @@
     <div class="header-actions">
       <button class="reset-button" onclick={resetPreferences}>Reset</button>
       <button class="save-button" onclick={savePreferences}>
-        {saved ? "✓ Saved" : "Save changes"}
+        {saved ? '✓ Saved' : 'Save changes'}
         <kbd>⌘ S</kbd>
       </button>
     </div>
@@ -250,7 +242,7 @@
           </div>
 
           <div class="theme-options" role="group" aria-label="Theme">
-            {#each ["light", "dark", "system"] as option}
+            {#each ['light', 'dark', 'system'] as option}
               <button
                 class="theme-option"
                 class:selected={theme === option}
@@ -260,8 +252,12 @@
                 }}
                 aria-pressed={theme === option}
               >
-                <span class="theme-preview" class:dark-preview={option === "dark"} class:system-preview={option === "system"}>
-                  {#if option === "light"}☼{:else if option === "dark"}☾{:else}◐{/if}
+                <span
+                  class="theme-preview"
+                  class:dark-preview={option === 'dark'}
+                  class:system-preview={option === 'system'}
+                >
+                  {#if option === 'light'}☼{:else if option === 'dark'}☾{:else}◐{/if}
                 </span>
                 <span>{option[0].toUpperCase() + option.slice(1)}</span>
               </button>
@@ -360,136 +356,138 @@
         </div>
       </section>
 
-     <section id="workspace" class="settings-section">
-      <div class="section-heading">
-        <h2>Workspace</h2>
-        <p>Manage desktop application preferences.</p>
-      </div>
-
-      <!-- API Credentials Row -->
-      <div class="setting-row credentials-row" style="flex-direction: column; align-items: flex-start; gap: 0.75rem;">
-        <div class="setting-copy">
-          <h3>Google AI Studio Key</h3>
-          <p>Configure your personal developer key to authenticate with Gemini model runtimes locally.</p>
-        </div>
-        
-        <div style="display: flex; gap: 0.5rem; width: 100%;">
-          <input 
-            type="password" 
-            bind:value={apiKey} 
-            placeholder="AIzaSy..." 
-            style="flex: 1; padding: 0.5rem 0.75rem; border-radius: 4px; border: 1px solid #ccc; font-family: monospace; font-size: 0.9rem;"
-          />
-        </div>
-      </div>
-       <div class="setting-row credentials-row" style="flex-direction: column; align-items: flex-start; gap: 0.75rem;">
-        <div class="setting-copy">
-          <h3>Model Name</h3>
-          <p>Configure your personal developer key to authenticate with Gemini model runtimes locally.</p>
-        </div>
-        
-        <div style="display: flex; gap: 0.5rem; width: 100%;">
-          <input 
-            type="text" 
-            bind:value={modelName} 
-            placeholder="AIzaSy..." 
-            style="flex: 1; padding: 0.5rem 0.75rem; border-radius: 4px; border: 1px solid #ccc; font-family: monospace; font-size: 0.9rem;"
-          />
-        </div>
-      </div>
-       <div class="setting-row credentials-row" style="flex-direction: column; align-items: flex-start; gap: 0.75rem;">
-        <div class="setting-copy">
-          <h3>DB History Key</h3>
-          <p>Configure your personal developer key to authenticate with to encrypt database history.</p>
-        </div>
-        
-        <div style="display: flex; gap: 0.5rem; width: 100%;">
-          <input 
-            type="password" 
-            bind:value={dbHistoryKey} 
-            placeholder="AIzaSy..." 
-            style="flex: 1; padding: 0.5rem 0.75rem; border-radius: 4px; border: 1px solid #ccc; font-family: monospace; font-size: 0.9rem;"
-          />
-        </div>
-      </div><div class="mcp-config">
-    <div class="mcp-config-header">
-        <span class="mcp-config-title">MCP Configuration</span>
-
-        {#if editing}
-            <div class="mcp-config-actions">
-                <button
-                    class="mcp-config-cancel"
-                    onclick={cancelEdit}
-                    disabled={loading}
-                >
-                    Cancel
-                </button>
-
-                <button
-                    class="mcp-config-save"
-                    onclick={saveConfig}
-                    disabled={loading}
-                >
-                    {loading ? "Saving..." : "✓"}
-                </button>
-            </div>
-        {:else}
-            <button
-                class="mcp-config-edit"
-                onclick={() => editing = true}
-                disabled={loading}
-            >
-                Edit
-            </button>
-        {/if}
-    </div>
-
-    {#if loading}
-        <p class="mcp-config-loading">Loading configuration...</p>
-    {:else if editing}
-        <textarea
-            class="mcp-config-editor"
-            bind:value={config}
-            spellcheck="false"
-        ></textarea>
-    {:else}
-        <pre class="mcp-config-preview">{config}</pre>
-    {/if}
-
-    {#if error}
-        <p class="mcp-config-error">{error}</p>
-    {/if}
-</div>
-
-      <!-- App Preferences Toggle Row -->
-      <div class="setting-row">
-        <div class="setting-copy">
-          <h3>Launch at startup</h3>
-          <p>Remember this preference for launching the application at login.</p>
+      <section id="workspace" class="settings-section">
+        <div class="section-heading">
+          <h2>Workspace</h2>
+          <p>Manage desktop application preferences.</p>
         </div>
 
-        <button
-          class="toggle"
-          class:enabled={launchAtStartup}
-          role="switch"
-          aria-checked={launchAtStartup}
-          aria-label="Launch at startup"
-          onclick={() => (launchAtStartup = !launchAtStartup)}
+        <!-- API Credentials Row -->
+        <div
+          class="setting-row credentials-row"
+          style="flex-direction: column; align-items: flex-start; gap: 0.75rem;"
         >
-          <span></span>
-        </button>
-      </div>
+          <div class="setting-copy">
+            <h3>Google AI Studio Key</h3>
+            <p>
+              Configure your personal developer key to authenticate with Gemini model runtimes
+              locally.
+            </p>
+          </div>
 
-      <!-- About System Meta Row -->
-      <div class="setting-row about-row">
-        <div class="setting-copy">
-          <h3>Golden Hour Workspace</h3>
-          <p>Desktop workspace · Local engine</p>
+          <div style="display: flex; gap: 0.5rem; width: 100%;">
+            <input
+              type="password"
+              bind:value={apiKey}
+              placeholder="AIzaSy..."
+              style="flex: 1; padding: 0.5rem 0.75rem; border-radius: 4px; border: 1px solid #ccc; font-family: monospace; font-size: 0.9rem;"
+            />
+          </div>
         </div>
-        <span class="version">Preferences v1</span>
-      </div>
-    </section>
+        <div
+          class="setting-row credentials-row"
+          style="flex-direction: column; align-items: flex-start; gap: 0.75rem;"
+        >
+          <div class="setting-copy">
+            <h3>Model Name</h3>
+            <p>
+              Configure your personal developer key to authenticate with Gemini model runtimes
+              locally.
+            </p>
+          </div>
 
+          <div style="display: flex; gap: 0.5rem; width: 100%;">
+            <input
+              type="text"
+              bind:value={modelName}
+              placeholder="AIzaSy..."
+              style="flex: 1; padding: 0.5rem 0.75rem; border-radius: 4px; border: 1px solid #ccc; font-family: monospace; font-size: 0.9rem;"
+            />
+          </div>
+        </div>
+        <div
+          class="setting-row credentials-row"
+          style="flex-direction: column; align-items: flex-start; gap: 0.75rem;"
+        >
+          <div class="setting-copy">
+            <h3>DB History Key</h3>
+            <p>
+              Configure your personal developer key to authenticate with to encrypt database
+              history.
+            </p>
+          </div>
+
+          <div style="display: flex; gap: 0.5rem; width: 100%;">
+            <input
+              type="password"
+              bind:value={dbHistoryKey}
+              placeholder="AIzaSy..."
+              style="flex: 1; padding: 0.5rem 0.75rem; border-radius: 4px; border: 1px solid #ccc; font-family: monospace; font-size: 0.9rem;"
+            />
+          </div>
+        </div>
+        <div class="mcp-config">
+          <div class="mcp-config-header">
+            <span class="mcp-config-title">MCP Configuration</span>
+
+            {#if editing}
+              <div class="mcp-config-actions">
+                <button class="mcp-config-cancel" onclick={cancelEdit} disabled={loading}>
+                  Cancel
+                </button>
+
+                <button class="mcp-config-save" onclick={saveConfig} disabled={loading}>
+                  {loading ? 'Saving...' : '✓'}
+                </button>
+              </div>
+            {:else}
+              <button class="mcp-config-edit" onclick={() => (editing = true)} disabled={loading}>
+                Edit
+              </button>
+            {/if}
+          </div>
+
+          {#if loading}
+            <p class="mcp-config-loading">Loading configuration...</p>
+          {:else if editing}
+            <textarea class="mcp-config-editor" bind:value={config} spellcheck="false"></textarea>
+          {:else}
+            <pre class="mcp-config-preview">{config}</pre>
+          {/if}
+
+          {#if error}
+            <p class="mcp-config-error">{error}</p>
+          {/if}
+        </div>
+
+        <!-- App Preferences Toggle Row -->
+        <div class="setting-row">
+          <div class="setting-copy">
+            <h3>Launch at startup</h3>
+            <p>Remember this preference for launching the application at login.</p>
+          </div>
+
+          <button
+            class="toggle"
+            class:enabled={launchAtStartup}
+            role="switch"
+            aria-checked={launchAtStartup}
+            aria-label="Launch at startup"
+            onclick={() => (launchAtStartup = !launchAtStartup)}
+          >
+            <span></span>
+          </button>
+        </div>
+
+        <!-- About System Meta Row -->
+        <div class="setting-row about-row">
+          <div class="setting-copy">
+            <h3>Golden Hour Workspace</h3>
+            <p>Desktop workspace · Local engine</p>
+          </div>
+          <span class="version">Preferences v1</span>
+        </div>
+      </section>
 
       <p class="keyboard-hint">
         <kbd>⌘ S</kbd> Save preferences
@@ -530,7 +528,7 @@
     color: var(--workspace-accent, #d78261);
     font-size: 10px;
     font-weight: 600;
-    letter-spacing: .13em;
+    letter-spacing: 0.13em;
   }
 
   .mcp-config {
@@ -538,29 +536,29 @@
     flex-direction: column;
     gap: 12px;
     width: 100%;
-}
+  }
 
-.mcp-config-header {
+  .mcp-config-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 12px;
-}
+  }
 
-.mcp-config-title {
+  .mcp-config-title {
     font-size: 14px;
     font-weight: 600;
-}
+  }
 
-.mcp-config-actions {
+  .mcp-config-actions {
     display: flex;
     align-items: center;
     gap: 8px;
-}
+  }
 
-.mcp-config-edit,
-.mcp-config-cancel,
-.mcp-config-save {
+  .mcp-config-edit,
+  .mcp-config-cancel,
+  .mcp-config-save {
     padding: 6px 12px;
     border: 1px solid var(--border-color, #444);
     border-radius: 6px;
@@ -568,33 +566,33 @@
     color: inherit;
     font-size: 13px;
     cursor: pointer;
-}
+  }
 
-.mcp-config-edit:hover,
-.mcp-config-cancel:hover {
+  .mcp-config-edit:hover,
+  .mcp-config-cancel:hover {
     background: rgba(128, 128, 128, 0.12);
-}
+  }
 
-.mcp-config-save {
+  .mcp-config-save {
     min-width: 36px;
     background: var(--accent-color, #3b82f6);
     border-color: var(--accent-color, #3b82f6);
     color: white;
-}
+  }
 
-.mcp-config-save:hover {
+  .mcp-config-save:hover {
     opacity: 0.85;
-}
+  }
 
-.mcp-config-edit:disabled,
-.mcp-config-cancel:disabled,
-.mcp-config-save:disabled {
+  .mcp-config-edit:disabled,
+  .mcp-config-cancel:disabled,
+  .mcp-config-save:disabled {
     opacity: 0.5;
     cursor: not-allowed;
-}
+  }
 
-.mcp-config-editor,
-.mcp-config-preview {
+  .mcp-config-editor,
+  .mcp-config-preview {
     width: 100%;
     min-height: 300px;
     max-height: 600px;
@@ -604,49 +602,49 @@
     border-radius: 8px;
     background: var(--editor-bg, #171717);
     color: var(--editor-text, #d4d4d4);
-    font-family: "JetBrains Mono", "Fira Code", monospace;
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
     font-size: 13px;
     line-height: 1.6;
     overflow: auto;
     white-space: pre;
     tab-size: 2;
-}
+  }
 
-.mcp-config-editor {
+  .mcp-config-editor {
     resize: vertical;
     outline: none;
-}
+  }
 
-.mcp-config-editor:focus {
+  .mcp-config-editor:focus {
     border-color: var(--accent-color, #3b82f6);
-}
+  }
 
-.mcp-config-preview {
+  .mcp-config-preview {
     margin: 0;
-}
+  }
 
-.mcp-config-loading {
+  .mcp-config-loading {
     padding: 20px;
     text-align: center;
     color: var(--text-secondary, #999);
     font-size: 13px;
-}
+  }
 
-.mcp-config-error {
+  .mcp-config-error {
     margin: 0;
     padding: 10px 12px;
     border-radius: 6px;
     background: rgba(220, 38, 38, 0.1);
     color: #ef4444;
     font-size: 13px;
-}
+  }
 
   h1 {
     margin: 0;
-    font-family: Georgia, "Times New Roman", serif;
+    font-family: Georgia, 'Times New Roman', serif;
     font-size: 34px;
     font-weight: 400;
-    letter-spacing: -.8px;
+    letter-spacing: -0.8px;
   }
 
   .subtitle {
@@ -778,8 +776,6 @@
     padding: 15px 0;
     border-bottom: 1px solid var(--line);
   }
-
-  
 
   .setting-copy {
     min-width: 0;

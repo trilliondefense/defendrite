@@ -21,7 +21,7 @@
       investigator: 'A. Mitchell',
       status: 'Active',
       evidence: 24,
-      createdAt: '2026-10-18'
+      createdAt: '2026-10-18',
     },
     {
       id: '2',
@@ -31,7 +31,7 @@
       investigator: 'J. Parker',
       status: 'Review',
       evidence: 12,
-      createdAt: '2026-10-16'
+      createdAt: '2026-10-16',
     },
     {
       id: '3',
@@ -41,8 +41,8 @@
       investigator: 'S. Morgan',
       status: 'Active',
       evidence: 8,
-      createdAt: '2026-10-14'
-    }
+      createdAt: '2026-10-14',
+    },
   ]);
 
   let search = $state('');
@@ -57,29 +57,21 @@
     cases.filter((item) => {
       const query = search.toLowerCase();
 
-      const matchesSearch =
-        `${item.title} ${item.reference} ${item.investigator} ${item.type}`
-          .toLowerCase()
-          .includes(query);
+      const matchesSearch = `${item.title} ${item.reference} ${item.investigator} ${item.type}`
+        .toLowerCase()
+        .includes(query);
 
-      const matchesStatus =
-        statusFilter === 'All' || item.status === statusFilter;
+      const matchesStatus = statusFilter === 'All' || item.status === statusFilter;
 
       return matchesSearch && matchesStatus;
     })
   );
 
-  let activeCases = $derived(
-    cases.filter((item) => item.status === 'Active').length
-  );
+  let activeCases = $derived(cases.filter((item) => item.status === 'Active').length);
 
-  let reviewCases = $derived(
-    cases.filter((item) => item.status === 'Review').length
-  );
+  let reviewCases = $derived(cases.filter((item) => item.status === 'Review').length);
 
-  let evidenceCount = $derived(
-    cases.reduce((total, item) => total + item.evidence, 0)
-  );
+  let evidenceCount = $derived(cases.reduce((total, item) => total + item.evidence, 0));
 
   function createCase() {
     if (!title.trim() || !investigator.trim()) return;
@@ -102,9 +94,9 @@
         investigator: investigator.trim(),
         status: 'Active',
         evidence: 0,
-        createdAt: new Date().toISOString().slice(0, 10)
+        createdAt: new Date().toISOString().slice(0, 10),
       },
-      ...cases
+      ...cases,
     ];
 
     title = '';
@@ -121,19 +113,13 @@
   <header class="page-header">
     <div class="eyebrow">FORENSIC WORKSPACE</div>
     <h1>Reports</h1>
-    <p>
-      Review, organize, and export reports generated from your forensic investigations.
-    </p>
+    <p>Review, organize, and export reports generated from your forensic investigations.</p>
   </header>
 
   <div class="toolbar">
     <label class="search-box">
       <span>⌕</span>
-      <input
-        type="search"
-        placeholder="Search reports..."
-        aria-label="Search reports"
-      />
+      <input type="search" placeholder="Search reports..." aria-label="Search reports" />
     </label>
 
     <button class="primary-button">+ New report</button>
@@ -276,7 +262,12 @@
     margin: 0;
     background: #faf9f6;
     color: #292824;
-    font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-family:
+      Inter,
+      -apple-system,
+      BlinkMacSystemFont,
+      'Segoe UI',
+      sans-serif;
   }
 
   .reports-page {
@@ -299,7 +290,7 @@
 
   h1 {
     margin: 0;
-    font-family: Georgia, "Times New Roman", serif;
+    font-family: Georgia, 'Times New Roman', serif;
     font-size: 34px;
     font-weight: 400;
     letter-spacing: -0.7px;
@@ -432,7 +423,8 @@
 
   .report-row {
     display: grid;
-    grid-template-columns: minmax(230px, 2fr) minmax(100px, 0.8fr)
+    grid-template-columns:
+      minmax(230px, 2fr) minmax(100px, 0.8fr)
       minmax(115px, 1fr) minmax(100px, 0.8fr) 28px;
     align-items: center;
     gap: 14px;

@@ -1,39 +1,38 @@
-
 <script lang="ts">
-  let platform = $state<"mac" | "windows">("windows");
-  let search = $state("");
+  let platform = $state<'mac' | 'windows'>('windows');
+  let search = $state('');
 
   const shortcuts = [
     {
-      category: "Navigation",
+      category: 'Navigation',
       items: [
-        { action: "Open command palette", mac: ["⌘", "K"], windows: ["Ctrl", "K"] },
-        { action: "Toggle sidebar", mac: ["⌘", "B"], windows: ["Ctrl", "B"] },
-        { action: "Go to New Chat", mac: ["⌘", "Shift", "O"], windows: ["Ctrl", "Shift", "O"] },
+        { action: 'Open command palette', mac: ['⌘', 'K'], windows: ['Ctrl', 'K'] },
+        { action: 'Toggle sidebar', mac: ['⌘', 'B'], windows: ['Ctrl', 'B'] },
+        { action: 'Go to New Chat', mac: ['⌘', 'Shift', 'O'], windows: ['Ctrl', 'Shift', 'O'] },
       ],
     },
     {
-      category: "Command palette",
+      category: 'Command palette',
       items: [
-        { action: "Move to next result", mac: ["↓"], windows: ["↓"] },
-        { action: "Move to previous result", mac: ["↑"], windows: ["↑"] },
-        { action: "Open selected result", mac: ["Return"], windows: ["Enter"] },
-        { action: "Close command palette", mac: ["Esc"], windows: ["Esc"] },
+        { action: 'Move to next result', mac: ['↓'], windows: ['↓'] },
+        { action: 'Move to previous result', mac: ['↑'], windows: ['↑'] },
+        { action: 'Open selected result', mac: ['Return'], windows: ['Enter'] },
+        { action: 'Close command palette', mac: ['Esc'], windows: ['Esc'] },
       ],
     },
     {
-      category: "Chat",
+      category: 'Chat',
       items: [
-        { action: "New line in message", mac: ["Shift", "Return"], windows: ["Shift", "Enter"] },
-        { action: "Send message", mac: ["⌘", "Return"], windows: ["Ctrl", "Enter"] },
+        { action: 'New line in message', mac: ['Shift', 'Return'], windows: ['Shift', 'Enter'] },
+        { action: 'Send message', mac: ['⌘', 'Return'], windows: ['Ctrl', 'Enter'] },
       ],
     },
     {
-      category: "General",
+      category: 'General',
       items: [
-        { action: "Close dialog or menu", mac: ["Esc"], windows: ["Esc"] },
-        { action: "Navigate between controls", mac: ["Tab"], windows: ["Tab"] },
-        { action: "Navigate backwards", mac: ["Shift", "Tab"], windows: ["Shift", "Tab"] },
+        { action: 'Close dialog or menu', mac: ['Esc'], windows: ['Esc'] },
+        { action: 'Navigate between controls', mac: ['Tab'], windows: ['Tab'] },
+        { action: 'Navigate backwards', mac: ['Shift', 'Tab'], windows: ['Shift', 'Tab'] },
       ],
     },
   ];
@@ -43,9 +42,7 @@
       .map((group) => ({
         ...group,
         items: group.items.filter((item) =>
-          `${item.action} ${group.category}`
-            .toLowerCase()
-            .includes(search.trim().toLowerCase())
+          `${item.action} ${group.category}`.toLowerCase().includes(search.trim().toLowerCase())
         ),
       }))
       .filter((group) => group.items.length > 0)
@@ -57,8 +54,8 @@
     <div class="eyebrow">HELP CENTER</div>
     <h1>Keyboard shortcuts</h1>
     <p>
-      Work faster with keyboard shortcuts. Everything you need to navigate
-      your workspace without reaching for your mouse.
+      Work faster with keyboard shortcuts. Everything you need to navigate your workspace without
+      reaching for your mouse.
     </p>
   </header>
 
@@ -71,11 +68,7 @@
         aria-label="Search keyboard shortcuts"
       />
       {#if search}
-        <button
-          class="clear-button"
-          onclick={() => (search = "")}
-          aria-label="Clear search"
-        >
+        <button class="clear-button" onclick={() => (search = '')} aria-label="Clear search">
           ×
         </button>
       {/if}
@@ -83,16 +76,16 @@
 
     <div class="platform-switch" aria-label="Operating system">
       <button
-        class:active={platform === "mac"}
-        aria-pressed={platform === "mac"}
-        onclick={() => (platform = "mac")}
+        class:active={platform === 'mac'}
+        aria-pressed={platform === 'mac'}
+        onclick={() => (platform = 'mac')}
       >
         <span>⌘</span> Mac
       </button>
       <button
-        class:active={platform === "windows"}
-        aria-pressed={platform === "windows"}
-        onclick={() => (platform = "windows")}
+        class:active={platform === 'windows'}
+        aria-pressed={platform === 'windows'}
+        onclick={() => (platform = 'windows')}
       >
         <span>⊞</span> Windows
       </button>
@@ -109,7 +102,7 @@
             <div class="shortcut-row">
               <span class="action">{item.action}</span>
 
-              <div class="keys" aria-label={item[platform].join(" + ")}>
+              <div class="keys" aria-label={item[platform].join(' + ')}>
                 {#each item[platform] as key, i (i)}
                   {#if i > 0}
                     <span class="plus">+</span>
@@ -126,18 +119,17 @@
         <span>⌕</span>
         <h2>No shortcuts found</h2>
         <p>Try a different search term.</p>
-        <button onclick={() => (search = "")}>Clear search</button>
+        <button onclick={() => (search = '')}>Clear search</button>
       </div>
     {/each}
   </div>
 
   <footer class="help-footer">
-
     <div>
       <strong>Prefer using the keyboard?</strong>
       <p>
         Press
-        <kbd>{platform === "mac" ? "⌘" : "Ctrl"}</kbd>
+        <kbd>{platform === 'mac' ? '⌘' : 'Ctrl'}</kbd>
         <span class="plus">+</span>
         <kbd>K</kbd>
         anywhere in your workspace to jump to a page.
@@ -173,7 +165,7 @@
 
   h1 {
     margin: 0;
-    font-family: Georgia, "Times New Roman", serif;
+    font-family: Georgia, 'Times New Roman', serif;
     font-size: clamp(28px, 4vw, 38px);
     font-weight: 400;
     letter-spacing: -1px;
@@ -363,7 +355,6 @@
     border-radius: 10px;
     background: #f5f1e8;
   }
-
 
   .help-footer strong {
     font-size: 12px;
