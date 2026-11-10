@@ -235,7 +235,7 @@
       <a class="brand" href="/app/newchat" title="Home">
         <img src="/favicon.png" alt="Brand icon" class="brand-mark" />
         {#if !collapsed}
-          <span class="brand-name">Workspace</span>
+          <span class="brand-name">DefendRite</span>
         {/if}
       </a>
 
