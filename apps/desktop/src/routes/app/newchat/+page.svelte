@@ -1,29 +1,14 @@
 
 <script lang="ts">
-import { invoke } from "@tauri-apps/api/core";
-import { emit, listen } from "@tauri-apps/api/event";
-import { onMount, tick } from "svelte";
-import { open } from '@tauri-apps/plugin-dialog';
-import { stat } from "@tauri-apps/plugin-fs";
+  import { invoke } from "@tauri-apps/api/core";
+  import { emit, listen } from "@tauri-apps/api/event";
+  import { onMount, tick } from "svelte";
+  import { open } from '@tauri-apps/plugin-dialog';
+  import { stat } from "@tauri-apps/plugin-fs";
+  import NewChat from "#lib/components/NewChat.svelte";
+  import ContinueChat from "#lib/components/ContinueChat.svelte";
+  import type { Attachment, Message } from "#lib/utils/types";
 
-  
-  import NewChat from "../../../lib/components/NewChat.svelte";
-  import ContinueChat from "../../../lib/components/ContinueChat.svelte";
-
-interface Message {
-  id: string;
-  sender: "user" | "agent";
-  text: string;
-}
-
-
-  interface Attachment {
-    id: string;
-    name: string;
-    path: string;
-    size: number;
-    mimeType: string | null;
-  }
 
   let attachments = $state<Attachment[]>([]);
   let isSelecting = $state(false);

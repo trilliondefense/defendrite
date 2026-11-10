@@ -2,22 +2,9 @@
 <script lang="ts">
 import { marked } from "marked";
   import DOMPurify from "dompurify";
+  import type { Attachment, Message } from "#lib/utils/types";
   function renderMarkdown(content: string) {
     return DOMPurify.sanitize(marked.parse(content) as string);
-  }
-interface Message {
-  id: string;
-  sender: "user" | "agent";
-  text: string;
-}
-
-
-  interface Attachment {
-    id: string;
-    name: string;
-    path: string;
-    size: number;
-    mimeType: string | null;
   }
 
         interface Props {
