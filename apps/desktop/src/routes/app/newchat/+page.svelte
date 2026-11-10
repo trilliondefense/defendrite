@@ -1,8 +1,5 @@
 
 <script lang="ts">
-  import { goto } from "$app/navigation";
-
-
 import { invoke } from "@tauri-apps/api/core";
 import { emit, listen } from "@tauri-apps/api/event";
 import { onMount, tick } from "svelte";
@@ -11,6 +8,7 @@ import { stat } from "@tauri-apps/plugin-fs";
 
   import { marked } from "marked";
   import DOMPurify from "dompurify";
+  import NewChat from "#lib/components/NewChat.svelte";
   function renderMarkdown(content: string) {
     return DOMPurify.sanitize(marked.parse(content) as string);
   }
@@ -359,107 +357,8 @@ async function handleSendMessage(event: SubmitEvent) {
 
 <div class="chat-page">
   {#if messages.length === 0}
-    <main class="chat-home">
-
-      <section class="welcome">
-        <h1>
-          <img src="/favicon.png" alt="" class="message-avatar" />
-          Start new Investigation 
-        </h1>
-
-        <form class="composer" onsubmit={handleSendMessage}>
-          <textarea
-            bind:this={inputElement}
-            bind:value={input}
-            placeholder="How can I help you today?"
-            rows="2"
-            aria-label="Message your AI assistant"
-            disabled={isLoading}
-            onkeydown={(event) => {
-              if (
-                event.key === "Enter" &&
-                !event.shiftKey &&
-                !event.isComposing
-              ) {
-                event.preventDefault();
-                event.currentTarget.form?.requestSubmit();
-              }
-            }}
-          ></textarea>
-
-          <div class="composer-bottom">
-           
-            <button
-              class="add-button"
-              type="button"
-              aria-label="Add attachment"
-              title="Add attachment"
-              disabled={isSelecting}
-              onclick={addAttachments}
-            >
-              {isSelecting ? '...' : '+'}
-            </button>
-          
-
-
-            <div class="composer-actions">
-              {#if modelName && modelName !==""}
-                <select aria-label="Select model" value="{modelName}">
-                  <option>{modelName}</option>
-                </select>
-              {/if}
-
-              <button
-                class="mic-button"
-                type="button"
-                aria-label="Voice input"
-                title="Voice input"
-                onclick={() => {
-                  // Connect your existing voice input handler here.
-                }}
-              >
-                <svg viewBox="0 0 24 24" width="17" height="17"
-                  fill="none" stroke="currentColor" stroke-width="1.6"
-                  stroke-linecap="round" stroke-linejoin="round">
-                  <rect x="9" y="3" width="6" height="12" rx="3" />
-                  <path d="M5.5 11a6.5 6.5 0 0 0 13 0" />
-                  <path d="M12 17.5V21M9 21h6" />
-                </svg>
-              </button>
-            </div>
-          </div>
-        </form>
-          {#if attachments.length > 0}
-            <div class="attachments-list">
-              {#each attachments as attachment (attachment.id)}
-                <div class="attachment-item">
-                  <span class="attachment-name">
-                    {attachment.name}
-                  </span>
-
-                  <button
-                    type="button"
-                    aria-label="Remove attachment"
-                    onclick={() => removeAttachment(attachment.id)}
-                  >
-                    ×
-                  </button>
-                </div>
-              {/each}
-            </div>
-          {/if}
-
-        <button
-          class="connect-tools"
-          type="button"
-          onclick={() => goto("/app/customize")}
-        >
-          <span>Connect your tools</span>
-          <span class="tool-icons"></span>
-          <span class="chevron">›</span>
-        </button>
-      </section>
-    </main>
+  <NewChat/>
+   
   {:else}
     <main class="chat-conversation" bind:this={viewportElement}>
       <div class="message-list">
