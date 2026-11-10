@@ -8,5 +8,6 @@ pub use repository::{
     load_history,
     open_db,
     save_exchange,
+    list_active_conversations,
     // save_message,
 };

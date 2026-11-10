@@ -308,6 +308,12 @@ pub fn get_conversations(app_handle: &AppHandle) -> Result<Vec<Conversation>, St
     storage::list_conversations(&db).map_err(|e| format!("Could not retrieve conversations: {e}"))
 }
 
+pub fn get_active_conversations(app_handle: &AppHandle) -> Result<Vec<Conversation>, String> {
+    let db = open_conversation_db(app_handle)?;
+
+    storage::list_active_conversations(&db).map_err(|e| format!("Could not retrieve conversations: {e}"))
+}
+
 // --------------------------------------------------
 // HANDLE AGENT REQUEST
 // --------------------------------------------------
