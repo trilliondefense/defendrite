@@ -11,7 +11,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/trilliondefense/defendrite/releases/tag/app-v0.1.0"><b>Download</b></a> ·
+  <a href="https://github.com/trilliondefense/defendrite/releases/tag/app-v1.0.0"><b>Download</b></a> ·
   <a href="#get-started">Get Started </a> ·
   <a href="./SECURITY.md">Security</a>
 </p>
