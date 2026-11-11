@@ -51,7 +51,6 @@
 
 <div class="help-page">
   <header class="page-header">
-    <div class="eyebrow">HELP CENTER</div>
     <h1>Keyboard shortcuts</h1>
     <p>
       Work faster with keyboard shortcuts. Everything you need to navigate your workspace without
@@ -61,7 +60,28 @@
 
   <div class="toolbar">
     <label class="search-box">
-      <span aria-hidden="true">⌕</span>
+      <span aria-hidden="true"
+        ><svg
+          width="12px"
+          height="12px"
+          viewBox="0 0 24 24"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+          ><g id="SVGRepo_bgCarrier" stroke-width="0"></g><g
+            id="SVGRepo_tracerCarrier"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          ></g><g id="SVGRepo_iconCarrier">
+            <path
+              d="M16.6725 16.6412L21 21M19 11C19 15.4183 15.4183 19 11 19C6.58172 19 3 15.4183 3 11C3 6.58172 6.58172 3 11 3C15.4183 3 19 6.58172 19 11Z"
+              stroke="#000000"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            ></path>
+          </g></svg
+        ></span
+      >
       <input
         bind:value={search}
         placeholder="Search shortcuts..."
@@ -143,146 +163,220 @@
     box-sizing: border-box;
   }
 
-  .help-page {
-    width: 100%;
-    margin: 0 auto;
-    padding: 20px 12px 48px;
-    color: #292824;
+  :global(body) {
+    margin: 0;
+    background: #faf9f6;
+    color: #302f2a;
+    font-family:
+      Inter,
+      -apple-system,
+      BlinkMacSystemFont,
+      'Segoe UI',
+      sans-serif;
   }
+
+  :global(button),
+  :global(input) {
+    font: inherit;
+  }
+
+  :global(button) {
+    cursor: pointer;
+  }
+
+  /* Design tokens */
+
+  .help-page {
+    --primary: #34332e;
+    --primary-hover: #34332e;
+    --primary-soft: #f2edfa;
+
+    --line: #eae7df;
+    --muted: #89867e;
+    --ink: #302f2a;
+    --panel: #fffefa;
+    --border-color: #e5e2db;
+
+    width: 100%;
+    max-width: 1440px;
+    margin: 0 auto;
+    padding: 12px 16px 20px;
+    color: var(--ink);
+  }
+
+  /* Header */
 
   .page-header {
-    max-width: 570px;
-    margin-bottom: 32px;
-  }
-
-  .eyebrow {
-    margin-bottom: 12px;
-    color: #b4775c;
-    font-size: 10px;
-    font-weight: 700;
-    letter-spacing: 1.5px;
+    max-width: 600px;
+    margin-bottom: 22px;
   }
 
   h1 {
     margin: 0;
     font-family: Georgia, 'Times New Roman', serif;
-    font-size: clamp(28px, 4vw, 38px);
+    font-size: 34px;
     font-weight: 400;
-    letter-spacing: -1px;
+    letter-spacing: -0.8px;
   }
 
   .page-header p {
     max-width: 510px;
-    margin: 12px 0 0;
-    color: #77746c;
-    font-size: 13px;
-    line-height: 1.8;
+    margin: 8px 0 0;
+    color: var(--muted);
+    font-size: 12px;
+    line-height: 1.7;
   }
+
+  /* Toolbar */
 
   .toolbar {
     display: flex;
     align-items: center;
     justify-content: space-between;
     flex-wrap: wrap;
-    gap: 12px;
-    margin-bottom: 28px;
+    gap: 10px;
+    margin-bottom: 20px;
   }
+
+  /* Search */
 
   .search-box {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 9px;
     flex: 1;
     min-width: 200px;
     max-width: 360px;
-    padding: 10px 12px;
-    border: 1px solid #e5e2db;
-    border-radius: 8px;
-    background: #fffefa;
-    color: #89867d;
+    min-height: 38px;
+    padding: 7px 11px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    background: var(--panel);
+    color: var(--muted);
+    transition: border-color 0.15s ease;
+  }
+
+  .search-box:focus-within {
+    border-color: var(--primary);
   }
 
   .search-box input {
     flex: 1;
     min-width: 0;
     outline: none;
-    border: none;
+    border: 0;
     background: transparent;
-    color: #292824;
+    color: var(--ink);
     font-size: 12px;
   }
 
-  .clear-button {
-    border: 0;
-    background: transparent;
-    color: #77746c;
-    cursor: pointer;
-    font-size: 17px;
+  .search-box input::placeholder {
+    color: #aaa69c;
   }
+
+  .clear-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2px 5px;
+    border: 0;
+    border-radius: 4px;
+    background: transparent;
+    color: var(--muted);
+    cursor: pointer;
+    font-size: 16px;
+  }
+
+  .clear-button:hover {
+    background: #f2f0ea;
+    color: var(--ink);
+  }
+
+  /* Platform switch */
 
   .platform-switch {
     display: flex;
+    align-items: center;
     gap: 3px;
     padding: 3px;
-    border: 1px solid #e5e2db;
-    border-radius: 9px;
+    border: 1px solid var(--border-color);
+    border-radius: 7px;
     background: #f3f1eb;
   }
 
   .platform-switch button {
     display: flex;
     align-items: center;
-    gap: 7px;
-    padding: 8px 11px;
+    gap: 6px;
+    padding: 7px 10px;
     border: 0;
-    border-radius: 6px;
+    border-radius: 5px;
     background: transparent;
-    color: #77746c;
+    color: var(--muted);
     font-size: 11px;
-    cursor: pointer;
+    transition:
+      background 0.15s ease,
+      color 0.15s ease;
+  }
+
+  .platform-switch button:hover:not(.active) {
+    background: #eae7df;
+    color: var(--ink);
   }
 
   .platform-switch button.active {
-    background: #fffefa;
-    color: #302f2a;
+    background: var(--panel);
+    color: var(--primary);
     box-shadow: 0 1px 3px #29282412;
   }
 
+  /* Shortcut groups */
+
   .shortcut-group {
-    margin-bottom: 22px;
+    margin-bottom: 18px;
   }
 
   .shortcut-group h2 {
-    margin: 0 0 9px;
+    margin: 0 0 8px;
     color: #77746c;
     font-size: 11px;
-    font-weight: 650;
+    font-weight: 600;
   }
+
+  /* Shortcut list */
 
   .shortcut-list {
     overflow: hidden;
-    border: 1px solid #e8e5de;
-    border-radius: 9px;
-    background: #fffefa;
+    border: 1px solid var(--line);
+    border-radius: 7px;
+    background: var(--panel);
   }
 
   .shortcut-row {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 16px;
-    min-height: 49px;
-    padding: 11px 14px;
+    gap: 14px;
+    min-height: 42px;
+    padding: 9px 12px;
+    transition: background 0.15s ease;
   }
 
   .shortcut-row + .shortcut-row {
     border-top: 1px solid #efede7;
   }
 
+  .shortcut-row:hover {
+    background: #faf9f6;
+  }
+
   .action {
     color: #393832;
     font-size: 12px;
+    line-height: 1.5;
   }
+
+  /* Keyboard keys */
 
   .keys {
     display: flex;
@@ -297,7 +391,7 @@
     align-items: center;
     justify-content: center;
     min-width: 25px;
-    min-height: 24px;
+    min-height: 23px;
     padding: 3px 7px;
     border: 1px solid #e3e0d8;
     border-bottom-width: 2px;
@@ -314,49 +408,72 @@
     font-size: 10px;
   }
 
+  /* Empty state */
+
   .empty-state {
-    padding: 44px 16px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 32px 16px;
     border: 1px dashed #dedad0;
-    border-radius: 10px;
+    border-radius: 8px;
+    background: var(--panel);
     text-align: center;
   }
 
   .empty-state > span {
-    color: #b4775c;
-    font-size: 28px;
+    color: var(--primary);
+    font-size: 26px;
   }
 
   .empty-state h2 {
-    margin: 10px 0 5px;
-    font-size: 15px;
+    margin: 9px 0 4px;
+    color: var(--ink);
+    font-size: 14px;
+    font-weight: 600;
   }
 
   .empty-state p {
-    color: #77746c;
-    font-size: 12px;
+    margin: 4px 0 12px;
+    color: var(--muted);
+    font-size: 11px;
+    line-height: 1.6;
   }
 
   .empty-state button {
-    padding: 8px 12px;
-    border: 1px solid #e5e2db;
+    padding: 7px 11px;
+    border: 1px solid var(--border-color);
     border-radius: 6px;
-    background: #fffefa;
-    cursor: pointer;
+    background: var(--panel);
+    color: var(--ink);
     font-size: 11px;
+    transition:
+      background 0.15s ease,
+      border-color 0.15s ease;
   }
+
+  .empty-state button:hover {
+    border-color: var(--primary);
+    background: var(--primary-soft);
+    color: var(--primary);
+  }
+
+  /* Help footer */
 
   .help-footer {
     display: flex;
     align-items: flex-start;
-    gap: 13px;
-    margin-top: 30px;
-    padding: 18px;
+    gap: 11px;
+    margin-top: 22px;
+    padding: 13px 15px;
     border: 1px solid #e8e2d6;
-    border-radius: 10px;
+    border-radius: 8px;
     background: #f5f1e8;
   }
 
   .help-footer strong {
+    color: var(--ink);
     font-size: 12px;
     font-weight: 600;
   }
@@ -366,23 +483,63 @@
     align-items: center;
     flex-wrap: wrap;
     gap: 5px;
-    margin: 7px 0 0;
-    color: #77746c;
+    margin: 5px 0 0;
+    color: var(--muted);
     font-size: 11px;
-    line-height: 1.8;
+    line-height: 1.7;
+  }
+  /* 
+  .help-footer a {
+    color: var(--primary);
+    text-decoration: none;
+  }
+
+  .help-footer a:hover {
+    text-decoration: underline;
+  } */
+
+  /* Accessibility */
+
+  :global(button:focus-visible),
+  :global(input:focus-visible) {
+    outline: 2px solid #7653b5;
+    outline-offset: 2px;
+  }
+
+  :global(.search-box:focus-within) {
+    outline: 2px solid #7653b5;
+    outline-offset: 2px;
+  }
+
+  /* Responsive */
+
+  @media (max-width: 760px) {
+    .help-page {
+      padding: 16px 14px 20px;
+    }
   }
 
   @media (max-width: 520px) {
     .help-page {
-      padding-inline: 2px;
+      padding: 12px 12px 18px;
+    }
+
+    .page-header {
+      margin-bottom: 18px;
+    }
+
+    h1 {
+      font-size: 29px;
     }
 
     .toolbar {
       align-items: stretch;
       flex-direction: column;
+      gap: 9px;
     }
 
     .search-box {
+      width: 100%;
       max-width: none;
     }
 
@@ -390,13 +547,41 @@
       align-self: flex-start;
     }
 
+    .shortcut-group {
+      margin-bottom: 15px;
+    }
+
     .shortcut-row {
       gap: 8px;
-      padding-inline: 10px;
+      padding: 9px 10px;
     }
 
     .action {
       font-size: 11px;
+    }
+
+    .keys {
+      gap: 3px;
+    }
+
+    kbd {
+      min-width: 22px;
+      padding: 3px 5px;
+      font-size: 9px;
+    }
+
+    .help-footer {
+      padding: 11px;
+    }
+  }
+
+  /* Reduced motion */
+
+  @media (prefers-reduced-motion: reduce) {
+    :global(*) {
+      scroll-behavior: auto !important;
+      transition: none !important;
+      animation: none !important;
     }
   }
 </style>

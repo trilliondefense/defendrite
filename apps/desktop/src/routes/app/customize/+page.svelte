@@ -83,8 +83,10 @@
       loading = false;
     }
   }
+  let isMac = $state(false);
 
   onMount(() => {
+    isMac = /Mac|iPhone|iPad|iPod/i.test(navigator.platform);
     try {
       theme = (localStorage.getItem('workspace-theme') as Theme) || 'light';
       accentColor = localStorage.getItem('workspace-accent') || '#d78261';
@@ -197,39 +199,33 @@
   }
 </script>
 
-<svelte:head>
-  <title>Customize · Golden Hour</title>
-  <meta name="description" content="Customize your workspace preferences." />
-</svelte:head>
-
 <svelte:window onkeydown={handleKeydown} />
 
 <div class="settings-page">
   <header class="page-header">
     <div>
-      <p class="eyebrow">PREFERENCES</p>
       <h1>Customize</h1>
       <p class="subtitle">Make your workspace feel like yours.</p>
+
+      <p class="keyboard-hint">
+        <kbd>{isMac ? '⌘' : 'Ctrl'} S</kbd> Save preferences
+        <span>·</span>
+        <kbd>Esc</kbd> Unfocus control
+      </p>
     </div>
 
     <div class="header-actions">
       <button class="reset-button" onclick={resetPreferences}>Reset</button>
       <button class="save-button" onclick={savePreferences}>
         {saved ? '✓ Saved' : 'Save changes'}
-        <kbd>⌘ S</kbd>
+        <kbd>{isMac ? '⌘' : 'Ctrl'} S</kbd>
       </button>
     </div>
   </header>
 
   <div class="settings-layout">
-    <nav class="settings-nav" aria-label="Settings sections">
-      <a href="#appearance" class="nav-item active"><span>◐</span> Appearance</a>
-      <a href="#behavior" class="nav-item"><span>⌘</span> Behavior</a>
-      <a href="#workspace" class="nav-item"><span>▦</span> Workspace</a>
-    </nav>
-
     <main class="settings-content">
-      <section id="appearance" class="settings-section">
+      <!-- <section id="appearance" class="settings-section">
         <div class="section-heading">
           <h2>Appearance</h2>
           <p>Adjust how your workspace looks.</p>
@@ -311,9 +307,9 @@
             <span></span>
           </button>
         </div>
-      </section>
+      </section> -->
 
-      <section id="behavior" class="settings-section">
+      <!-- <section id="behavior" class="settings-section">
         <div class="section-heading">
           <h2>Behavior</h2>
           <p>Configure how the application responds.</p>
@@ -354,7 +350,7 @@
             <span></span>
           </button>
         </div>
-      </section>
+      </section> -->
 
       <section id="workspace" class="settings-section">
         <div class="section-heading">
@@ -460,40 +456,15 @@
           {/if}
         </div>
 
-        <!-- App Preferences Toggle Row -->
-        <div class="setting-row">
-          <div class="setting-copy">
-            <h3>Launch at startup</h3>
-            <p>Remember this preference for launching the application at login.</p>
-          </div>
-
-          <button
-            class="toggle"
-            class:enabled={launchAtStartup}
-            role="switch"
-            aria-checked={launchAtStartup}
-            aria-label="Launch at startup"
-            onclick={() => (launchAtStartup = !launchAtStartup)}
-          >
-            <span></span>
-          </button>
-        </div>
-
         <!-- About System Meta Row -->
         <div class="setting-row about-row">
           <div class="setting-copy">
-            <h3>Golden Hour Workspace</h3>
-            <p>Desktop workspace · Local engine</p>
+            <h3>Defendrite Workspace</h3>
+            <p>Desktop workspace · Local Agent</p>
           </div>
           <span class="version">Preferences v1</span>
         </div>
       </section>
-
-      <p class="keyboard-hint">
-        <kbd>⌘ S</kbd> Save preferences
-        <span>·</span>
-        <kbd>Esc</kbd> Unfocus control
-      </p>
     </main>
   </div>
 </div>
@@ -503,140 +474,60 @@
     box-sizing: border-box;
   }
 
+  :global(body) {
+    margin: 0;
+    background: #faf9f6;
+    color: #302f2a;
+    font-family:
+      Inter,
+      -apple-system,
+      BlinkMacSystemFont,
+      'Segoe UI',
+      sans-serif;
+  }
+
+  :global(button),
+  :global(input),
+  :global(textarea) {
+    font: inherit;
+  }
+
+  :global(button) {
+    cursor: pointer;
+  }
+
+  /* Shared design tokens */
+
   .settings-page {
+    --primary: #34332e;
+    --primary-hover: #34332e;
+    --primary-soft: #f2edfa;
+
     --line: #eae7df;
     --muted: #89867e;
     --ink: #302f2a;
-    --panel: #fff;
+    --panel: #fffefa;
+
+    --border-color: #e5e2db;
+    --accent-color: var(--primary);
+
+    width: 100%;
+    max-width: 1440px;
     min-height: 100%;
     margin: 0 auto;
-    padding: 42px 36px 28px;
+    padding: 12px 16px 20px;
     color: var(--ink);
   }
+
+  /* Header */
 
   .page-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    gap: 20px;
-    padding-bottom: 28px;
+    gap: 12px;
+    padding-bottom: 10px;
     border-bottom: 1px solid var(--line);
-  }
-
-  .eyebrow {
-    margin: 0 0 10px;
-    color: var(--workspace-accent, #d78261);
-    font-size: 10px;
-    font-weight: 600;
-    letter-spacing: 0.13em;
-  }
-
-  .mcp-config {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    width: 100%;
-  }
-
-  .mcp-config-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-  }
-
-  .mcp-config-title {
-    font-size: 14px;
-    font-weight: 600;
-  }
-
-  .mcp-config-actions {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-
-  .mcp-config-edit,
-  .mcp-config-cancel,
-  .mcp-config-save {
-    padding: 6px 12px;
-    border: 1px solid var(--border-color, #444);
-    border-radius: 6px;
-    background: transparent;
-    color: inherit;
-    font-size: 13px;
-    cursor: pointer;
-  }
-
-  .mcp-config-edit:hover,
-  .mcp-config-cancel:hover {
-    background: rgba(128, 128, 128, 0.12);
-  }
-
-  .mcp-config-save {
-    min-width: 36px;
-    background: var(--accent-color, #3b82f6);
-    border-color: var(--accent-color, #3b82f6);
-    color: white;
-  }
-
-  .mcp-config-save:hover {
-    opacity: 0.85;
-  }
-
-  .mcp-config-edit:disabled,
-  .mcp-config-cancel:disabled,
-  .mcp-config-save:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-
-  .mcp-config-editor,
-  .mcp-config-preview {
-    width: 100%;
-    min-height: 300px;
-    max-height: 600px;
-    box-sizing: border-box;
-    padding: 14px;
-    border: 1px solid var(--border-color, #444);
-    border-radius: 8px;
-    background: var(--editor-bg, #171717);
-    color: var(--editor-text, #d4d4d4);
-    font-family: 'JetBrains Mono', 'Fira Code', monospace;
-    font-size: 13px;
-    line-height: 1.6;
-    overflow: auto;
-    white-space: pre;
-    tab-size: 2;
-  }
-
-  .mcp-config-editor {
-    resize: vertical;
-    outline: none;
-  }
-
-  .mcp-config-editor:focus {
-    border-color: var(--accent-color, #3b82f6);
-  }
-
-  .mcp-config-preview {
-    margin: 0;
-  }
-
-  .mcp-config-loading {
-    padding: 20px;
-    text-align: center;
-    color: var(--text-secondary, #999);
-    font-size: 13px;
-  }
-
-  .mcp-config-error {
-    margin: 0;
-    padding: 10px 12px;
-    border-radius: 6px;
-    background: rgba(220, 38, 38, 0.1);
-    color: #ef4444;
-    font-size: 13px;
   }
 
   h1 {
@@ -648,43 +539,57 @@
   }
 
   .subtitle {
-    margin: 10px 0 0;
+    margin: 7px 0 0;
     color: var(--muted);
     font-size: 12px;
+    line-height: 1.6;
   }
 
   .header-actions {
     display: flex;
-    gap: 9px;
     align-items: center;
+    gap: 8px;
   }
+
+  /* Buttons */
 
   button {
     font: inherit;
     cursor: pointer;
   }
 
+  button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
   .save-button,
   .reset-button {
     display: flex;
     align-items: center;
-    gap: 12px;
-    padding: 10px 12px;
+    gap: 9px;
+    padding: 8px 11px;
     border: 1px solid var(--line);
-    border-radius: 7px;
+    border-radius: 6px;
     background: var(--panel);
     color: var(--ink);
     font-size: 11px;
+    transition: background 0.15s ease;
   }
 
   .save-button {
-    border-color: #302f2a;
-    background: #302f2a;
-    color: white;
+    border-color: var(--primary);
+    background: var(--primary);
+    color: #fff;
   }
 
   .save-button:hover {
-    background: #48463f;
+    border-color: var(--primary-hover);
+    background: var(--primary-hover);
+  }
+
+  .reset-button:hover {
+    background: #f4f2ec;
   }
 
   kbd {
@@ -692,62 +597,26 @@
     border: 1px solid #e5e2db;
     border-radius: 4px;
     background: #f8f7f3;
-    color: #89867e;
+    color: var(--muted);
     font-family: inherit;
     font-size: 9px;
   }
 
   .save-button kbd {
-    border-color: #5c5a52;
-    background: #45433d;
-    color: #e5e2db;
+    border-color: #9479c2;
+    background: #68469f;
+    color: #fff;
   }
 
-  .settings-layout {
-    display: grid;
-    grid-template-columns: 175px minmax(0, 1fr);
-    gap: 40px;
-    padding-top: 28px;
-  }
-
-  .settings-nav {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    align-self: start;
-    position: sticky;
-    top: 20px;
-  }
-
-  .nav-item {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 10px;
-    border-radius: 7px;
-    color: #77746d;
-    font-size: 11px;
-    text-decoration: none;
-  }
-
-  .nav-item span {
-    width: 16px;
-    text-align: center;
-    font-size: 15px;
-  }
-
-  .nav-item:hover,
-  .nav-item.active {
-    background: #f0eee8;
-    color: var(--ink);
-  }
+  /* Settings content */
 
   .settings-content {
     min-width: 0;
+    padding: 12px 4px;
   }
 
   .settings-section {
-    margin-bottom: 32px;
+    margin-bottom: 26px;
     scroll-margin-top: 20px;
   }
 
@@ -762,18 +631,21 @@
   }
 
   .section-heading p {
-    margin: 7px 0 0;
+    margin: 6px 0 0;
     color: var(--muted);
     font-size: 11px;
+    line-height: 1.6;
   }
+
+  /* Setting rows */
 
   .setting-row {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    gap: 20px;
-    min-height: 82px;
-    padding: 15px 0;
+    gap: 16px;
+    min-height: 68px;
+    padding: 11px 0;
     border-bottom: 1px solid var(--line);
   }
 
@@ -783,17 +655,20 @@
 
   .setting-copy h3 {
     margin: 0;
-    font-size: 11px;
+    color: var(--ink);
+    font-size: 12px;
     font-weight: 550;
   }
 
   .setting-copy p {
-    margin: 6px 0 0;
+    margin: 5px 0 0;
     color: var(--muted);
     font-size: 10px;
     line-height: 1.6;
   }
 
+  /* Theme options */
+  /* 
   .theme-options {
     display: flex;
     gap: 7px;
@@ -814,9 +689,9 @@
   }
 
   .theme-option.selected {
-    border-color: #d8c7b9;
-    background: #fbf4ee;
-    color: var(--ink);
+    border-color: #d9c9ed;
+    background: var(--primary-soft);
+    color: var(--primary);
   }
 
   .theme-preview {
@@ -824,7 +699,7 @@
     width: 34px;
     height: 25px;
     place-items: center;
-    border: 1px solid #e5e2db;
+    border: 1px solid var(--line);
     border-radius: 5px;
     background: #fbfaf7;
     color: #77746d;
@@ -839,11 +714,14 @@
 
   .system-preview {
     background: linear-gradient(90deg, #fbfaf7 50%, #34342f 50%);
-  }
+  } */
 
+  /* Accent options */
+  /* 
   .accent-options {
     display: flex;
-    gap: 9px;
+    align-items: center;
+    gap: 10px;
   }
 
   .accent-swatch {
@@ -861,8 +739,10 @@
   .accent-swatch.chosen {
     outline: 2px solid var(--swatch);
     outline-offset: 3px;
-  }
+  } */
 
+  /* Toggle */
+  /* 
   .toggle {
     position: relative;
     flex-shrink: 0;
@@ -886,12 +766,14 @@
   }
 
   .toggle.enabled {
-    background: var(--workspace-accent, #d78261);
+    background: var(--primary);
   }
 
   .toggle.enabled span {
     transform: translateX(14px);
-  }
+  } */
+
+  /* Version */
 
   .version {
     flex-shrink: 0;
@@ -899,18 +781,142 @@
     font-size: 10px;
   }
 
+  /* MCP configuration */
+
+  .mcp-config {
+    display: flex;
+    flex-direction: column;
+    gap: 11px;
+    width: 100%;
+  }
+
+  .mcp-config-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .mcp-config-title {
+    font-size: 14px;
+    font-weight: 600;
+  }
+
+  .mcp-config-actions {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+  }
+
+  .mcp-config-edit,
+  .mcp-config-cancel,
+  .mcp-config-save {
+    padding: 6px 11px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    background: var(--panel);
+    color: var(--ink);
+    font-size: 11px;
+    cursor: pointer;
+  }
+
+  .mcp-config-edit:hover,
+  .mcp-config-cancel:hover {
+    background: #f4f2ec;
+  }
+
+  .mcp-config-save {
+    min-width: 36px;
+    border-color: var(--primary);
+    background: var(--primary);
+    color: white;
+  }
+
+  .mcp-config-save:hover {
+    border-color: var(--primary-hover);
+    background: var(--primary-hover);
+  }
+
+  .mcp-config-edit:disabled,
+  .mcp-config-cancel:disabled,
+  .mcp-config-save:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .mcp-config-editor,
+  .mcp-config-preview {
+    width: 100%;
+    min-height: 260px;
+    max-height: 500px;
+    box-sizing: border-box;
+    padding: 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 7px;
+    background: #202020;
+    color: #d4d4d4;
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    font-size: 12px;
+    line-height: 1.6;
+    overflow: auto;
+    white-space: pre;
+    tab-size: 2;
+  }
+
+  .mcp-config-editor {
+    resize: vertical;
+    outline: none;
+  }
+
+  .mcp-config-editor:focus {
+    border-color: var(--primary);
+  }
+
+  .mcp-config-preview {
+    margin: 0;
+  }
+
+  .mcp-config-loading {
+    padding: 18px;
+    text-align: center;
+    color: var(--muted);
+    font-size: 12px;
+  }
+
+  .mcp-config-error {
+    margin: 0;
+    padding: 9px 11px;
+    border-radius: 6px;
+    background: #fbefed;
+    color: #b44c42;
+    font-size: 12px;
+  }
+
+  /* Keyboard hint */
+
   .keyboard-hint {
     display: flex;
     align-items: center;
-    gap: 9px;
-    margin-top: 24px;
+    gap: 8px;
+    margin-top: 18px;
     color: var(--muted);
     font-size: 10px;
   }
 
+  /* Accessibility */
+
+  :global(button:focus-visible),
+  :global(input:focus-visible),
+  :global(textarea:focus-visible) {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+  }
+
+  /* Responsive */
+
   @media (max-width: 760px) {
     .settings-page {
-      padding: 28px 18px;
+      padding: 18px 14px;
     }
 
     .page-header {
@@ -919,33 +925,53 @@
 
     .settings-layout {
       grid-template-columns: 1fr;
-      gap: 18px;
-    }
-
-    .settings-nav {
-      position: static;
-      flex-direction: row;
-      flex-wrap: wrap;
+      gap: 14px;
     }
 
     .setting-row {
       align-items: flex-start;
       flex-wrap: wrap;
+      gap: 10px;
     }
   }
 
   @media (max-width: 480px) {
     .page-header {
       flex-direction: column;
+      gap: 12px;
     }
 
     .header-actions {
       width: 100%;
     }
 
+    .header-actions button {
+      flex: 1;
+      justify-content: center;
+    }
+
+    .mcp-config-header {
+      align-items: flex-start;
+    }
+
+    .mcp-config-editor,
+    .mcp-config-preview {
+      min-height: 220px;
+    }
+    /* 
     .theme-options {
       width: 100%;
       justify-content: space-between;
+    } */
+  }
+
+  /* Reduced motion */
+
+  @media (prefers-reduced-motion: reduce) {
+    :global(*) {
+      scroll-behavior: auto !important;
+      transition: none !important;
+      animation: none !important;
     }
   }
 </style>
