@@ -9,6 +9,8 @@ use serde::Deserialize;
 use std::fs;
 use std::path::Path;
 use uuid::Uuid;
+use typst::foundations::{Dict, Str, Value};
+use typst_as_lib::TypstEngine;
 
 #[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct GenerateReportArgs {
@@ -185,6 +187,16 @@ pub struct ImageBase64Args {
 struct FilesystemHandler;
 #[tool_router(server_handler)]
 impl FilesystemHandler {
+    #[tool(
+        description = "Generate a professional investigation report in PDF format. Provide case ID, title, status, executive summary, findings and recommendations. Separate multiple findings and recommendations using new lines."
+    )]
+    fn generate_report(
+        &self,
+        Parameters(args): Parameters<GenerateReportArgs>,
+    ) -> Result<String, String> {
+
+        generate_report_pdf(args)
+    }
     #[tool(description = "Extracts a local ZIP archive into a target destination directory.")]
     fn unzip_file(&self, Parameters(args): Parameters<UnzipArgs>) -> Result<String, String> {
         let log_path = "/tmp/filesystem-mcp.log";
