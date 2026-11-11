@@ -1,158 +1,174 @@
 <script lang="ts">
-  type CaseStatus = 'Active' | 'Review' | 'Closed';
+  import { onMount } from 'svelte';
+  import { invoke } from '@tauri-apps/api/core';
+  import { openPath } from '@tauri-apps/plugin-opener';
 
-  type ForensicCase = {
-    id: string;
-    title: string;
-    reference: string;
-    type: string;
-    investigator: string;
-    status: CaseStatus;
-    evidence: number;
-    createdAt: string;
-  };
+  interface Report {
+    case_id: string;
+    file_name: string;
+    title: string | null;
+    file_path: string;
+    file_size: number;
+    created_at: number;
+    modified_at: number;
+  }
 
-  let cases = $state<ForensicCase[]>([
-    {
-      id: '1',
-      title: 'Corporate Data Exfiltration',
-      reference: 'DF-2026-001',
-      type: 'Incident Response',
-      investigator: 'A. Mitchell',
-      status: 'Active',
-      evidence: 24,
-      createdAt: '2026-10-18',
-    },
-    {
-      id: '2',
-      title: 'Mobile Device Examination',
-      reference: 'DF-2026-002',
-      type: 'Mobile Forensics',
-      investigator: 'J. Parker',
-      status: 'Review',
-      evidence: 12,
-      createdAt: '2026-10-16',
-    },
-    {
-      id: '3',
-      title: 'Unauthorized System Access',
-      reference: 'DF-2026-003',
-      type: 'Computer Forensics',
-      investigator: 'S. Morgan',
-      status: 'Active',
-      evidence: 8,
-      createdAt: '2026-10-14',
-    },
-  ]);
+  let reports = $state<Report[]>([]);
+  let isLoading = $state(true);
+  let error = $state('');
 
   let search = $state('');
-  let statusFilter = $state('All');
-  let showCreateForm = $state(false);
+  let dateFilter = $state('all');
+  let sortBy = $state('modified');
+  let currentPage = $state(1);
 
-  let title = $state('');
-  let type = $state('Computer Forensics');
-  let investigator = $state('');
+  const pageSize = 8;
 
-  let filteredCases = $derived(
-    cases.filter((item) => {
-      const query = search.toLowerCase();
+  onMount(() => {
+    loadReports();
+  });
 
-      const matchesSearch = `${item.title} ${item.reference} ${item.investigator} ${item.type}`
-        .toLowerCase()
-        .includes(query);
+  async function loadReports() {
+    isLoading = true;
+    error = '';
 
-      const matchesStatus = statusFilter === 'All' || item.status === statusFilter;
+    try {
+      reports = await invoke<Report[]>('get_all_reports');
+    } catch (err) {
+      console.error('Failed to load reports:', err);
+      error = `Could not load reports: ${err}`;
+    } finally {
+      isLoading = false;
+    }
+  }
 
-      return matchesSearch && matchesStatus;
-    })
+  async function openReport(report: Report) {
+    try {
+      await openPath(report.file_path);
+    } catch (err) {
+      consoleLogTerminal(`Failed to open report ${err}`);
+      console.error('Failed to open report:', err);
+      alert(`Could not open report: ${err}`);
+    }
+  }
+
+  function formatDate(timestamp: number): string {
+    if (!timestamp) return 'Unknown';
+
+    return new Intl.DateTimeFormat(undefined, {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    }).format(new Date(timestamp * 1000));
+  }
+
+  async function consoleLogTerminal(message: String) {
+    await invoke('log_to_terminal', {
+      message,
+    });
+  }
+
+  function formatFileSize(bytes: number): string {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  }
+
+  let filteredReports = $derived.by(() => {
+    const query = search.trim().toLowerCase();
+
+    let result = reports.filter((report) => {
+      const matchesSearch =
+        !query ||
+        report.file_name.toLowerCase().includes(query) ||
+        report.case_id.toLowerCase().includes(query) ||
+        (report.title?.toLowerCase().includes(query) ?? false);
+
+      const reportDate = new Date(report.created_at * 1000);
+      const now = new Date();
+
+      const matchesDate =
+        dateFilter === 'all' ||
+        (dateFilter === '7days' && reportDate >= new Date(now.getTime() - 7 * 86400000)) ||
+        (dateFilter === '30days' && reportDate >= new Date(now.getTime() - 30 * 86400000));
+
+      return matchesSearch && matchesDate;
+    });
+
+    result = [...result].sort((a, b) => {
+      if (sortBy === 'created') {
+        return b.created_at - a.created_at;
+      }
+
+      if (sortBy === 'name') {
+        return a.file_name.localeCompare(b.file_name);
+      }
+
+      return b.modified_at - a.modified_at;
+    });
+
+    return result;
+  });
+
+  let totalPages = $derived(Math.max(1, Math.ceil(filteredReports.length / pageSize)));
+
+  let paginatedReports = $derived(
+    filteredReports.slice((currentPage - 1) * pageSize, currentPage * pageSize)
   );
 
-  let activeCases = $derived(cases.filter((item) => item.status === 'Active').length);
+  let totalSize = $derived(reports.reduce((total, report) => total + report.file_size, 0));
 
-  let reviewCases = $derived(cases.filter((item) => item.status === 'Review').length);
+  let totalSizeFormatted = $derived(formatFileSize(totalSize));
 
-  let evidenceCount = $derived(cases.reduce((total, item) => total + item.evidence, 0));
-
-  function createCase() {
-    if (!title.trim() || !investigator.trim()) return;
-
-    const number =
-      Math.max(
-        0,
-        ...cases.map((item) => {
-          const match = item.reference.match(/DF-\d+-(\d+)/);
-          return match ? Number(match[1]) : 0;
-        })
-      ) + 1;
-
-    cases = [
-      {
-        id: crypto.randomUUID(),
-        title: title.trim(),
-        reference: `DF-2026-${String(number).padStart(3, '0')}`,
-        type,
-        investigator: investigator.trim(),
-        status: 'Active',
-        evidence: 0,
-        createdAt: new Date().toISOString().slice(0, 10),
-      },
-      ...cases,
-    ];
-
-    title = '';
-    investigator = '';
-    showCreateForm = false;
-  }
+  $effect(() => {
+    search;
+    dateFilter;
+    sortBy;
+    currentPage = 1;
+  });
 </script>
-
-<svelte:head>
-  <title>Reports | Forensic Workspace</title>
-</svelte:head>
 
 <div class="reports-page">
   <header class="page-header">
-    <div class="eyebrow">FORENSIC WORKSPACE</div>
     <h1>Reports</h1>
-    <p>Review, organize, and export reports generated from your forensic investigations.</p>
+    <p>Browse, search, and access reports generated from your forensic investigations.</p>
   </header>
 
   <div class="toolbar">
     <label class="search-box">
       <span>⌕</span>
-      <input type="search" placeholder="Search reports..." aria-label="Search reports" />
+      <input
+        type="search"
+        placeholder="Search by report name or case ID..."
+        aria-label="Search reports"
+        bind:value={search}
+      />
     </label>
 
-    <button class="primary-button">+ New report</button>
+    <button class="filter-button" onclick={loadReports} disabled={isLoading}> ↻ Refresh </button>
   </div>
-
-  <section class="overview">
-    <div class="stat-card">
-      <span>Total reports</span>
-      <strong>24</strong>
-      <small>Across all investigations</small>
-    </div>
-
-    <div class="stat-card">
-      <span>Completed</span>
-      <strong>18</strong>
-      <small>Ready for export</small>
-    </div>
-
-    <div class="stat-card">
-      <span>In progress</span>
-      <strong>6</strong>
-      <small>Awaiting review</small>
-    </div>
-  </section>
 
   <section class="report-section">
     <div class="section-header">
       <div>
         <h2>All reports</h2>
-        <p>Reports from your forensic cases</p>
+        <p>Reports from your forensic investigations</p>
       </div>
 
-      <button class="filter-button">All reports⌄</button>
+      <div class="filters">
+        <select bind:value={dateFilter} aria-label="Filter by date">
+          <option value="all">All dates</option>
+          <option value="7days">Last 7 days</option>
+          <option value="30days">Last 30 days</option>
+        </select>
+
+        <select bind:value={sortBy} aria-label="Sort reports">
+          <option value="modified">Recently modified</option>
+          <option value="created">Recently created</option>
+          <option value="name">Name</option>
+        </select>
+      </div>
     </div>
 
     <div class="report-list">
@@ -160,97 +176,89 @@
         <span>Report</span>
         <span>Case ID</span>
         <span>Last modified</span>
-        <span>Status</span>
+        <span>File size</span>
         <span></span>
       </div>
 
-      <div class="report-row">
-        <div class="report-name">
-          <div class="file-icon">PDF</div>
-          <div>
-            <strong>Device Acquisition Summary</strong>
-            <small>Mobile device examination</small>
-          </div>
+      {#if isLoading}
+        <div class="empty-state">Loading reports...</div>
+      {:else if error}
+        <div class="empty-state error-state">
+          <p>{error}</p>
+          <button class="filter-button" onclick={loadReports}> Try again </button>
         </div>
-        <span class="case-id">CASE-024</span>
-        <span class="date">Oct 23, 2026</span>
-        <span class="status completed">Completed</span>
-        <button class="more-button" aria-label="Report options">···</button>
-      </div>
+      {:else if filteredReports.length === 0}
+        <div class="empty-state">
+          <strong>
+            {search ? 'No matching reports' : 'No reports found'}
+          </strong>
+          <p>
+            {search
+              ? 'Try changing your search or filters.'
+              : 'Generated PDF reports will appear here.'}
+          </p>
+        </div>
+      {:else}
+        {#each paginatedReports as report (report.file_path)}
+          <div
+            class="report-row clickable-row"
+            role="button"
+            tabindex="0"
+            onclick={() => openReport(report)}
+            onkeydown={(event) => {
+              if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                openReport(report);
+              }
+            }}
+            title="Open PDF report"
+          >
+            <div class="report-name">
+              <div class="file-icon">PDF</div>
+              <div>
+                <strong>{report.title || report.file_name}</strong>
+                <small>{report.file_name}</small>
+              </div>
+            </div>
 
-      <div class="report-row">
-        <div class="report-name">
-          <div class="file-icon">DOC</div>
-          <div>
-            <strong>Evidence Analysis Report</strong>
-            <small>File system investigation</small>
-          </div>
-        </div>
-        <span class="case-id">CASE-023</span>
-        <span class="date">Oct 22, 2026</span>
-        <span class="status progress">In progress</span>
-        <button class="more-button" aria-label="Report options">···</button>
-      </div>
+            <span class="case-id">{report.case_id}</span>
 
-      <div class="report-row">
-        <div class="report-name">
-          <div class="file-icon">PDF</div>
-          <div>
-            <strong>Timeline Reconstruction</strong>
-            <small>Activity and event analysis</small>
-          </div>
-        </div>
-        <span class="case-id">CASE-021</span>
-        <span class="date">Oct 20, 2026</span>
-        <span class="status completed">Completed</span>
-        <button class="more-button" aria-label="Report options">···</button>
-      </div>
+            <span class="date">
+              {formatDate(report.modified_at)}
+            </span>
 
-      <div class="report-row">
-        <div class="report-name">
-          <div class="file-icon">DOC</div>
-          <div>
-            <strong>Evidence Integrity Report</strong>
-            <small>Hash verification and validation</small>
-          </div>
-        </div>
-        <span class="case-id">CASE-019</span>
-        <span class="date">Oct 18, 2026</span>
-        <span class="status draft">Draft</span>
-        <button class="more-button" aria-label="Report options">···</button>
-      </div>
+            <span class="date">
+              {formatFileSize(report.file_size)}
+            </span>
 
-      <div class="report-row">
-        <div class="report-name">
-          <div class="file-icon">PDF</div>
-          <div>
-            <strong>Investigation Findings</strong>
-            <small>Digital evidence examination</small>
+            <span class="open-indicator">↗</span>
           </div>
-        </div>
-        <span class="case-id">CASE-017</span>
-        <span class="date">Oct 16, 2026</span>
-        <span class="status completed">Completed</span>
-        <button class="more-button" aria-label="Report options">···</button>
-      </div>
+        {/each}
+      {/if}
     </div>
 
     <footer class="list-footer">
-      <span>Showing 5 of 24 reports</span>
+      <span>
+        Showing
+        {filteredReports.length === 0 ? 0 : (currentPage - 1) * pageSize + 1}
+        –
+        {Math.min(currentPage * pageSize, filteredReports.length)}
+        of {filteredReports.length} reports
+      </span>
+
       <div class="pagination">
-        <button disabled>Previous</button>
-        <button class="current-page">1</button>
-        <button>2</button>
-        <button>3</button>
-        <button>Next</button>
+        <button disabled={currentPage === 1} onclick={() => currentPage--}> Previous </button>
+
+        {#each Array.from({ length: totalPages }, (_, i) => i + 1) as page}
+          <button class:current-page={currentPage === page} onclick={() => (currentPage = page)}>
+            {page}
+          </button>
+        {/each}
+
+        <button disabled={currentPage >= totalPages} onclick={() => currentPage++}> Next </button>
       </div>
     </footer>
   </section>
-
-  <footer class="page-footer">
-    <span>Forensic Workspace</span>
-    <span>Reports are stored locally in your workspace.</span>
-  </footer>
 </div>
 
 <style>
@@ -280,14 +288,6 @@
     margin-bottom: 28px;
   }
 
-  .eyebrow {
-    margin-bottom: 10px;
-    color: #b4775c;
-    font-size: 10px;
-    font-weight: 700;
-    letter-spacing: 1.5px;
-  }
-
   h1 {
     margin: 0;
     font-family: Georgia, 'Times New Roman', serif;
@@ -308,6 +308,8 @@
     margin: 10px 0 0;
   }
 
+  /* Toolbar */
+
   .toolbar {
     display: flex;
     align-items: center;
@@ -320,13 +322,22 @@
     display: flex;
     align-items: center;
     gap: 10px;
-    width: 340px;
+    width: 380px;
     max-width: 100%;
     padding: 10px 12px;
     border: 1px solid #e5e2db;
     border-radius: 7px;
     background: #fffefa;
     color: #89867d;
+    transition: border-color 0.2s;
+  }
+
+  .search-box:focus-within {
+    border-color: #b4775c;
+  }
+
+  .search-box span {
+    font-size: 18px;
   }
 
   .search-box input {
@@ -339,51 +350,35 @@
     font-size: 12px;
   }
 
-  button {
+  button,
+  select {
     font: inherit;
     cursor: pointer;
   }
 
-  .primary-button {
-    padding: 10px 14px;
-    border: 1px solid #34332e;
-    border-radius: 7px;
-    background: #34332e;
-    color: #fffefa;
-    font-size: 12px;
-    white-space: nowrap;
-  }
-
-  .overview {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 14px;
-    margin-bottom: 32px;
-  }
-
-  .stat-card {
-    display: flex;
-    flex-direction: column;
-    gap: 9px;
-    padding: 18px;
-    border: 1px solid #e8e5de;
-    border-radius: 9px;
+  .filter-button {
+    padding: 9px 12px;
+    border: 1px solid #e5e2db;
+    border-radius: 6px;
     background: #fffefa;
-  }
-
-  .stat-card > span {
-    color: #77746c;
-    font-size: 12px;
-  }
-
-  .stat-card strong {
-    font-size: 27px;
-    font-weight: 500;
-  }
-
-  .stat-card small {
-    color: #969187;
+    color: #555249;
     font-size: 11px;
+    transition: background 0.2s;
+  }
+
+  .filter-button:hover {
+    background: #f3f1eb;
+  }
+
+  .filter-button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  /* Report section */
+
+  .report-section {
+    width: 100%;
   }
 
   .section-header {
@@ -405,14 +400,27 @@
     font-size: 12px;
   }
 
-  .filter-button {
+  .filters {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .filters select {
     padding: 8px 11px;
     border: 1px solid #e5e2db;
     border-radius: 6px;
+    outline: none;
     background: #fffefa;
     color: #555249;
     font-size: 11px;
   }
+
+  .filters select:focus {
+    border-color: #b4775c;
+  }
+
+  /* Report list */
 
   .report-list {
     overflow-x: auto;
@@ -424,8 +432,11 @@
   .report-row {
     display: grid;
     grid-template-columns:
-      minmax(230px, 2fr) minmax(100px, 0.8fr)
-      minmax(115px, 1fr) minmax(100px, 0.8fr) 28px;
+      minmax(230px, 2fr)
+      minmax(100px, 0.8fr)
+      minmax(115px, 1fr)
+      minmax(85px, 0.7fr)
+      28px;
     align-items: center;
     gap: 14px;
     min-width: 760px;
@@ -443,6 +454,20 @@
     color: #858177;
     font-size: 10px;
     font-weight: 600;
+  }
+
+  .clickable-row {
+    cursor: pointer;
+    transition: background 0.15s ease;
+  }
+
+  .clickable-row:hover {
+    background: #f9f7f1;
+  }
+
+  .clickable-row:focus-visible {
+    outline: 2px solid #b4775c;
+    outline-offset: -2px;
   }
 
   .report-name {
@@ -479,9 +504,12 @@
 
   .report-name small {
     display: block;
+    overflow: hidden;
     margin-top: 5px;
     color: #89867d;
     font-size: 10px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .case-id,
@@ -490,35 +518,52 @@
     font-size: 11px;
   }
 
-  .status {
-    justify-self: start;
-    padding: 5px 8px;
-    border-radius: 5px;
-    font-size: 10px;
-    white-space: nowrap;
+  .open-indicator {
+    color: #aaa397;
+    font-size: 15px;
+    text-align: center;
+    transition: color 0.2s;
   }
 
-  .completed {
-    background: #edf3eb;
-    color: #54744f;
+  .clickable-row:hover .open-indicator {
+    color: #b4775c;
   }
 
-  .progress {
-    background: #f8f0df;
-    color: #97743a;
+  /* Empty and loading states */
+
+  .empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 180px;
+    padding: 30px 20px;
+    color: #89867d;
+    font-size: 12px;
+    text-align: center;
   }
 
-  .draft {
-    background: #efeee9;
-    color: #77746c;
+  .empty-state strong {
+    margin-bottom: 7px;
+    color: #393832;
+    font-size: 13px;
+    font-weight: 600;
   }
 
-  .more-button {
-    border: 0;
-    background: transparent;
-    color: #77746c;
-    font-size: 19px;
+  .empty-state p {
+    margin: 0 0 12px;
+    line-height: 1.6;
   }
+
+  .error-state {
+    color: #a34f42;
+  }
+
+  .error-state p {
+    max-width: 450px;
+  }
+
+  /* Footer and pagination */
 
   .list-footer {
     display: flex;
@@ -532,16 +577,23 @@
 
   .pagination {
     display: flex;
+    flex-wrap: wrap;
     gap: 5px;
   }
 
   .pagination button {
+    min-width: 30px;
     padding: 7px 9px;
     border: 1px solid #e5e2db;
     border-radius: 5px;
     background: #fffefa;
     color: #69665e;
     font-size: 10px;
+    transition: background 0.15s;
+  }
+
+  .pagination button:hover:not(:disabled):not(.current-page) {
+    background: #f3f1eb;
   }
 
   .pagination button:disabled {
@@ -555,29 +607,26 @@
     color: white;
   }
 
-  .page-footer {
-    display: flex;
-    justify-content: space-between;
-    gap: 12px;
-    margin-top: 36px;
-    padding-top: 16px;
-    border-top: 1px solid #e8e5de;
-    color: #89867d;
-    font-size: 10px;
+  /* Responsive */
+
+  @media (max-width: 800px) {
+    .report-row {
+      min-width: 700px;
+    }
+
+    .section-header {
+      align-items: flex-start;
+      flex-direction: column;
+    }
+
+    .filters {
+      width: 100%;
+    }
   }
 
   @media (max-width: 650px) {
     .reports-page {
       padding: 24px 16px;
-    }
-
-    .overview {
-      grid-template-columns: 1fr;
-      gap: 10px;
-    }
-
-    .stat-card {
-      padding: 14px;
     }
 
     .toolbar {
@@ -589,14 +638,26 @@
       width: 100%;
     }
 
-    .primary-button {
+    .toolbar .filter-button {
       align-self: flex-start;
     }
 
-    .list-footer,
-    .page-footer {
+    .filters {
+      align-items: stretch;
+      flex-direction: column;
+    }
+
+    .filters select {
+      width: 100%;
+    }
+
+    .list-footer {
       align-items: flex-start;
       flex-direction: column;
+    }
+
+    .pagination {
+      width: 100%;
     }
   }
 </style>

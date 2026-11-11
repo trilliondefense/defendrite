@@ -8,6 +8,15 @@
     "opener:default",
     "store:default",
     "dialog:allow-open",
-    "fs:allow-stat"
+    "opener:allow-open-path",
+    "fs:allow-stat",
+    {
+      "identifier": "opener:allow-open-path",
+      "allow": [
+        {
+          "path": "$APPDATA/reports/**"
+        }
+      ]
+    }
   ]
 }

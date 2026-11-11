@@ -8,9 +8,9 @@ use rmcp::{
 use serde::Deserialize;
 use std::fs;
 use std::path::Path;
-use uuid::Uuid;
 use typst::foundations::{Dict, Str, Value};
 use typst_as_lib::TypstEngine;
+use uuid::Uuid;
 
 #[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct GenerateReportArgs {
@@ -194,7 +194,6 @@ impl FilesystemHandler {
         &self,
         Parameters(args): Parameters<GenerateReportArgs>,
     ) -> Result<String, String> {
-
         generate_report_pdf(args)
     }
     #[tool(description = "Extracts a local ZIP archive into a target destination directory.")]
@@ -596,10 +595,7 @@ impl FilesystemHandler {
     }
 }
 
-fn generate_report_pdf(
-    args: GenerateReportArgs,
-) -> Result<String, String> {
-
+fn generate_report_pdf(args: GenerateReportArgs) -> Result<String, String> {
     let case_id = args.case_id.trim();
 
     if case_id.is_empty() {
@@ -622,29 +618,20 @@ fn generate_report_pdf(
         .collect();
 
     let base_directory = dirs::data_local_dir()
-        .ok_or_else(|| {
-            "Could not resolve application data directory".to_string()
-        })?
+        .ok_or_else(|| "Could not resolve application data directory".to_string())?
         .join("com.defendrite.desktop-app");
 
     let reports_directory = base_directory.join("reports");
 
     fs::create_dir_all(&reports_directory)
-        .map_err(|e| {
-            format!("Failed to create reports directory: {e}")
-        })?;
+        .map_err(|e| format!("Failed to create reports directory: {e}"))?;
 
     let json_payload = serde_json::to_string(&args)
-        .map_err(|e| {
-            format!("Failed to serialize report data: {e}")
-        })?;
+        .map_err(|e| format!("Failed to serialize report data: {e}"))?;
 
     let mut inputs = Dict::new();
 
-    inputs.insert(
-        Str::from("data"),
-        Value::Str(Str::from(json_payload)),
-    );
+    inputs.insert(Str::from("data"), Value::Str(Str::from(json_payload)));
 
     let engine = TypstEngine::builder()
         .main_file(REPORT_TEMPLATE)
@@ -653,28 +640,14 @@ fn generate_report_pdf(
 
     let compilation = engine.compile_with_input(inputs);
 
-    let document = compilation.output.map_err(|err| {
-        format!(
-            "Typst compilation failed: {err:#?}"
-        )
-    })?;
-    let pdf_bytes = typst_pdf::pdf(
-        &document,
-        &Default::default(),
-    )
-    .map_err(|err| {
-        format!(
-            "PDF generation failed: {err:#?}"
-        )
-    })?;
-    let output_path = reports_directory.join(
-        format!("{safe_case_id}_report.pdf")
-    );
+    let document = compilation
+        .output
+        .map_err(|err| format!("Typst compilation failed: {err:#?}"))?;
+    let pdf_bytes = typst_pdf::pdf(&document, &Default::default())
+        .map_err(|err| format!("PDF generation failed: {err:#?}"))?;
+    let output_path = reports_directory.join(format!("{safe_case_id}_report.pdf"));
 
-    fs::write(&output_path, pdf_bytes)
-        .map_err(|e| {
-            format!("Failed to save PDF: {e}")
-        })?;
+    fs::write(&output_path, pdf_bytes).map_err(|e| format!("Failed to save PDF: {e}"))?;
 
     Ok(format!(
         "Report generated successfully!\n\n\

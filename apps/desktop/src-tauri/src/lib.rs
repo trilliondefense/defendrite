@@ -117,6 +117,11 @@ fn delete_chat(conversation_id: String, app_handle: tauri::AppHandle) -> Result<
 }
 
 #[tauri::command]
+fn get_all_reports(app_handle: tauri::AppHandle) -> Result<Vec<runtime::Report>, String> {
+    runtime::get_all_reports(&app_handle)
+}
+
+#[tauri::command]
 fn create_playbook(
     app_handle: tauri::AppHandle,
     name: String,
@@ -197,6 +202,7 @@ pub fn run() {
             list_active_chats,
             get_chat_messages,
             delete_chat,
+            get_all_reports,
             log_to_terminal,
             create_playbook,
             get_all_playbooks,
