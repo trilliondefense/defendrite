@@ -11,6 +11,7 @@ pub mod reports;
 pub mod providers;
 pub use mcp::config::{McpConfig, McpServerConfig};
 pub use playbooks::models::{Playbook, PlaybookContent};
+pub use reports::models::Report;
 pub use storage::models::{Attachment, Conversation, Message};
 
 // Resolve the shared MCP configuration file.
@@ -171,6 +172,10 @@ pub fn remove_mcp_server(app_handle: &tauri::AppHandle, name: &str) -> Result<Mc
     save_mcp_config(app_handle, &config)?;
 
     Ok(config)
+}
+
+pub fn get_all_reports(app_handle: &AppHandle) -> Result<Vec<Report>, String> {
+    reports::list_reports(app_handle).map_err(|e| format!("Could not retrieve playbooks: {e}"))
 }
 
 // --------------------------------------------------
