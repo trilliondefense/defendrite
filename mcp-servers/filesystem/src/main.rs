@@ -9,6 +9,118 @@ use serde::Deserialize;
 use std::fs;
 use std::path::Path;
 use uuid::Uuid;
+use typst::foundations::{Dict, Str, Value};
+use typst_as_lib::TypstEngine;
+
+#[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
+pub struct GenerateReportArgs {
+    /// Unique investigation case ID.
+    pub case_id: String,
+
+    /// Report title.
+    pub title: String,
+
+    /// Current investigation status.
+    pub status: String,
+
+    /// Executive summary of the investigation.
+    pub summary: String,
+
+    /// Key findings. Use separate lines for multiple findings.
+    pub findings: String,
+
+    /// Recommendations. Use separate lines for multiple recommendations.
+    pub recommendations: String,
+}
+
+const REPORT_TEMPLATE: &str = r#"
+#import sys: inputs
+
+#let data = json(bytes(inputs.data))
+
+#set page(
+  paper: "a4",
+  margin: (
+    x: 2cm,
+    y: 2cm
+  )
+)
+
+#set text(
+  size: 10.5pt,
+  font: "Libertinus Serif"
+)
+
+#set par(
+  justify: true,
+  leading: 0.75em
+)
+
+#align(center)[
+  #text(size: 20pt, weight: "bold")[
+    #data.title
+  ]
+
+  #v(0.5em)
+
+  #text(size: 10pt, fill: gray)[
+    INVESTIGATION REPORT
+  ]
+]
+
+#line(length: 100%, stroke: 1pt)
+
+#v(1em)
+
+#grid(
+  columns: (1fr, 1fr),
+  gutter: 1em,
+
+  [
+    *Case ID*
+
+    #data.case_id
+  ],
+
+  [
+    *Status*
+
+    #data.status
+  ]
+)
+
+#v(1em)
+
+== Executive Summary
+
+#data.summary
+
+== Key Findings
+
+#if data.findings.trim() != "" [
+  #data.findings
+] else [
+  No findings provided.
+]
+
+== Recommendations
+
+#if data.recommendations.trim() != "" [
+  #data.recommendations
+] else [
+  No recommendations provided.
+]
+
+#v(2em)
+
+#line(length: 100%, stroke: 0.5pt)
+
+#align(center)[
+  #text(size: 8pt, fill: gray)[
+    Confidential Investigation Report
+  ]
+]
+"#;
 
 #[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
 struct UnzipArgs {
@@ -75,6 +187,16 @@ pub struct ImageBase64Args {
 struct FilesystemHandler;
 #[tool_router(server_handler)]
 impl FilesystemHandler {
+    #[tool(
+        description = "Generate a professional investigation report in PDF format. Provide case ID, title, status, executive summary, findings and recommendations. Separate multiple findings and recommendations using new lines."
+    )]
+    fn generate_report(
+        &self,
+        Parameters(args): Parameters<GenerateReportArgs>,
+    ) -> Result<String, String> {
+
+        generate_report_pdf(args)
+    }
     #[tool(description = "Extracts a local ZIP archive into a target destination directory.")]
     fn unzip_file(&self, Parameters(args): Parameters<UnzipArgs>) -> Result<String, String> {
         let log_path = "/tmp/filesystem-mcp.log";
@@ -473,6 +595,100 @@ impl FilesystemHandler {
         }
     }
 }
+
+fn generate_report_pdf(
+    args: GenerateReportArgs,
+) -> Result<String, String> {
+
+    let case_id = args.case_id.trim();
+
+    if case_id.is_empty() {
+        return Err("Case ID cannot be empty".to_string());
+    }
+
+    if args.title.trim().is_empty() {
+        return Err("Report title cannot be empty".to_string());
+    }
+
+    let safe_case_id: String = case_id
+        .chars()
+        .map(|c| {
+            if c.is_ascii_alphanumeric() || c == '-' || c == '_' {
+                c
+            } else {
+                '_'
+            }
+        })
+        .collect();
+
+    let base_directory = dirs::data_local_dir()
+        .ok_or_else(|| {
+            "Could not resolve application data directory".to_string()
+        })?
+        .join("com.defendrite.desktop-app");
+
+    let reports_directory = base_directory.join("reports");
+
+    fs::create_dir_all(&reports_directory)
+        .map_err(|e| {
+            format!("Failed to create reports directory: {e}")
+        })?;
+
+    let json_payload = serde_json::to_string(&args)
+        .map_err(|e| {
+            format!("Failed to serialize report data: {e}")
+        })?;
+
+    let mut inputs = Dict::new();
+
+    inputs.insert(
+        Str::from("data"),
+        Value::Str(Str::from(json_payload)),
+    );
+
+    let engine = TypstEngine::builder()
+        .main_file(REPORT_TEMPLATE)
+        .search_fonts_with(Default::default())
+        .build();
+
+    let compilation = engine.compile_with_input(inputs);
+
+    let document = compilation.output.map_err(|err| {
+        format!(
+            "Typst compilation failed: {err:#?}"
+        )
+    })?;
+    let pdf_bytes = typst_pdf::pdf(
+        &document,
+        &Default::default(),
+    )
+    .map_err(|err| {
+        format!(
+            "PDF generation failed: {err:#?}"
+        )
+    })?;
+    let output_path = reports_directory.join(
+        format!("{safe_case_id}_report.pdf")
+    );
+
+    fs::write(&output_path, pdf_bytes)
+        .map_err(|e| {
+            format!("Failed to save PDF: {e}")
+        })?;
+
+    Ok(format!(
+        "Report generated successfully!\n\n\
+         Case ID: {}\n\
+         Title: {}\n\
+         Status: {}\n\
+         PDF location: {}",
+        case_id,
+        args.title,
+        args.status,
+        output_path.display()
+    ))
+}
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let service = FilesystemHandler.serve(stdio()).await?;
