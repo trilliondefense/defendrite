@@ -380,7 +380,28 @@
 
   <div class="toolbar">
     <label class="search-box">
-      <span>⌕</span>
+      <span
+        ><svg
+          width="12px"
+          height="12px"
+          viewBox="0 0 24 24"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+          ><g id="SVGRepo_bgCarrier" stroke-width="0"></g><g
+            id="SVGRepo_tracerCarrier"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          ></g><g id="SVGRepo_iconCarrier">
+            <path
+              d="M16.6725 16.6412L21 21M19 11C19 15.4183 15.4183 19 11 19C6.58172 19 3 15.4183 3 11C3 6.58172 6.58172 3 11 3C15.4183 3 19 6.58172 19 11Z"
+              stroke="#000000"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            ></path>
+          </g></svg
+        ></span
+      >
 
       <input
         type="search"
@@ -663,7 +684,7 @@ You are an expert assistant...
   :global(body) {
     margin: 0;
     background: #faf9f6;
-    color: #292824;
+    color: #302f2a;
     font-family:
       Inter,
       -apple-system,
@@ -672,21 +693,44 @@ You are an expert assistant...
       sans-serif;
   }
 
-  .playbooks-page {
-    width: 100%;
-    margin: 0 auto;
-    padding: 32px;
+  :global(button),
+  :global(input),
+  :global(textarea) {
+    font: inherit;
   }
 
-  /* ----------------------------------
-   Header
----------------------------------- */
+  :global(button) {
+    cursor: pointer;
+  }
+
+  /* Design tokens */
+
+  .playbooks-page {
+    --primary: #34332e;
+    --primary-hover: #34332e;
+    --primary-soft: #f2edfa;
+
+    --line: #eae7df;
+    --muted: #89867e;
+    --ink: #302f2a;
+    --panel: #fffefa;
+    --border-color: #e5e2db;
+
+    width: 100%;
+    max-width: 1440px;
+    margin: 0 auto;
+    padding: 12px 16px 20px;
+    color: var(--ink);
+  }
+
+  /* Header */
 
   .page-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: 28px;
+    gap: 12px;
+    margin-bottom: 20px;
   }
 
   h1 {
@@ -694,50 +738,56 @@ You are an expert assistant...
     font-family: Georgia, 'Times New Roman', serif;
     font-size: 34px;
     font-weight: 400;
-    letter-spacing: -0.7px;
+    letter-spacing: -0.8px;
   }
 
   .page-header p,
   .section-header p {
-    color: #77746c;
-    font-size: 13px;
-    line-height: 1.7;
+    color: var(--muted);
+    font-size: 12px;
+    line-height: 1.6;
   }
 
   .page-header p {
     max-width: 560px;
-    margin: 10px 0 0;
+    margin: 7px 0 0;
   }
 
-  /* ----------------------------------
-   Toolbar
----------------------------------- */
+  /* Toolbar */
 
   .toolbar {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 14px;
-    margin-bottom: 28px;
+    gap: 10px;
+    margin-bottom: 20px;
   }
 
   .toolbar-actions {
     display: flex;
     align-items: center;
-    gap: 9px;
+    gap: 7px;
   }
+
+  /* Search */
 
   .search-box {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 9px;
     width: 340px;
     max-width: 100%;
-    padding: 10px 12px;
-    border: 1px solid #e5e2db;
-    border-radius: 7px;
-    background: #fffefa;
-    color: #89867d;
+    min-height: 38px;
+    padding: 7px 11px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    background: var(--panel);
+    color: var(--muted);
+    transition: border-color 0.15s ease;
+  }
+
+  .search-box:focus-within {
+    border-color: var(--primary);
   }
 
   .search-box input {
@@ -746,13 +796,12 @@ You are an expert assistant...
     border: 0;
     outline: none;
     background: transparent;
-    color: #292824;
+    color: var(--ink);
     font-size: 12px;
   }
 
-  button {
-    font: inherit;
-    cursor: pointer;
+  .search-box input::placeholder {
+    color: #aaa69c;
   }
 
   button:disabled {
@@ -760,11 +809,18 @@ You are an expert assistant...
     cursor: not-allowed;
   }
 
+  /* Buttons */
+
   .primary-button,
   .secondary-button {
-    padding: 10px 14px;
-    border-radius: 7px;
-    font-size: 12px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    min-height: 36px;
+    padding: 0 12px;
+    border-radius: 6px;
+    font-size: 11px;
     white-space: nowrap;
     transition:
       background 0.15s ease,
@@ -772,68 +828,74 @@ You are an expert assistant...
   }
 
   .primary-button {
-    border: 1px solid #34332e;
-    background: #34332e;
-    color: #fffefa;
+    border: 1px solid var(--primary);
+    background: var(--primary);
+    color: #fff;
   }
 
   .primary-button:hover:not(:disabled) {
-    background: #4b4942;
+    border-color: var(--primary-hover);
+    background: var(--primary-hover);
   }
 
   .secondary-button {
-    border: 1px solid #e5e2db;
-    background: #fffefa;
+    border: 1px solid var(--border-color);
+    background: var(--panel);
     color: #555249;
   }
 
   .secondary-button:hover:not(:disabled) {
-    background: #f4f2ec;
-    border-color: #cbc7bd;
+    border-color: var(--primary);
+    background: var(--primary-soft);
+    color: var(--primary);
   }
 
-  /* ----------------------------------
-   Playbook Section
----------------------------------- */
+  /* Playbook section */
 
   .section-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 12px;
-    margin-bottom: 14px;
+    gap: 10px;
+    margin-bottom: 11px;
   }
 
   .section-header h2 {
     margin: 0;
-    font-size: 15px;
+    font-size: 14px;
     font-weight: 600;
   }
 
   .section-header p {
     margin: 5px 0 0;
-    font-size: 12px;
+    font-size: 11px;
   }
 
   .filter-button {
-    padding: 8px 11px;
-    border: 1px solid #e5e2db;
+    padding: 7px 10px;
+    border: 1px solid var(--border-color);
     border-radius: 6px;
-    background: #fffefa;
+    background: var(--panel);
     color: #555249;
     font-size: 11px;
     outline: none;
+    transition: all 0.15s ease;
   }
 
-  /* ----------------------------------
-   Playbook Table
----------------------------------- */
+  .filter-button:hover,
+  .filter-button:focus {
+    border-color: var(--primary);
+    background: var(--primary-soft);
+    color: var(--primary);
+  }
+
+  /* Playbook table */
 
   .playbook-list {
     overflow-x: auto;
-    border: 1px solid #e8e5de;
-    border-radius: 9px;
-    background: #fffefa;
+    border: 1px solid var(--line);
+    border-radius: 7px;
+    background: var(--panel);
   }
 
   .playbook-row {
@@ -845,9 +907,10 @@ You are an expert assistant...
       minmax(100px, 0.8fr)
       28px;
     align-items: center;
-    gap: 14px;
+    gap: 12px;
     min-width: 760px;
-    padding: 14px 18px;
+    min-height: 54px;
+    padding: 9px 14px;
     border-bottom: 1px solid #efede7;
   }
 
@@ -855,22 +918,24 @@ You are an expert assistant...
     border-bottom: 0;
   }
 
+  .playbook-row:not(.table-header):hover {
+    background: #faf9f6;
+  }
+
   .table-header {
-    min-height: 42px;
-    background: #f8f7f3;
+    min-height: 38px;
+    background: #f5f4ef;
     color: #858177;
     font-size: 10px;
     font-weight: 600;
   }
 
-  /* ----------------------------------
-   Playbook Name
----------------------------------- */
+  /* Playbook name */
 
   .playbook-name {
     display: flex;
     align-items: center;
-    gap: 11px;
+    gap: 10px;
     min-width: 0;
     padding: 0;
     border: 0;
@@ -879,7 +944,7 @@ You are an expert assistant...
   }
 
   .playbook-name:hover strong {
-    color: #8d725c;
+    color: var(--primary);
   }
 
   .file-icon {
@@ -887,12 +952,12 @@ You are an expert assistant...
     flex-shrink: 0;
     align-items: center;
     justify-content: center;
-    width: 34px;
-    height: 38px;
+    width: 32px;
+    height: 35px;
     border: 1px solid #e7e1d7;
     border-radius: 5px;
-    background: #f7f4ed;
-    color: #8d725c;
+    background: var(--primary-soft);
+    color: var(--primary);
     font-size: 9px;
     font-weight: 700;
   }
@@ -912,8 +977,8 @@ You are an expert assistant...
     display: block;
     overflow: hidden;
     max-width: 260px;
-    margin-top: 5px;
-    color: #89867d;
+    margin-top: 4px;
+    color: var(--muted);
     font-size: 10px;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -925,13 +990,11 @@ You are an expert assistant...
     font-size: 11px;
   }
 
-  /* ----------------------------------
-   Status
----------------------------------- */
+  /* Status */
 
   .status {
     justify-self: start;
-    padding: 5px 8px;
+    padding: 4px 8px;
     border-radius: 5px;
     font-size: 10px;
     white-space: nowrap;
@@ -952,9 +1015,7 @@ You are an expert assistant...
     color: #77746c;
   }
 
-  /* ----------------------------------
-   More Options
----------------------------------- */
+  /* More options menu */
 
   .more-menu {
     position: relative;
@@ -968,8 +1029,8 @@ You are an expert assistant...
     width: 28px;
     height: 28px;
     border-radius: 5px;
-    color: #77746c;
-    font-size: 19px;
+    color: var(--muted);
+    font-size: 18px;
     cursor: pointer;
     list-style: none;
   }
@@ -979,7 +1040,8 @@ You are an expert assistant...
   }
 
   .more-menu summary:hover {
-    background: #f1efe9;
+    background: var(--primary-soft);
+    color: var(--primary);
   }
 
   .menu-content {
@@ -989,16 +1051,16 @@ You are an expert assistant...
     right: 0;
     display: flex;
     flex-direction: column;
-    width: 160px;
+    width: 155px;
     padding: 5px;
-    border: 1px solid #e8e5de;
+    border: 1px solid var(--line);
     border-radius: 7px;
-    background: #fffefa;
+    background: var(--panel);
     box-shadow: 0 6px 20px rgba(40, 38, 30, 0.08);
   }
 
   .menu-content button {
-    padding: 9px 10px;
+    padding: 8px 9px;
     border: 0;
     border-radius: 4px;
     background: transparent;
@@ -1008,7 +1070,8 @@ You are an expert assistant...
   }
 
   .menu-content button:hover {
-    background: #f5f3ed;
+    background: var(--primary-soft);
+    color: var(--primary);
   }
 
   .menu-content .danger-action {
@@ -1017,84 +1080,85 @@ You are an expert assistant...
 
   .menu-content .danger-action:hover {
     background: #fbefed;
+    color: #983d35;
   }
 
-  /* ----------------------------------
-   Empty State
----------------------------------- */
+  /* Empty state */
 
   .empty-state {
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    min-height: 280px;
-    padding: 35px 20px;
+    min-height: 210px;
+    padding: 25px 18px;
+    background: var(--panel);
     text-align: center;
   }
 
   .empty-state h3 {
-    margin: 14px 0 0;
-    color: #393832;
+    margin: 10px 0 0;
+    color: var(--ink);
     font-size: 14px;
     font-weight: 600;
   }
 
   .empty-state p {
     max-width: 340px;
-    margin: 8px 0 18px;
-    color: #89867d;
+    margin: 7px 0 14px;
+    color: var(--muted);
     font-size: 11px;
-    line-height: 1.7;
+    line-height: 1.6;
   }
 
   .empty-actions {
     display: flex;
     align-items: center;
-    gap: 9px;
+    gap: 8px;
   }
 
-  /* ----------------------------------
-   Pagination
----------------------------------- */
+  /* Pagination */
 
   .list-footer {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 12px;
-    margin-top: 14px;
-    color: #89867d;
+    gap: 10px;
+    margin-top: 12px;
+    color: var(--muted);
     font-size: 11px;
   }
 
   .pagination {
     display: flex;
-    gap: 5px;
+    gap: 4px;
   }
 
   .pagination button {
-    padding: 7px 9px;
-    border: 1px solid #e5e2db;
+    min-width: 29px;
+    min-height: 28px;
+    padding: 5px 8px;
+    border: 1px solid var(--border-color);
     border-radius: 5px;
-    background: #fffefa;
+    background: var(--panel);
     color: #69665e;
     font-size: 10px;
+    transition: all 0.15s ease;
   }
 
   .pagination button:hover:not(:disabled) {
-    background: #f3f1eb;
+    border-color: var(--primary);
+    background: var(--primary-soft);
+    color: var(--primary);
   }
 
   .pagination .current-page {
-    border-color: #34332e;
-    background: #34332e;
+    border-color: var(--primary);
+    background: var(--primary);
     color: white;
   }
 
-  /* ----------------------------------
-   Dialog Overlay
----------------------------------- */
+  /* Dialog overlay */
 
   .dialog-overlay {
     position: fixed;
@@ -1103,47 +1167,45 @@ You are an expert assistant...
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 20px;
+    padding: 16px;
     background: rgba(35, 34, 29, 0.38);
     backdrop-filter: blur(2px);
   }
 
-  /* ----------------------------------
-   Create / Edit Dialog
----------------------------------- */
+  /* Create / Edit dialog */
 
   .create-dialog,
   .confirm-dialog {
     width: 100%;
-    border: 1px solid #e8e5de;
-    border-radius: 11px;
-    background: #fffefa;
+    border: 1px solid var(--line);
+    border-radius: 9px;
+    background: var(--panel);
     box-shadow: 0 15px 50px rgba(35, 34, 29, 0.14);
   }
 
   .create-dialog {
-    max-width: 620px;
+    max-width: 580px;
   }
 
   .dialog-header {
     display: flex;
     align-items: flex-start;
     justify-content: space-between;
-    gap: 15px;
-    padding: 21px 23px;
+    gap: 12px;
+    padding: 16px 18px;
     border-bottom: 1px solid #efede7;
   }
 
   .dialog-header h2 {
     margin: 0;
-    color: #34332e;
-    font-size: 17px;
+    color: var(--ink);
+    font-size: 16px;
     font-weight: 600;
   }
 
   .dialog-header p {
-    margin: 6px 0 0;
-    color: #89867d;
+    margin: 5px 0 0;
+    color: var(--muted);
     font-size: 11px;
     line-height: 1.6;
   }
@@ -1153,30 +1215,31 @@ You are an expert assistant...
     flex-shrink: 0;
     align-items: center;
     justify-content: center;
-    width: 28px;
-    height: 28px;
+    width: 27px;
+    height: 27px;
     border: 0;
     border-radius: 5px;
     background: transparent;
-    color: #77746c;
-    font-size: 19px;
+    color: var(--muted);
+    font-size: 18px;
   }
 
   .close-button:hover {
-    background: #f2f0ea;
+    background: var(--primary-soft);
+    color: var(--primary);
   }
 
   .dialog-body {
     display: flex;
     flex-direction: column;
-    gap: 19px;
-    padding: 22px 23px;
+    gap: 15px;
+    padding: 17px 18px;
   }
 
   .dialog-body label {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 6px;
   }
 
   .dialog-body label span {
@@ -1188,12 +1251,12 @@ You are an expert assistant...
   .dialog-body input,
   .dialog-body textarea {
     width: 100%;
-    padding: 11px 12px;
-    border: 1px solid #e5e2db;
+    padding: 9px 11px;
+    border: 1px solid var(--border-color);
     border-radius: 6px;
     outline: none;
-    background: #fffefa;
-    color: #34332e;
+    background: var(--panel);
+    color: var(--ink);
     font-family: inherit;
     font-size: 12px;
     transition: border-color 0.15s ease;
@@ -1201,7 +1264,7 @@ You are an expert assistant...
 
   .dialog-body input:focus,
   .dialog-body textarea:focus {
-    border-color: #a69a84;
+    border-color: var(--primary);
   }
 
   .dialog-body input::placeholder,
@@ -1210,7 +1273,7 @@ You are an expert assistant...
   }
 
   .dialog-body textarea {
-    min-height: 240px;
+    min-height: 210px;
     resize: vertical;
     font-family: 'SFMono-Regular', Consolas, monospace;
     font-size: 11px;
@@ -1221,16 +1284,17 @@ You are an expert assistant...
     display: flex;
     align-items: center;
     justify-content: flex-end;
-    gap: 9px;
-    padding: 15px 23px;
+    gap: 8px;
+    padding: 12px 18px;
     border-top: 1px solid #efede7;
   }
 
   .cancel-button {
-    padding: 9px 13px;
-    border: 1px solid #e5e2db;
+    min-height: 32px;
+    padding: 0 11px;
+    border: 1px solid var(--border-color);
     border-radius: 6px;
-    background: #fffefa;
+    background: var(--panel);
     color: #69665e;
     font-size: 11px;
   }
@@ -1239,20 +1303,18 @@ You are an expert assistant...
     background: #f4f2ec;
   }
 
-  /* ----------------------------------
-   Delete Confirmation
----------------------------------- */
+  /* Delete confirmation */
 
   .confirm-dialog {
     max-width: 400px;
   }
 
   .confirm-dialog .dialog-header {
-    padding: 23px;
+    padding: 18px;
   }
 
   .confirm-dialog .dialog-header p {
-    margin-top: 9px;
+    margin-top: 8px;
   }
 
   .confirm-dialog .dialog-header strong {
@@ -1260,7 +1322,8 @@ You are an expert assistant...
   }
 
   .danger-button {
-    padding: 9px 13px;
+    min-height: 32px;
+    padding: 0 12px;
     border: 1px solid #b44c42;
     border-radius: 6px;
     background: #b44c42;
@@ -1269,21 +1332,52 @@ You are an expert assistant...
   }
 
   .danger-button:hover:not(:disabled) {
+    border-color: #983d35;
     background: #983d35;
   }
 
-  /* ----------------------------------
-   Responsive
----------------------------------- */
+  /* Accessibility */
+
+  :global(button:focus-visible),
+  :global(input:focus-visible),
+  :global(textarea:focus-visible),
+  :global(summary:focus-visible) {
+    outline: 2px solid #7653b5;
+    outline-offset: 2px;
+  }
+
+  /* Responsive */
+
+  @media (max-width: 760px) {
+    .playbooks-page {
+      padding: 14px 14px 18px;
+    }
+
+    .toolbar {
+      flex-wrap: wrap;
+    }
+  }
 
   @media (max-width: 650px) {
     .playbooks-page {
-      padding: 24px 16px;
+      padding: 12px 12px 18px;
+    }
+
+    .page-header {
+      align-items: flex-start;
+      flex-direction: column;
+      gap: 8px;
+      margin-bottom: 17px;
+    }
+
+    h1 {
+      font-size: 29px;
     }
 
     .toolbar {
       align-items: stretch;
       flex-direction: column;
+      gap: 9px;
     }
 
     .search-box {
@@ -1306,7 +1400,7 @@ You are an expert assistant...
     .dialog-overlay {
       align-items: flex-start;
       overflow-y: auto;
-      padding: 16px;
+      padding: 12px;
     }
 
     .create-dialog {
@@ -1314,7 +1408,7 @@ You are an expert assistant...
     }
 
     .dialog-body textarea {
-      min-height: 190px;
+      min-height: 180px;
     }
   }
 
@@ -1331,6 +1425,16 @@ You are an expert assistant...
     .empty-actions {
       flex-direction: column;
       width: 100%;
+    }
+  }
+
+  /* Reduced motion */
+
+  @media (prefers-reduced-motion: reduce) {
+    :global(*) {
+      scroll-behavior: auto !important;
+      transition: none !important;
+      animation: none !important;
     }
   }
 </style>
