@@ -1,18 +1,11 @@
 <script lang="ts">
+  import type { Conversation } from '#lib/utils/types.ts';
   import { goto } from '$app/navigation';
   import { page } from '$app/state';
   import { invoke } from '@tauri-apps/api/core';
   import { listen } from '@tauri-apps/api/event';
   import { onMount, tick } from 'svelte';
   import type { Snippet } from 'svelte';
-
-  interface Conversation {
-    id: string;
-    title: string;
-    chatNumber: number;
-    createdAt: number;
-    updatedAt: number;
-  }
 
   let { children }: { children: Snippet } = $props();
 
