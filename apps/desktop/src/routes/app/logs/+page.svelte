@@ -689,36 +689,6 @@
     text-transform: uppercase;
   }
 
-  .log-level:where([class~='error']) {
-    border-color: #ecd8d3;
-    background: #fbf0ed;
-    color: #a34f42;
-  }
-
-  .log-level:where([class~='warning']) {
-    border-color: #eee3c9;
-    background: #faf5e8;
-    color: #987338;
-  }
-
-  .log-level:where([class~='info']) {
-    border-color: #dce5e5;
-    background: #eff5f4;
-    color: #527777;
-  }
-
-  .log-level:where([class~='debug']) {
-    border-color: #e5e2db;
-    background: #f4f2ec;
-    color: #77736a;
-  }
-
-  .log-level:where([class~='success']) {
-    border-color: #dce7d9;
-    background: #f0f5ed;
-    color: #58774f;
-  }
-
   /* Source and Timestamp */
 
   .log-source {
