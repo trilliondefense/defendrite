@@ -33,3 +33,14 @@ pub struct Attachment {
     pub mime_type: Option<String>,
     pub created_at: i64,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Log {
+    pub id: i64,
+    pub timestamp: String,
+    pub level: String,
+    pub source: String,
+    pub message: String,
+    pub details: Option<String>,
+}

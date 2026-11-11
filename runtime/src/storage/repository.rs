@@ -3,7 +3,8 @@ use std::path::Path;
 use std::time::{SystemTime, UNIX_EPOCH};
 use uuid::Uuid;
 
-use super::models::{Attachment, Conversation, Message};
+
+use super::models::{Attachment, Conversation, Message,Log};
 
 fn current_timestamp() -> i64 {
     SystemTime::now()
@@ -49,6 +50,21 @@ pub fn open_db(path: &Path, key: &str) -> rusqlite::Result<Connection> {
         );
         ",
     )?;
+    conn.execute_batch(
+    "
+    CREATE TABLE IF NOT EXISTS logs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        timestamp TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+        level TEXT NOT NULL,
+        source TEXT NOT NULL,
+        message TEXT NOT NULL,
+        details TEXT
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_logs_timestamp
+    ON logs(timestamp DESC);
+    ",
+)?;
 
     // Check existing message columns.
     let mut columns = Vec::new();
@@ -202,6 +218,62 @@ pub fn open_db(path: &Path, key: &str) -> rusqlite::Result<Connection> {
 
     Ok(conn)
 }
+
+pub fn save_log(
+    conn: &mut Connection,
+    log: &Log,
+) -> rusqlite::Result<()> {
+    conn.execute(
+        "
+        INSERT INTO logs (
+            level,
+            source,
+            message,
+            details
+        )
+        VALUES (?1, ?2, ?3, ?4)
+        ",
+        (
+            &log.level,
+            &log.source,
+            &log.message,
+            &log.details,
+        ),
+    )?;
+
+    Ok(())
+}
+pub fn list_logs(conn: &Connection) -> rusqlite::Result<Vec<Log>> {
+    let mut stmt = conn.prepare(
+        "
+        SELECT
+            id,
+            timestamp,
+            level,
+            source,
+            message,
+            details
+        FROM logs
+        ORDER BY timestamp DESC, id DESC
+        ",
+    )?;
+
+    let logs = stmt
+        .query_map([], |row| {
+            Ok(Log {
+                id: row.get(0)?,
+                timestamp: row.get(1)?,
+                level: row.get(2)?,
+                source: row.get(3)?,
+                message: row.get(4)?,
+                details: row.get(5)?,
+            })
+        })?
+        .collect::<rusqlite::Result<Vec<Log>>>()?;
+
+    Ok(logs)
+}
+
 // Create a new independent conversation.
 pub fn create_conversation(conn: &mut Connection) -> rusqlite::Result<Conversation> {
     let tx = conn.transaction()?;
