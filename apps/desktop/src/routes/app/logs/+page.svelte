@@ -34,7 +34,7 @@
 
     try {
       // Replace with your actual Tauri command.
-      //   logs = await invoke<LogEntry[]>('get_all_logs');
+      logs = await invoke<LogEntry[]>('get_all_logs');
     } catch (err) {
       console.error('Failed to fetch logs:', err);
       error = 'Unable to load logs. Please try again.';
