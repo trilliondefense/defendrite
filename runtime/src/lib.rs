@@ -7,6 +7,7 @@ use tauri_plugin_store::StoreExt;
 pub mod agent;
 pub mod mcp;
 pub mod playbooks;
+pub mod reports;
 pub mod providers;
 pub use mcp::config::{McpConfig, McpServerConfig};
 pub use playbooks::models::{Playbook, PlaybookContent};
