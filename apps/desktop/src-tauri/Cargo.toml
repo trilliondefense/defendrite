@@ -1,7 +1,7 @@
 [package]
 name = "desktop-app"
 version = "1.0.0"
-description = "A Tauri App"
+description = "An open-source desktop application that assists forensic investigators with CSAM detection and analysis, built to support modular tools, open-weight AI models, and extensible frameworks."
 authors = ["you"]
 edition = "2024"
 

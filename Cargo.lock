@@ -1265,7 +1265,7 @@ dependencies = [
 
 [[package]]
 name = "desktop-app"
-version = "0.9.0"
+version = "1.0.0"
 dependencies = [
  "runtime",
  "serde",
@@ -1682,7 +1682,7 @@ dependencies = [
 
 [[package]]
 name = "filesystem"
-version = "0.9.0"
+version = "1.0.0"
 dependencies = [
  "anydoc",
  "base64 0.23.1",
@@ -3540,7 +3540,7 @@ dependencies = [
 
 [[package]]
 name = "models"
-version = "0.9.0"
+version = "1.0.0"
 dependencies = [
  "tokio",
 ]
@@ -4892,7 +4892,7 @@ dependencies = [
 
 [[package]]
 name = "runtime"
-version = "0.9.0"
+version = "1.0.0"
 dependencies = [
  "bytes",
  "chrono",
