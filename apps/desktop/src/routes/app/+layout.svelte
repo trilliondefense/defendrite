@@ -396,7 +396,7 @@
       class:active={page.url.pathname === '/app/newchat'}
       onclick={() => (window.location.href = '/app/newchat')}
       title="New Investigation"
-      aria-label={"New Chat"}
+      aria-label={'New Chat'}
       aria-current={page.url.pathname === '/app/newchat' ? 'page' : undefined}
     >
       <span class="nav-svg-icon">
@@ -437,7 +437,7 @@
       class:active={page.url.pathname === '/app/search'}
       onclick={() => void openPalette()}
       title="Search navigation (Ctrl+K)"
-      aria-label={"Search navigation"}
+      aria-label={'Search navigation'}
       aria-current={page.url.pathname === '/app/search' ? 'page' : undefined}
     >
       <span class="nav-svg-icon">
@@ -511,11 +511,14 @@
         {#each paginatedCases as item, index (item.id)}
           <a
             class="nav-item"
-            class:active={page.url.pathname === `/app/investigations/${encodeURIComponent(item.id)}`}
+            class:active={page.url.pathname ===
+              `/app/investigations/${encodeURIComponent(item.id)}`}
             href="/app/investigations/{encodeURIComponent(item.id)}"
             title={collapsed ? item.title : undefined}
             aria-label={item.title}
-            aria-current={page.url.pathname === `/app/investigations/${encodeURIComponent(item.id)}` ? 'page' : undefined}
+            aria-current={page.url.pathname === `/app/investigations/${encodeURIComponent(item.id)}`
+              ? 'page'
+              : undefined}
             data-sveltekit-replacestate
           >
             <span class="nav-svg-icon">
@@ -641,6 +644,12 @@
     font: inherit;
   }
 
+  *,
+  *::before,
+  *::after {
+    touch-action: pan-x pan-y !important;
+  }
+
   .app-layout {
     display: flex;
     height: 100dvh;
@@ -740,20 +749,19 @@
     white-space: nowrap;
   }
 
-  .nav-item.active  {
-    background: #eeece5;
-    color: #383731;
-    font-weight: 600;
-  }
-  
-
-  .new-chat.active  {
+  .nav-item.active {
     background: #eeece5;
     color: #383731;
     font-weight: 600;
   }
 
-  .search-trigger.active  {
+  .new-chat.active {
+    background: #eeece5;
+    color: #383731;
+    font-weight: 600;
+  }
+
+  .search-trigger.active {
     background: #eeece5;
     color: #383731;
     font-weight: 600;
