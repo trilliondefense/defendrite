@@ -13,6 +13,7 @@ pub use mcp::config::{McpConfig, McpServerConfig};
 pub use playbooks::models::{Playbook, PlaybookContent};
 pub use reports::models::Report;
 pub use storage::models::{Attachment, Conversation, Message};
+pub use mcp::types::McpTool;
 
 // Resolve the shared MCP configuration file.
 fn mcp_config_path(app_handle: &tauri::AppHandle) -> Result<std::path::PathBuf, String> {
@@ -176,6 +177,12 @@ pub fn remove_mcp_server(app_handle: &tauri::AppHandle, name: &str) -> Result<Mc
 
 pub fn get_all_reports(app_handle: &AppHandle) -> Result<Vec<Report>, String> {
     reports::list_reports(app_handle).map_err(|e| format!("Could not retrieve playbooks: {e}"))
+}
+
+pub async fn get_all_tools(app_handle: &AppHandle) -> Result<Vec<McpTool>, String> {
+    let mcp_manager = mcp::manager::McpManager::global(app_handle).map_err(|err| err.to_string())?;
+    let mcp_tools = mcp_manager.discover_tools().await.map_err(|err| err.to_string())?;
+    Ok(mcp_tools)
 }
 
 // --------------------------------------------------
