@@ -41,5 +41,5 @@ export interface McpTool {
   server: string;
   name: string;
   description: string;
-  inputSchema: unknown;
+  input_schema: unknown;
 }

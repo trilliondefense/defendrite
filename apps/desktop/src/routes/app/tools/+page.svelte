@@ -1,13 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { invoke } from '@tauri-apps/api/core';
-
-  interface McpTool {
-    server: string;
-    name: string;
-    description: string;
-    input_schema: unknown;
-  }
+  import type { McpTool } from '#lib/utils/types.ts';
 
   let tools = $state<McpTool[]>([]);
   let isLoading = $state(true);
