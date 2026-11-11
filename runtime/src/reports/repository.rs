@@ -1,9 +1,4 @@
-
-use std::{
-    fs,
-    path::PathBuf,
-    time::UNIX_EPOCH,
-};
+use std::{fs, path::PathBuf, time::UNIX_EPOCH};
 
 use tauri::{AppHandle, Manager};
 
@@ -25,8 +20,8 @@ fn get_reports_directory(app_handle: &AppHandle) -> Result<PathBuf, String> {
 pub fn list_reports(app_handle: &AppHandle) -> Result<Vec<Report>, String> {
     let directory = get_reports_directory(app_handle)?;
 
-    let entries = fs::read_dir(&directory)
-        .map_err(|e| format!("Failed to read reports directory: {e}"))?;
+    let entries =
+        fs::read_dir(&directory).map_err(|e| format!("Failed to read reports directory: {e}"))?;
 
     let mut reports = Vec::new();
 

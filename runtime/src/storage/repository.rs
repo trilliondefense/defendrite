@@ -63,11 +63,9 @@ pub fn open_db(path: &Path, key: &str) -> rusqlite::Result<Connection> {
         }
     }
 
-    let has_conversation_id =
-        columns.iter().any(|c| c == "conversation_id");
+    let has_conversation_id = columns.iter().any(|c| c == "conversation_id");
 
-    let has_created_at =
-        columns.iter().any(|c| c == "created_at");
+    let has_created_at = columns.iter().any(|c| c == "created_at");
 
     // Migrate legacy messages.
     {
@@ -205,9 +203,7 @@ pub fn open_db(path: &Path, key: &str) -> rusqlite::Result<Connection> {
     Ok(conn)
 }
 // Create a new independent conversation.
-pub fn create_conversation(
-    conn: &mut Connection,
-) -> rusqlite::Result<Conversation> {
+pub fn create_conversation(conn: &mut Connection) -> rusqlite::Result<Conversation> {
     let tx = conn.transaction()?;
 
     let chat_number: i64 = tx.query_row(
@@ -254,9 +250,7 @@ pub fn create_conversation(
 
 // Retrieve all conversations with messages and attachments,
 // most recently active first.
-pub fn list_conversations(
-    conn: &Connection,
-) -> rusqlite::Result<Vec<Conversation>> {
+pub fn list_conversations(conn: &Connection) -> rusqlite::Result<Vec<Conversation>> {
     let mut stmt = conn.prepare(
         "
         SELECT id, title, chat_number, created_at, updated_at
@@ -281,10 +275,7 @@ pub fn list_conversations(
     for row in rows {
         let mut conversation = row?;
 
-        conversation.messages = get_messages(
-            conn,
-            &conversation.id,
-        )?;
+        conversation.messages = get_messages(conn, &conversation.id)?;
 
         conversations.push(conversation);
     }
@@ -292,9 +283,7 @@ pub fn list_conversations(
     Ok(conversations)
 }
 
-pub fn list_active_conversations(
-    conn: &Connection,
-) -> rusqlite::Result<Vec<Conversation>> {
+pub fn list_active_conversations(conn: &Connection) -> rusqlite::Result<Vec<Conversation>> {
     let mut stmt = conn.prepare(
         "
         SELECT id, title, chat_number, created_at, updated_at
@@ -319,10 +308,7 @@ pub fn list_active_conversations(
     for row in rows {
         let mut conversation = row?;
 
-        conversation.messages = get_messages(
-            conn,
-            &conversation.id,
-        )?;
+        conversation.messages = get_messages(conn, &conversation.id)?;
 
         conversations.push(conversation);
     }
@@ -533,10 +519,7 @@ pub fn save_exchange(
 
     Ok(())
 }
-pub fn delete_conversation(
-    conn: &Connection,
-    conversation_id: &str,
-) -> rusqlite::Result<()> {
+pub fn delete_conversation(conn: &Connection, conversation_id: &str) -> rusqlite::Result<()> {
     conn.execute(
         "
         DELETE FROM conversations
@@ -548,10 +531,7 @@ pub fn delete_conversation(
     Ok(())
 }
 
-pub fn get_attachments(
-    conn: &Connection,
-    message_id: i64,
-) -> rusqlite::Result<Vec<Attachment>> {
+pub fn get_attachments(conn: &Connection, message_id: i64) -> rusqlite::Result<Vec<Attachment>> {
     let mut stmt = conn.prepare(
         "
         SELECT id, message_id, name, path, size, mime_type, created_at
@@ -616,10 +596,7 @@ pub fn get_attachments(
 //     Ok(())
 // }
 
-pub fn get_messages(
-    conn: &Connection,
-    conversation_id: &str,
-) -> rusqlite::Result<Vec<Message>> {
+pub fn get_messages(conn: &Connection, conversation_id: &str) -> rusqlite::Result<Vec<Message>> {
     let mut stmt = conn.prepare(
         "
         SELECT id, conversation_id, role, content, created_at
@@ -696,10 +673,7 @@ pub fn get_messages(
 //     Ok(())
 // }
 
-pub fn load_history(
-    conn: &Connection,
-    conversation_id: &str,
-) -> rusqlite::Result<Vec<Message>> {
+pub fn load_history(conn: &Connection, conversation_id: &str) -> rusqlite::Result<Vec<Message>> {
     get_messages(conn, conversation_id)
 }
 
