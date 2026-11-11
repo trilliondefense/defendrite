@@ -10,4 +10,6 @@ pub use repository::{
     load_history,
     open_db,
     save_exchange,
+    save_log,
+    list_logs,
 };
