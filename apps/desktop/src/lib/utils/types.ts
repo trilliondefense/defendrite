@@ -36,3 +36,10 @@ export interface DraftAttachment {
   size: number;
   mimeType: string | null;
 }
+
+export interface McpTool {
+  server: string;
+  name: string;
+  description: string;
+  input_schema: unknown;
+}
