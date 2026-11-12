@@ -293,7 +293,14 @@
           <article class="log-card">
             <div class="log-card-main">
               <div class="log-card-header">
-                <span class="log-level" class:expanded={expandedLog === log.id}>
+                <span class="log-level" 
+                class:expanded={expandedLog === log.id}
+                class:error={log.level.toLowerCase() === 'error'}
+                class:info={log.level.toLowerCase() === 'info'}
+                class:warn={log.level.toLowerCase() === 'warn'}
+                class:debug={log.level.toLowerCase() === 'debug'}
+                class:success={log.level.toLowerCase() === 'success'}
+                >
                   {log.level}
                 </span>
 
@@ -672,7 +679,6 @@
   }
 
   /* Log Levels */
-
   .log-level {
     display: inline-flex;
     align-items: center;
@@ -689,6 +695,40 @@
     text-transform: uppercase;
   }
 
+  /* Error - Red */
+  .log-level.error {
+    background: #fef0f0;
+    border-color: #f5c2c2;
+    color: #c0392b;
+  }
+
+  /* Info - Blue */
+  .log-level.info {
+    background: #edf5ff;
+    border-color: #c5dcf8;
+    color: #2563a6;
+  }
+
+  /* Warning - Amber */
+  .log-level.warn {
+    background: #fff7e6;
+    border-color: #f2dda5;
+    color: #a66a0b;
+  }
+
+  /* Debug - Purple */
+  .log-level.debug {
+    background: #f4efff;
+    border-color: #d9c9f5;
+    color: #7545a6;
+  }
+
+  /* Success - Green */
+  .log-level.success {
+    background: #eaf7ee;
+    border-color: #bce3c7;
+    color: #237a42;
+  }
   /* Source and Timestamp */
 
   .log-source {
