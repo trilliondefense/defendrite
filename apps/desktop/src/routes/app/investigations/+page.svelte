@@ -2,6 +2,116 @@
   import { onMount } from 'svelte';
   import { invoke } from '@tauri-apps/api/core';
   import { goto } from '$app/navigation';
+  type DeleteOption = 'yesterday' | 'week' | 'custom';
+
+  let showDeleteDiag = $state(false);
+  let showDeleteConfirm = $state(false);
+
+  let deleteOption = $state<DeleteOption>('yesterday');
+  let customDate = $state('');
+
+  const today = $derived(new Date().toISOString().split('T')[0]);
+
+  const options: {
+    value: DeleteOption;
+    title: string;
+    subtitle: string;
+  }[] = [
+    {
+      value: 'yesterday',
+      title: 'Yesterday',
+      subtitle: 'Delete chats from yesterday and everything before',
+    },
+    {
+      value: 'week',
+      title: 'One week ago',
+      subtitle: 'Delete chats from 7 days ago and everything before',
+    },
+    {
+      value: 'custom',
+      title: 'Custom date',
+      subtitle: 'Delete chats from the selected date and everything before',
+    },
+  ];
+
+  const description = $derived.by(() => {
+    switch (deleteOption) {
+      case 'yesterday':
+        return 'All chats created yesterday and before will be permanently deleted.';
+
+      case 'week':
+        return 'All chats created 7 days ago and before will be permanently deleted.';
+
+      case 'custom':
+        return customDate
+          ? `All chats created on ${new Date(
+              `${customDate}T00:00:00`
+            ).toLocaleDateString()} and before will be permanently deleted.`
+          : 'Please select a date to continue.';
+    }
+  });
+
+  const canContinue = $derived(deleteOption !== 'custom' || !!customDate);
+
+  function getCutoffDate(): Date {
+    const cutoff = new Date();
+
+    switch (deleteOption) {
+      case 'yesterday':
+        cutoff.setDate(cutoff.getDate() - 1);
+        cutoff.setHours(0, 0, 0, 0);
+        break;
+
+      case 'week':
+        cutoff.setDate(cutoff.getDate() - 7);
+        cutoff.setHours(0, 0, 0, 0);
+        break;
+
+      case 'custom':
+        return new Date(`${customDate}T00:00:00`);
+    }
+
+    return cutoff;
+  }
+
+  function openConfirmation() {
+    if (!canContinue) return;
+
+    showDeleteConfirm = true;
+  }
+  async function confirmDelete() {
+    const cutoffDate = getCutoffDate();
+
+    if (isNaN(cutoffDate.getTime())) return;
+
+    try {
+      // Unix timestamp in seconds (i64)
+      const cutoffTimestamp = Math.floor(cutoffDate.getTime() / 1000);
+
+      await invoke('delete_chat_before', {
+        cutoffTimestamp,
+      });
+
+      closeDialog();
+      loadChats();
+    } catch (error) {
+      console.error('Failed to delete chats:', error);
+      consoleLogTerminal(`Failed to delete chats ${error}`);
+    }
+  }
+
+  async function consoleLogTerminal(message: String) {
+    await invoke('log_to_terminal', {
+      message,
+    });
+  }
+
+  function closeDialog() {
+    showDeleteDiag = false;
+    showDeleteConfirm = false;
+    deleteOption = 'yesterday';
+    customDate = '';
+  }
 
   interface Conversation {
     id: string;
@@ -12,7 +122,6 @@
   }
 
   // State
-  let showDeleteDiag = $state<boolean>(false);
   let cases = $state<Conversation[]>([]);
   let isLoading = $state(true);
   let error = $state<string | null>(null);
@@ -462,6 +571,114 @@
       </footer>
     {/if}
   </section>
+  {#if showDeleteDiag}
+    <div class="dialog-overlay">
+      {#if !showDeleteConfirm}
+        <div
+          class="create-dialog delete-chats-dialog"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="delete-dialog-title"
+        >
+          <div class="dialog-header">
+            <div>
+              <h2 id="delete-dialog-title">Delete chat history</h2>
+              <p>Choose a date to delete conversations from that date and everything before it.</p>
+            </div>
+
+            <button class="close-button" onclick={closeDialog} aria-label="Close dialog">
+              ×
+            </button>
+          </div>
+
+          <div class="dialog-body">
+            <div class="delete-options">
+              {#each options as option (option.value)}
+                <label class:active={deleteOption === option.value}>
+                  <input
+                    type="radio"
+                    name="deleteOption"
+                    value={option.value}
+                    checked={deleteOption === option.value}
+                    onchange={() => {
+                      deleteOption = option.value;
+                    }}
+                  />
+
+                  <div class="option-content">
+                    <strong>{option.title}</strong>
+                    <span>{option.subtitle}</span>
+                  </div>
+                </label>
+              {/each}
+            </div>
+
+            {#if deleteOption === 'custom'}
+              <label class="custom-date-field">
+                <span>Delete chats on or before</span>
+
+                <input type="date" bind:value={customDate} max={today} />
+              </label>
+            {/if}
+
+            <div class="delete-preview">
+              <span class="preview-label">Deletion preview</span>
+              <p>{description}</p>
+            </div>
+
+            <div class="delete-warning">
+              <span class="warning-icon">!</span>
+
+              <div>
+                <strong>This action cannot be undone</strong>
+                <p>
+                  All chats matching your selected date will be permanently deleted. Once deleted,
+                  they cannot be recovered.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div class="dialog-footer">
+            <button class="cancel-button" onclick={closeDialog}> Cancel </button>
+
+            <button class="danger-button" onclick={openConfirmation} disabled={!canContinue}>
+              Continue
+            </button>
+          </div>
+        </div>
+      {:else}
+        <div
+          class="confirm-dialog"
+          role="alertdialog"
+          aria-modal="true"
+          aria-labelledby="confirm-delete-title"
+        >
+          <div class="dialog-header">
+            <div>
+              <h2 id="confirm-delete-title">Permanently delete chats?</h2>
+
+              <p>{description}</p>
+
+              <p>
+                <strong>
+                  This action is permanent. Deleted conversations cannot be recovered.
+                </strong>
+              </p>
+            </div>
+          </div>
+
+          <div class="dialog-footer">
+            <button class="cancel-button" onclick={() => (showDeleteConfirm = false)}>
+              Go back
+            </button>
+
+            <button class="danger-button" onclick={confirmDelete}> Delete permanently </button>
+          </div>
+        </div>
+      {/if}
+    </div>
+  {/if}
 </div>
 
 <style>
@@ -983,6 +1200,420 @@
       scroll-behavior: auto !important;
       transition: none !important;
       animation: none !important;
+    }
+  }
+
+  /* =========================================
+   Delete Chat History Dialog
+========================================= */
+
+  /* Dialog overlay */
+
+  .dialog-overlay {
+    position: fixed;
+    z-index: 1000;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    background: rgba(35, 34, 29, 0.38);
+    backdrop-filter: blur(2px);
+    animation: overlayFade 0.18s ease;
+  }
+
+  /* Dialog containers */
+
+  .create-dialog,
+  .confirm-dialog {
+    width: 100%;
+    box-sizing: border-box;
+    border: 1px solid var(--line, #e5e2da);
+    border-radius: 9px;
+    background: var(--panel, #ffffff);
+    box-shadow: 0 15px 50px rgba(35, 34, 29, 0.14);
+    animation: dialogEnter 0.2s ease;
+  }
+
+  .create-dialog {
+    max-width: 460px;
+  }
+
+  .confirm-dialog {
+    max-width: 400px;
+  }
+
+  /* Dialog header */
+
+  .dialog-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 17px 18px;
+    border-bottom: 1px solid #efede7;
+  }
+
+  .dialog-header h2 {
+    margin: 0;
+    color: var(--ink, #292820);
+    font-size: 16px;
+    font-weight: 600;
+  }
+
+  .dialog-header p {
+    margin: 6px 0 0;
+    color: var(--muted, #858176);
+    font-size: 11px;
+    line-height: 1.6;
+  }
+
+  .dialog-header p strong {
+    color: #983d35;
+    font-weight: 600;
+  }
+
+  /* Close button */
+
+  .close-button {
+    display: flex;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    width: 27px;
+    height: 27px;
+    padding: 0;
+    border: 0;
+    border-radius: 5px;
+    background: transparent;
+    color: var(--muted, #858176);
+    font-size: 19px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+
+  .close-button:hover {
+    background: var(--primary-soft, #f2f0e9);
+    color: var(--primary, #68634e);
+  }
+
+  /* Dialog body */
+
+  .dialog-body {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    padding: 17px 18px;
+  }
+
+  /* Date selection options */
+
+  .delete-options {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+  }
+
+  .delete-options label {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 11px;
+    padding: 11px 12px;
+    border: 1px solid var(--border-color, #e5e2da);
+    border-radius: 6px;
+    background: var(--panel, #ffffff);
+    cursor: pointer;
+    transition:
+      border-color 0.15s ease,
+      background 0.15s ease;
+  }
+
+  .delete-options label:hover {
+    border-color: var(--primary, #827b63);
+    background: var(--primary-soft, #f6f4ee);
+  }
+
+  .delete-options label.active {
+    border-color: var(--primary, #827b63);
+    background: var(--primary-soft, #f6f4ee);
+  }
+
+  .delete-options input[type='radio'] {
+    width: 14px;
+    height: 14px;
+    flex-shrink: 0;
+    margin: 0;
+    padding: 0;
+    accent-color: var(--primary, #827b63);
+    cursor: pointer;
+  }
+
+  .option-content {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+
+  .option-content strong {
+    color: var(--ink, #292820);
+    font-size: 12px;
+    font-weight: 600;
+  }
+
+  .option-content span {
+    color: var(--muted, #858176);
+    font-size: 10px;
+    line-height: 1.5;
+  }
+
+  /* Custom date picker */
+
+  .custom-date-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .custom-date-field span {
+    color: #49473f;
+    font-size: 11px;
+    font-weight: 600;
+  }
+
+  .custom-date-field input {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 9px 11px;
+    border: 1px solid var(--border-color, #e5e2da);
+    border-radius: 6px;
+    outline: none;
+    background: var(--panel, #ffffff);
+    color: var(--ink, #292820);
+    font-family: inherit;
+    font-size: 12px;
+    transition: border-color 0.15s ease;
+  }
+
+  .custom-date-field input:focus {
+    border-color: var(--primary, #827b63);
+  }
+
+  .custom-date-field input::-webkit-calendar-picker-indicator {
+    cursor: pointer;
+    opacity: 0.65;
+  }
+
+  /* Deletion preview */
+
+  .delete-preview {
+    padding: 11px 12px;
+    border: 1px solid var(--border-color, #e5e2da);
+    border-radius: 6px;
+    background: var(--panel, #ffffff);
+  }
+
+  .preview-label {
+    color: var(--muted, #858176);
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+  }
+
+  .delete-preview p {
+    margin: 5px 0 0;
+    color: var(--ink, #292820);
+    font-size: 11px;
+    line-height: 1.6;
+  }
+
+  /* Permanent deletion warning */
+
+  .delete-warning {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 12px;
+    border: 1px solid #e8c7c2;
+    border-radius: 6px;
+    background: #fcf4f2;
+  }
+
+  .warning-icon {
+    display: flex;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    width: 17px;
+    height: 17px;
+    margin-top: 1px;
+    border-radius: 50%;
+    background: #b44c42;
+    color: #ffffff;
+    font-size: 11px;
+    font-weight: 700;
+  }
+
+  .delete-warning strong {
+    display: block;
+    color: #983d35;
+    font-size: 11px;
+    font-weight: 600;
+  }
+
+  .delete-warning p {
+    margin: 4px 0 0;
+    color: #79534e;
+    font-size: 10px;
+    line-height: 1.6;
+  }
+
+  /* Dialog footer */
+
+  .dialog-footer {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+    padding: 12px 18px;
+    border-top: 1px solid #efede7;
+  }
+
+  /* Cancel button */
+
+  .cancel-button {
+    min-height: 32px;
+    padding: 0 11px;
+    border: 1px solid var(--border-color, #e5e2da);
+    border-radius: 6px;
+    background: var(--panel, #ffffff);
+    color: #69665e;
+    font-family: inherit;
+    font-size: 11px;
+    cursor: pointer;
+    transition: background 0.15s ease;
+  }
+
+  .cancel-button:hover {
+    background: #f4f2ec;
+  }
+
+  /* Danger button */
+
+  .danger-button {
+    min-height: 32px;
+    padding: 0 12px;
+    border: 1px solid #b44c42;
+    border-radius: 6px;
+    background: #b44c42;
+    color: #ffffff;
+    font-family: inherit;
+    font-size: 11px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+
+  .danger-button:hover:not(:disabled) {
+    border-color: #983d35;
+    background: #983d35;
+  }
+
+  .danger-button:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+
+  /* Confirmation dialog */
+
+  .confirm-dialog .dialog-header {
+    padding: 18px;
+  }
+
+  .confirm-dialog .dialog-header p {
+    margin-top: 8px;
+  }
+
+  .confirm-dialog .dialog-footer {
+    padding: 12px 18px;
+  }
+
+  /* Keyboard focus accessibility */
+
+  .close-button:focus-visible,
+  .cancel-button:focus-visible,
+  .danger-button:focus-visible,
+  .delete-options input:focus-visible,
+  .custom-date-field input:focus-visible {
+    outline: 2px solid var(--primary, #827b63);
+    outline-offset: 2px;
+  }
+
+  /* Animations */
+
+  @keyframes overlayFade {
+    from {
+      opacity: 0;
+    }
+
+    to {
+      opacity: 1;
+    }
+  }
+
+  @keyframes dialogEnter {
+    from {
+      opacity: 0;
+      transform: translateY(8px) scale(0.99);
+    }
+
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+
+  /* Responsive layout */
+
+  @media (max-width: 480px) {
+    .dialog-overlay {
+      padding: 12px;
+    }
+
+    .create-dialog,
+    .confirm-dialog {
+      max-width: 100%;
+    }
+
+    .dialog-header {
+      padding: 15px;
+    }
+
+    .dialog-body {
+      padding: 14px;
+      gap: 12px;
+    }
+
+    .dialog-footer {
+      padding: 12px 14px;
+    }
+  }
+
+  /* Reduced motion */
+
+  @media (prefers-reduced-motion: reduce) {
+    .dialog-overlay,
+    .create-dialog,
+    .confirm-dialog {
+      animation: none;
+    }
+
+    .delete-options label,
+    .danger-button,
+    .cancel-button,
+    .close-button {
+      transition: none;
     }
   }
 </style>
