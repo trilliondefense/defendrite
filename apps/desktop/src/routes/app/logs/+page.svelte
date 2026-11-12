@@ -1,7 +1,86 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { invoke } from '@tauri-apps/api/core';
+  type DeleteOption = 'week' | 'month';
 
+  let showDeleteDiag = $state(false);
+  let showDeleteConfirm = $state(false);
+
+  let deleteOption = $state<DeleteOption>('week');
+  let isDeleting = $state(false);
+
+  const options: {
+    value: DeleteOption;
+    title: string;
+    subtitle: string;
+  }[] = [
+    {
+      value: 'week',
+      title: 'Before one week',
+      subtitle: 'Delete logs from 7 days ago and everything before',
+    },
+    {
+      value: 'month',
+      title: 'Before one month',
+      subtitle: 'Delete logs from 30 days ago and everything before',
+    },
+  ];
+
+  const description = $derived(
+    deleteOption === 'week'
+      ? 'All logs created 7 days ago and before will be permanently deleted.'
+      : 'All logs created 30 days ago and before will be permanently deleted.'
+  );
+
+  function getCutoffDate(): Date {
+    const cutoff = new Date();
+
+    if (deleteOption === 'week') {
+      cutoff.setDate(cutoff.getDate() - 7);
+    } else {
+      cutoff.setDate(cutoff.getDate() - 30);
+    }
+
+    cutoff.setHours(0, 0, 0, 0);
+
+    return cutoff;
+  }
+
+  function openConfirmation() {
+    showDeleteConfirm = true;
+  }
+
+  async function confirmDelete() {
+    if (isDeleting) return;
+
+    const cutoffDate = getCutoffDate();
+
+    if (isNaN(cutoffDate.getTime())) return;
+
+    try {
+      isDeleting = true;
+
+      const cutoffTimestamp = Math.floor(cutoffDate.getTime() / 1000);
+
+      console.log('Deleting logs created on or before:', cutoffTimestamp);
+      // await invoke('delete_logs_before', {
+      //         cutoffTimestamp,
+      //       });
+      closeDialog();
+    } catch (error) {
+      console.error('Failed to delete logs:', error);
+    } finally {
+      isDeleting = false;
+    }
+  }
+
+  function closeDialog() {
+    if (isDeleting) return;
+
+    showDeleteDiag = false;
+    showDeleteConfirm = false;
+    deleteOption = 'week';
+  }
   interface LogEntry {
     id: string;
     timestamp: string;
@@ -241,6 +320,64 @@
         <option value="newest">Newest first</option>
         <option value="oldest">Oldest first</option>
       </select>
+      <button
+        class="primary-button"
+        aria-label="delete"
+        onclick={() => {
+          showDeleteDiag = true;
+        }}
+      >
+        <span aria-hidden="true"
+          ><svg
+            width="18px"
+            height="18px"
+            viewBox="0 0 24 24"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+            ><g id="SVGRepo_bgCarrier" stroke-width="0"></g><g
+              id="SVGRepo_tracerCarrier"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            ></g><g id="SVGRepo_iconCarrier">
+              <path
+                d="M10 12V17"
+                stroke="#ffffff"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              ></path>
+              <path
+                d="M14 12V17"
+                stroke="#ffffff"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              ></path>
+              <path
+                d="M4 7H20"
+                stroke="#ffffff"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              ></path>
+              <path
+                d="M6 10V18C6 19.6569 7.34315 21 9 21H15C16.6569 21 18 19.6569 18 18V10"
+                stroke="#ffffff"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              ></path>
+              <path
+                d="M9 5C9 3.89543 9.89543 3 11 3H13C14.1046 3 15 3.89543 15 5V7H9V5Z"
+                stroke="#ffffff"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              ></path>
+            </g></svg
+          ></span
+        >
+      </button>
     </div>
   </section>
 
@@ -293,13 +430,14 @@
           <article class="log-card">
             <div class="log-card-main">
               <div class="log-card-header">
-                <span class="log-level" 
-                class:expanded={expandedLog === log.id}
-                class:error={log.level.toLowerCase() === 'error'}
-                class:info={log.level.toLowerCase() === 'info'}
-                class:warn={log.level.toLowerCase() === 'warn'}
-                class:debug={log.level.toLowerCase() === 'debug'}
-                class:success={log.level.toLowerCase() === 'success'}
+                <span
+                  class="log-level"
+                  class:expanded={expandedLog === log.id}
+                  class:error={log.level.toLowerCase() === 'error'}
+                  class:info={log.level.toLowerCase() === 'info'}
+                  class:warn={log.level.toLowerCase() === 'warn'}
+                  class:debug={log.level.toLowerCase() === 'debug'}
+                  class:success={log.level.toLowerCase() === 'success'}
                 >
                   {log.level}
                 </span>
@@ -386,6 +524,129 @@
       {/if}
     {/if}
   </section>
+  {#if showDeleteDiag}
+    <div class="dialog-overlay">
+      {#if !showDeleteConfirm}
+        <div
+          class="create-dialog delete-logs-dialog"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="delete-dialog-title"
+        >
+          <!-- Header -->
+
+          <div class="dialog-header">
+            <div>
+              <h2 id="delete-dialog-title">Delete logs</h2>
+              <p>Choose how far back you want to delete your logs.</p>
+            </div>
+
+            <button
+              class="close-button"
+              onclick={closeDialog}
+              aria-label="Close dialog"
+              disabled={isDeleting}
+            >
+              ×
+            </button>
+          </div>
+
+          <!-- Body -->
+
+          <div class="dialog-body">
+            <div class="delete-options">
+              {#each options as option (option.value)}
+                <label class:active={deleteOption === option.value}>
+                  <input
+                    type="radio"
+                    name="deleteOption"
+                    value={option.value}
+                    checked={deleteOption === option.value}
+                    onchange={() => {
+                      deleteOption = option.value;
+                    }}
+                  />
+
+                  <div class="option-content">
+                    <strong>{option.title}</strong>
+                    <span>{option.subtitle}</span>
+                  </div>
+                </label>
+              {/each}
+            </div>
+
+            <!-- Deletion preview -->
+
+            <div class="delete-preview">
+              <span class="preview-label">Deletion preview</span>
+              <p>{description}</p>
+            </div>
+
+            <!-- Warning -->
+
+            <div class="delete-warning">
+              <span class="warning-icon">!</span>
+
+              <div>
+                <strong>This action cannot be undone</strong>
+                <p>
+                  All logs matching your selected time period will be permanently deleted. Once
+                  deleted, they cannot be recovered.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Footer -->
+
+          <div class="dialog-footer">
+            <button class="cancel-button" onclick={closeDialog} disabled={isDeleting}>
+              Cancel
+            </button>
+
+            <button class="danger-button" onclick={openConfirmation} disabled={isDeleting}>
+              Continue
+            </button>
+          </div>
+        </div>
+      {:else}
+        <!-- Final confirmation -->
+
+        <div
+          class="confirm-dialog"
+          role="alertdialog"
+          aria-modal="true"
+          aria-labelledby="confirm-delete-title"
+        >
+          <div class="dialog-header">
+            <div>
+              <h2 id="confirm-delete-title">Permanently delete logs?</h2>
+
+              <p>{description}</p>
+
+              <p>
+                <strong> This action is permanent. Deleted logs cannot be recovered. </strong>
+              </p>
+            </div>
+          </div>
+
+          <div class="dialog-footer">
+            <button
+              class="cancel-button"
+              onclick={() => (showDeleteConfirm = false)}
+              disabled={isDeleting}
+            >
+              Go back
+            </button>
+
+            <button class="danger-button" onclick={confirmDelete} disabled={isDeleting}>
+              {isDeleting ? 'Deleting...' : 'Delete permanently'}
+            </button>
+          </div>
+        </div>
+      {/if}
+    </div>
+  {/if}
 </div>
 
 <style>
@@ -424,6 +685,7 @@
   /* Page */
 
   .logs-page {
+    --primary: #34332e;
     width: 100%;
     max-width: 1440px;
     margin: 0 auto;
@@ -860,6 +1122,23 @@
     transition: all 0.15s ease;
   }
 
+  .primary-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    min-height: 38px;
+    padding: 0 8px;
+    border: 1px solid var(--primary);
+    border-radius: 6px;
+    background: var(--primary);
+    color: #fff;
+    font-size: 11px;
+    font-weight: 500;
+    white-space: nowrap;
+    transition: background 0.15s ease;
+  }
+
   .load-more-button:hover {
     border-color: #34332e;
     background: #f4f2ec;
@@ -1064,6 +1343,380 @@
       scroll-behavior: auto !important;
       transition: none !important;
       animation: none !important;
+    }
+  }
+
+  /* =========================================
+   Delete Logs Dialog
+========================================= */
+
+  /* Overlay */
+
+  .dialog-overlay {
+    position: fixed;
+    z-index: 1000;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    background: rgba(35, 34, 29, 0.38);
+    backdrop-filter: blur(2px);
+    animation: overlayFade 0.18s ease;
+  }
+
+  /* Dialog containers */
+
+  .create-dialog,
+  .confirm-dialog {
+    width: 100%;
+    box-sizing: border-box;
+    border: 1px solid var(--line, #e5e2da);
+    border-radius: 9px;
+    background: var(--panel, #ffffff);
+    box-shadow: 0 15px 50px rgba(35, 34, 29, 0.14);
+    animation: dialogEnter 0.2s ease;
+  }
+
+  .create-dialog {
+    max-width: 460px;
+  }
+
+  .confirm-dialog {
+    max-width: 400px;
+  }
+
+  /* Header */
+
+  .dialog-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 17px 18px;
+    border-bottom: 1px solid #efede7;
+  }
+
+  .dialog-header h2 {
+    margin: 0;
+    color: var(--ink, #292820);
+    font-size: 16px;
+    font-weight: 600;
+  }
+
+  .dialog-header p {
+    margin: 6px 0 0;
+    color: var(--muted, #858176);
+    font-size: 11px;
+    line-height: 1.6;
+  }
+
+  .dialog-header p strong {
+    color: #983d35;
+    font-weight: 600;
+  }
+
+  /* Close button */
+
+  .close-button {
+    display: flex;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    width: 27px;
+    height: 27px;
+    padding: 0;
+    border: 0;
+    border-radius: 5px;
+    background: transparent;
+    color: var(--muted, #858176);
+    font-size: 19px;
+    cursor: pointer;
+  }
+
+  .close-button:hover:not(:disabled) {
+    background: var(--primary-soft, #f2f0e9);
+    color: var(--primary, #68634e);
+  }
+
+  /* Body */
+
+  .dialog-body {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    padding: 17px 18px;
+  }
+
+  /* Delete options */
+
+  .delete-options {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+  }
+
+  .delete-options label {
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    padding: 12px;
+    border: 1px solid var(--border-color, #e5e2da);
+    border-radius: 6px;
+    background: var(--panel, #ffffff);
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+
+  .delete-options label:hover {
+    border-color: var(--primary, #827b63);
+    background: var(--primary-soft, #f6f4ee);
+  }
+
+  .delete-options label.active {
+    border-color: var(--primary, #827b63);
+    background: var(--primary-soft, #f6f4ee);
+  }
+
+  .delete-options input[type='radio'] {
+    width: 14px;
+    height: 14px;
+    flex-shrink: 0;
+    margin: 0;
+    accent-color: var(--primary, #827b63);
+    cursor: pointer;
+  }
+
+  .option-content {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+
+  .option-content strong {
+    color: var(--ink, #292820);
+    font-size: 12px;
+    font-weight: 600;
+  }
+
+  .option-content span {
+    color: var(--muted, #858176);
+    font-size: 10px;
+    line-height: 1.5;
+  }
+
+  /* Deletion preview */
+
+  .delete-preview {
+    padding: 11px 12px;
+    border: 1px solid var(--border-color, #e5e2da);
+    border-radius: 6px;
+    background: var(--panel, #ffffff);
+  }
+
+  .preview-label {
+    color: var(--muted, #858176);
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+  }
+
+  .delete-preview p {
+    margin: 5px 0 0;
+    color: var(--ink, #292820);
+    font-size: 11px;
+    line-height: 1.6;
+  }
+
+  /* Irreversible warning */
+
+  .delete-warning {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 12px;
+    border: 1px solid #e8c7c2;
+    border-radius: 6px;
+    background: #fcf4f2;
+  }
+
+  .warning-icon {
+    display: flex;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    width: 17px;
+    height: 17px;
+    margin-top: 1px;
+    border-radius: 50%;
+    background: #b44c42;
+    color: #ffffff;
+    font-size: 11px;
+    font-weight: 700;
+  }
+
+  .delete-warning strong {
+    display: block;
+    color: #983d35;
+    font-size: 11px;
+    font-weight: 600;
+  }
+
+  .delete-warning p {
+    margin: 4px 0 0;
+    color: #79534e;
+    font-size: 10px;
+    line-height: 1.6;
+  }
+
+  /* Footer */
+
+  .dialog-footer {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+    padding: 12px 18px;
+    border-top: 1px solid #efede7;
+  }
+
+  /* Cancel button */
+
+  .cancel-button {
+    min-height: 32px;
+    padding: 0 11px;
+    border: 1px solid var(--border-color, #e5e2da);
+    border-radius: 6px;
+    background: var(--panel, #ffffff);
+    color: #69665e;
+    font-family: inherit;
+    font-size: 11px;
+    cursor: pointer;
+  }
+
+  .cancel-button:hover:not(:disabled) {
+    background: #f4f2ec;
+  }
+
+  /* Danger button */
+
+  .danger-button {
+    min-height: 32px;
+    padding: 0 12px;
+    border: 1px solid #b44c42;
+    border-radius: 6px;
+    background: #b44c42;
+    color: #ffffff;
+    font-family: inherit;
+    font-size: 11px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+
+  .danger-button:hover:not(:disabled) {
+    border-color: #983d35;
+    background: #983d35;
+  }
+
+  /* Disabled buttons */
+
+  .cancel-button:disabled,
+  .close-button:disabled,
+  .danger-button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  /* Confirmation dialog */
+
+  .confirm-dialog .dialog-header {
+    padding: 18px;
+  }
+
+  .confirm-dialog .dialog-header p {
+    margin-top: 8px;
+  }
+
+  .confirm-dialog .dialog-footer {
+    padding: 12px 18px;
+  }
+
+  /* Focus states */
+
+  .close-button:focus-visible,
+  .cancel-button:focus-visible,
+  .danger-button:focus-visible,
+  .delete-options input:focus-visible {
+    outline: 2px solid var(--primary, #827b63);
+    outline-offset: 2px;
+  }
+
+  /* Animations */
+
+  @keyframes overlayFade {
+    from {
+      opacity: 0;
+    }
+
+    to {
+      opacity: 1;
+    }
+  }
+
+  @keyframes dialogEnter {
+    from {
+      opacity: 0;
+      transform: translateY(8px) scale(0.99);
+    }
+
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+
+  /* Responsive */
+
+  @media (max-width: 480px) {
+    .dialog-overlay {
+      padding: 12px;
+    }
+
+    .create-dialog,
+    .confirm-dialog {
+      max-width: 100%;
+    }
+
+    .dialog-header {
+      padding: 15px;
+    }
+
+    .dialog-body {
+      padding: 14px;
+      gap: 12px;
+    }
+
+    .dialog-footer {
+      padding: 12px 14px;
+    }
+  }
+
+  /* Reduced motion */
+
+  @media (prefers-reduced-motion: reduce) {
+    .dialog-overlay,
+    .create-dialog,
+    .confirm-dialog {
+      animation: none;
+    }
+
+    .delete-options label,
+    .danger-button,
+    .cancel-button,
+    .close-button {
+      transition: none;
     }
   }
 </style>

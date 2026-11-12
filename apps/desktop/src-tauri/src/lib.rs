@@ -122,6 +122,11 @@ fn delete_chat(conversation_id: String, app_handle: tauri::AppHandle) -> Result<
 }
 
 #[tauri::command]
+fn delete_chat_before(cutoff_timestamp: i64, app_handle: tauri::AppHandle) -> Result<(), String> {
+    runtime::delete_chat_before(&app_handle, cutoff_timestamp)
+}
+
+#[tauri::command]
 fn get_all_reports(app_handle: tauri::AppHandle) -> Result<Vec<runtime::Report>, String> {
     runtime::get_all_reports(&app_handle)
 }
@@ -214,6 +219,7 @@ pub fn run() {
             get_all_logs,
             get_chat_messages,
             delete_chat,
+            delete_chat_before,
             get_all_reports,
             get_all_tools,
             log_to_terminal,

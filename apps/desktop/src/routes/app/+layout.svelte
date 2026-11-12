@@ -45,10 +45,10 @@
       keywords: 'settings appearance',
       shortcut: 'u',
     },
-    { label: 'Help', href: '/app/help', svgIcon: helpIcon, keywords: 'help', shortcut: 'i' },
 
     { label: 'Tools', href: '/app/tools', svgIcon: toolsIcon, keywords: 'tools', shortcut: 'm' },
     { label: 'Logs', href: '/app/logs', svgIcon: logsIcon, keywords: 'logd', shortcut: '[' },
+    { label: 'Help', href: '/app/help', svgIcon: helpIcon, keywords: 'help', shortcut: 'i' },
   ];
   $effect(() => {
     loadChats();
@@ -585,12 +585,13 @@
         {/each}
       </nav>
       <button
-        class="new-chat"
+        class="primary-button"
         onclick={() => {
           goto('/app/investigations');
         }}
       >
-        {#if !collapsed}Show all{:else}All{/if}</button
+        {#if !collapsed}Show all
+        {:else}All{/if}</button
       >
     {/if}
 
@@ -705,6 +706,7 @@
 
   .app-layout {
     display: flex;
+    --primary: #6e6e6a;
     height: 100dvh;
     overflow: hidden;
   }
@@ -802,6 +804,22 @@
     white-space: nowrap;
   }
 
+  .primary-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    min-height: 32px;
+    padding: 0 4px;
+    border: 1px solid var(--primary);
+    border-radius: 8px;
+    background: #fff;
+    color: var(--primary);
+    font-size: 11px;
+    font-weight: 500;
+    white-space: nowrap;
+    transition: background 0.15s ease;
+  }
   .nav-item.active {
     background: #eeece5;
     color: #383731;
