@@ -46,7 +46,6 @@
     try {
       await openPath(report.file_path);
     } catch (err) {
-      consoleLogTerminal(`Failed to open report ${err}`);
       console.error('Failed to open report:', err);
       alert(`Could not open report: ${err}`);
     }
@@ -62,11 +61,6 @@
     }).format(new Date(timestamp * 1000));
   }
 
-  async function consoleLogTerminal(message: String) {
-    await invoke('log_to_terminal', {
-      message,
-    });
-  }
 
   function formatFileSize(bytes: number): string {
     if (bytes < 1024) return `${bytes} B`;
