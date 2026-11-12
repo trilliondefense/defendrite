@@ -178,6 +178,13 @@ pub struct ConvertArgs {
     pub file_path: String,
 }
 
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+pub struct FileTicketArgs {
+    /// Path to the local file (image, audio, video, document, etc.).
+    pub file_path: String,
+}
+
+
 #[derive(Clone)]
 struct FilesystemHandler;
 #[tool_router(server_handler)]
@@ -373,6 +380,48 @@ impl FilesystemHandler {
             "Playbook '{}' created successfully. ID: {}",
             name, id
         ))
+    }
+
+    #[tool(
+        description = "Validate a local file and generate a lightweight reference ticket ('local-file://...'). Pass this exact reference string directly into any tool argument expecting file contents, media data, or Base64-encoded bytes—the host runtime automatically resolves and encodes the file during execution."
+       )]
+    fn create_file_ticket(
+        &self,
+        Parameters(args): Parameters<FileTicketArgs>,
+    ) -> Result<String, String> {
+        let path = std::path::Path::new(&args.file_path);
+
+        // Ensure the file exists and is a regular file (not a directory)
+        let metadata = fs::metadata(path)
+            .map_err(|e| format!("Failed to access file '{}': {}", args.file_path, e))?;
+
+        if !metadata.is_file() {
+            return Err("Provided path is not a valid file.".to_string());
+        }
+
+        if metadata.len() == 0 {
+            return Err("File is empty.".to_string());
+        }
+
+        // Enforce maximum file size (e.g., 50 MB for images, audio, video, or docs)
+        const MAX_FILE_SIZE: u64 = 50 * 1024 * 1024;
+
+        if metadata.len() > MAX_FILE_SIZE {
+            return Err("File exceeds the 50 MB file size limit.".to_string());
+        }
+
+        // Canonicalize to resolve relative paths (../) and get a clean absolute path
+        let canonical_path = fs::canonicalize(path)
+            .map_err(|e| format!("Failed to resolve absolute file path: {}", e))?;
+
+        let path_str = canonical_path
+            .to_str()
+            .ok_or_else(|| "File path contains invalid UTF-8 characters.".to_string())?;
+
+        // On Windows, fs::canonicalize prepends "\\?\", which we strip for clean URIs
+        let clean_path = path_str.strip_prefix(r"\\?\").unwrap_or(path_str);
+
+        Ok(format!("local-file://{}", clean_path))
     }
 
     #[tool(
