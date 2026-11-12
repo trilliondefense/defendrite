@@ -796,7 +796,11 @@ pub async fn handle_agent_request(
 
         Err(error) => {
             eprintln!("Agent execution failed: {error}");
-
+            let _ = save_log(&app_handle,
+                            "Error".to_string(),
+                            "Agent send message failed".to_string(),
+                            error.to_string(),
+                        );
             return emit_error(
                 app_handle,
                 "Agent execution failed. Check application logs.",
