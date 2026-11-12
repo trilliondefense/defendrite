@@ -269,6 +269,12 @@ pub fn delete_chat_before(app_handle: &AppHandle, cutoff_timestamp: i64) -> Resu
         .map_err(|e| format!("Could not delete conversation: {e}"))
 }
 
+pub fn delete_logs_before(app_handle: &AppHandle, cutoff_timestamp: i64) -> Result<(), String> {
+    let db = open_conversation_db(app_handle)?;
+    storage::delete_logs_before(&db, cutoff_timestamp)
+        .map_err(|e| format!("Could not delete conversation: {e}"))
+}
+
 
 // --------------------------------------------------
 // DATABASE INITIALIZATION
