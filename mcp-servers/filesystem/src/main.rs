@@ -1,5 +1,4 @@
 use anydoc::to_markdown_bytes;
-use base64::{Engine as _, engine::general_purpose::STANDARD};
 use chrono::Local;
 use rmcp::handler::server::wrapper::Json;
 use rmcp::{
@@ -178,11 +177,13 @@ pub struct ConvertArgs {
     /// The absolute path to the local file (e.g. .docx, .pptx, .xlsx, .html, .csv) to convert.
     pub file_path: String,
 }
+
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
-pub struct ImageBase64Args {
-    /// Path to the image file (JPEG, PNG or WebP).
-    pub image_path: String,
+pub struct FileTicketArgs {
+    /// Path to the local file (image, audio, video, document, etc.).
+    pub file_path: String,
 }
+
 
 #[derive(Clone)]
 struct FilesystemHandler;
@@ -382,44 +383,45 @@ impl FilesystemHandler {
     }
 
     #[tool(
-        description = "Read a JPEG, PNG or WebP image from a file path and return its Base64-encoded contents. The returned Base64 string can be passed directly to classify_image."
-    )]
-    fn image_base64(
+        description = "Validate a local file and generate a lightweight reference ticket ('local-file://...'). Pass this exact reference string directly into any tool argument expecting file contents, media data, or Base64-encoded bytes—the host runtime automatically resolves and encodes the file during execution."
+       )]
+    fn create_file_ticket(
         &self,
-        Parameters(args): Parameters<ImageBase64Args>,
+        Parameters(args): Parameters<FileTicketArgs>,
     ) -> Result<String, String> {
-        let path = std::path::Path::new(&args.image_path);
+        let path = std::path::Path::new(&args.file_path);
 
-        // Validate file extension
-        let extension = path
-            .extension()
-            .and_then(|ext| ext.to_str())
-            .unwrap_or("")
-            .to_lowercase();
+        // Ensure the file exists and is a regular file (not a directory)
+        let metadata = fs::metadata(path)
+            .map_err(|e| format!("Failed to access file '{}': {}", args.file_path, e))?;
 
-        if !["jpg", "jpeg", "png", "webp"].contains(&extension.as_str()) {
-            return Err("Unsupported image format. Use JPG, JPEG, PNG or WebP.".to_string());
+        if !metadata.is_file() {
+            return Err("Provided path is not a valid file.".to_string());
         }
 
-        // Read original image bytes
-        let image_bytes =
-            fs::read(path).map_err(|e| format!("Failed to read image file: {}", e))?;
-
-        if image_bytes.is_empty() {
-            return Err("Image file is empty".to_string());
+        if metadata.len() == 0 {
+            return Err("File is empty.".to_string());
         }
 
-        // Enforce the same maximum size as classification
-        const MAX_IMAGE_SIZE: usize = 15 * 1024 * 1024;
+        // Enforce maximum file size (e.g., 50 MB for images, audio, video, or docs)
+        const MAX_FILE_SIZE: u64 = 50 * 1024 * 1024;
 
-        if image_bytes.len() > MAX_IMAGE_SIZE {
-            return Err("Image exceeds the 15 MB file size limit".to_string());
+        if metadata.len() > MAX_FILE_SIZE {
+            return Err("File exceeds the 50 MB file size limit.".to_string());
         }
 
-        // Encode raw image bytes into Base64
-        let encoded = STANDARD.encode(&image_bytes);
+        // Canonicalize to resolve relative paths (../) and get a clean absolute path
+        let canonical_path = fs::canonicalize(path)
+            .map_err(|e| format!("Failed to resolve absolute file path: {}", e))?;
 
-        Ok(encoded)
+        let path_str = canonical_path
+            .to_str()
+            .ok_or_else(|| "File path contains invalid UTF-8 characters.".to_string())?;
+
+        // On Windows, fs::canonicalize prepends "\\?\", which we strip for clean URIs
+        let clean_path = path_str.strip_prefix(r"\\?\").unwrap_or(path_str);
+
+        Ok(format!("local-file://{}", clean_path))
     }
 
     #[tool(
