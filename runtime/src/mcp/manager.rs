@@ -1,3 +1,7 @@
+use base64::{engine::general_purpose::STANDARD, Engine as _};
+use serde_json::{json, Value};
+use std::future::Future;
+use std::pin::Pin;
 use std::{
     collections::HashMap,
     error::Error,
@@ -5,13 +9,8 @@ use std::{
     path::PathBuf,
     sync::{OnceLock, RwLock},
 };
-use base64::{engine::general_purpose::STANDARD, Engine as _};
-use serde_json::{json, Value};
 use tauri::{AppHandle, Manager};
 use tokio::sync::Mutex;
-use std::future::Future;
-use std::pin::Pin;
-
 
 use super::{
     client,
@@ -224,9 +223,6 @@ impl McpManager {
         Ok(all_tools)
     }
 
-
-    
-
     /// Execute a tool using its persistent server connection.
     pub async fn execute_tool(&self, server: &str, name: &str, args: Value) -> McpResult<Value> {
         let hydrated_args = hydrate_local_files(args).await?;
@@ -264,38 +260,36 @@ impl McpManager {
     }
 }
 
-fn hydrate_local_files(
-        val: Value,
-    ) -> Pin<Box<dyn Future<Output = Result<Value, String>> + Send>> {
-        Box::pin(async move {
-            match val {
-                Value::String(s) if s.starts_with("local-file://") => {
-                    let path = s.trim_start_matches("local-file://");
+fn hydrate_local_files(val: Value) -> Pin<Box<dyn Future<Output = Result<Value, String>> + Send>> {
+    Box::pin(async move {
+        match val {
+            Value::String(s) if s.starts_with("local-file://") => {
+                let path = s.trim_start_matches("local-file://");
 
-                    // OPTIONAL: Add path validation here (e.g., check allowed_paths)
-                    
-                    let bytes = tokio::fs::read(path)
-                        .await
-                        .map_err(|e| format!("Failed to read local file '{path}': {e}"))?;
+                // OPTIONAL: Add path validation here (e.g., check allowed_paths)
 
-                    let encoded = STANDARD.encode(&bytes);
-                    Ok(Value::String(encoded))
-                }
-                Value::Array(arr) => {
-                    let mut out = Vec::with_capacity(arr.len());
-                    for item in arr {
-                        out.push(hydrate_local_files(item).await?);
-                    }
-                    Ok(Value::Array(out))
-                }
-                Value::Object(map) => {
-                    let mut out = serde_json::Map::with_capacity(map.len());
-                    for (k, v) in map {
-                        out.insert(k, hydrate_local_files(v).await?);
-                    }
-                    Ok(Value::Object(out))
-                }
-                other => Ok(other),
+                let bytes = tokio::fs::read(path)
+                    .await
+                    .map_err(|e| format!("Failed to read local file '{path}': {e}"))?;
+
+                let encoded = STANDARD.encode(&bytes);
+                Ok(Value::String(encoded))
             }
-        })
-    }
+            Value::Array(arr) => {
+                let mut out = Vec::with_capacity(arr.len());
+                for item in arr {
+                    out.push(hydrate_local_files(item).await?);
+                }
+                Ok(Value::Array(out))
+            }
+            Value::Object(map) => {
+                let mut out = serde_json::Map::with_capacity(map.len());
+                for (k, v) in map {
+                    out.insert(k, hydrate_local_files(v).await?);
+                }
+                Ok(Value::Object(out))
+            }
+            other => Ok(other),
+        }
+    })
+}

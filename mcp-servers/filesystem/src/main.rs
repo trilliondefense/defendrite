@@ -184,7 +184,6 @@ pub struct FileTicketArgs {
     pub file_path: String,
 }
 
-
 #[derive(Clone)]
 struct FilesystemHandler;
 #[tool_router(server_handler)]
@@ -384,7 +383,7 @@ impl FilesystemHandler {
 
     #[tool(
         description = "Validate a local file and generate a lightweight reference ticket ('local-file://...'). Pass this exact reference string directly into any tool argument expecting file contents, media data, or Base64-encoded bytes—the host runtime automatically resolves and encodes the file during execution."
-       )]
+    )]
     fn create_file_ticket(
         &self,
         Parameters(args): Parameters<FileTicketArgs>,

@@ -7,9 +7,9 @@ pub use repository::{
     list_active_conversations,
     // save_message,
     list_conversations,
+    list_logs,
     load_history,
     open_db,
     save_exchange,
     save_log,
-    list_logs,
 };

@@ -3,8 +3,7 @@ use std::path::Path;
 use std::time::{SystemTime, UNIX_EPOCH};
 use uuid::Uuid;
 
-
-use super::models::{Attachment, Conversation, Message,Log};
+use super::models::{Attachment, Conversation, Log, Message};
 
 fn current_timestamp() -> i64 {
     SystemTime::now()
@@ -51,7 +50,7 @@ pub fn open_db(path: &Path, key: &str) -> rusqlite::Result<Connection> {
         ",
     )?;
     conn.execute_batch(
-    "
+        "
     CREATE TABLE IF NOT EXISTS logs (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         timestamp TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
@@ -64,7 +63,7 @@ pub fn open_db(path: &Path, key: &str) -> rusqlite::Result<Connection> {
     CREATE INDEX IF NOT EXISTS idx_logs_timestamp
     ON logs(timestamp DESC);
     ",
-)?;
+    )?;
 
     // Check existing message columns.
     let mut columns = Vec::new();
@@ -219,10 +218,7 @@ pub fn open_db(path: &Path, key: &str) -> rusqlite::Result<Connection> {
     Ok(conn)
 }
 
-pub fn save_log(
-    conn: &mut Connection,
-    log: &Log,
-) -> rusqlite::Result<()> {
+pub fn save_log(conn: &mut Connection, log: &Log) -> rusqlite::Result<()> {
     conn.execute(
         "
         INSERT INTO logs (
@@ -233,12 +229,7 @@ pub fn save_log(
         )
         VALUES (?1, ?2, ?3, ?4)
         ",
-        (
-            &log.level,
-            &log.source,
-            &log.message,
-            &log.details,
-        ),
+        (&log.level, &log.source, &log.message, &log.details),
     )?;
 
     Ok(())
