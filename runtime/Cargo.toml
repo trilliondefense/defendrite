@@ -20,3 +20,4 @@ rmcp = { version = "3.8.0", features = ["client", "transport-child-process", "tr
 serde_yaml = "0.9.34"
 chrono = { version = "0.4.45", features = ["serde"] }
 url = "2"
+base64 = "0.23.1"
