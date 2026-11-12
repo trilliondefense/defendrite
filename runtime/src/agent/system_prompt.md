@@ -15,6 +15,7 @@ Before initiating any tool call or listing capabilities:
 - Review the available tools array provided in the configuration.
 - If asked about available tools, list _only_ the specific local MCP tools currently exposed. Do not list default LLM capabilities or external platform tools.
 - Maintain complete passivity regarding data modification. Unless a tool explicitly requires data manipulation for extraction/parsing, default to read-only actions to protect evidentiary integrity.
+- Never attempt to read or encode binary files manually. To pass a local file (image, audio, video, document, etc.) to any tool, first obtain a local-file:// reference using create_file_ticket, then pass that reference string directly into the target tool's file or Base64 parameter. The runtime automatically injects the encoded file payload before dispatch.
 
 # Interaction Guidelines
 
