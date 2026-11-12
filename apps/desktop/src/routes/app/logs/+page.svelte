@@ -241,6 +241,64 @@
         <option value="newest">Newest first</option>
         <option value="oldest">Oldest first</option>
       </select>
+      <button
+        class="primary-button"
+        aria-label="delete"
+        onclick={() => {
+          // showDeleteDiag = true;
+        }}
+      >
+        <span aria-hidden="true"
+          ><svg
+            width="18px"
+            height="18px"
+            viewBox="0 0 24 24"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+            ><g id="SVGRepo_bgCarrier" stroke-width="0"></g><g
+              id="SVGRepo_tracerCarrier"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            ></g><g id="SVGRepo_iconCarrier">
+              <path
+                d="M10 12V17"
+                stroke="#ffffff"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              ></path>
+              <path
+                d="M14 12V17"
+                stroke="#ffffff"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              ></path>
+              <path
+                d="M4 7H20"
+                stroke="#ffffff"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              ></path>
+              <path
+                d="M6 10V18C6 19.6569 7.34315 21 9 21H15C16.6569 21 18 19.6569 18 18V10"
+                stroke="#ffffff"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              ></path>
+              <path
+                d="M9 5C9 3.89543 9.89543 3 11 3H13C14.1046 3 15 3.89543 15 5V7H9V5Z"
+                stroke="#ffffff"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              ></path>
+            </g></svg
+          ></span
+        >
+      </button>
     </div>
   </section>
 
@@ -293,13 +351,14 @@
           <article class="log-card">
             <div class="log-card-main">
               <div class="log-card-header">
-                <span class="log-level" 
-                class:expanded={expandedLog === log.id}
-                class:error={log.level.toLowerCase() === 'error'}
-                class:info={log.level.toLowerCase() === 'info'}
-                class:warn={log.level.toLowerCase() === 'warn'}
-                class:debug={log.level.toLowerCase() === 'debug'}
-                class:success={log.level.toLowerCase() === 'success'}
+                <span
+                  class="log-level"
+                  class:expanded={expandedLog === log.id}
+                  class:error={log.level.toLowerCase() === 'error'}
+                  class:info={log.level.toLowerCase() === 'info'}
+                  class:warn={log.level.toLowerCase() === 'warn'}
+                  class:debug={log.level.toLowerCase() === 'debug'}
+                  class:success={log.level.toLowerCase() === 'success'}
                 >
                   {log.level}
                 </span>
@@ -424,6 +483,7 @@
   /* Page */
 
   .logs-page {
+    --primary: #34332e;
     width: 100%;
     max-width: 1440px;
     margin: 0 auto;
@@ -858,6 +918,23 @@
     font-size: 11px;
     font-weight: 550;
     transition: all 0.15s ease;
+  }
+
+  .primary-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    min-height: 38px;
+    padding: 0 8px;
+    border: 1px solid var(--primary);
+    border-radius: 6px;
+    background: var(--primary);
+    color: #fff;
+    font-size: 11px;
+    font-weight: 500;
+    white-space: nowrap;
+    transition: background 0.15s ease;
   }
 
   .load-more-button:hover {
