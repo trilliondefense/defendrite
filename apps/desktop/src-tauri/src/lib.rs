@@ -123,7 +123,7 @@ fn delete_chat(conversation_id: String, app_handle: tauri::AppHandle) -> Result<
 
 #[tauri::command]
 fn delete_chat_before(cutoff_timestamp: i64, app_handle: tauri::AppHandle) -> Result<(), String> {
-    runtime::delete_chat_before(&app_handle, &cutoff_timestamp)
+    runtime::delete_chat_before(&app_handle, cutoff_timestamp)
 }
 
 #[tauri::command]
