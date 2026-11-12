@@ -349,7 +349,7 @@ impl FilesystemHandler {
             id: id.clone(),
             name: name.to_string(),
             description: String::new(),
-            version: "1.0.0".into(),
+            version: "1.1.0".into(),
             author: "Agent".into(),
             tags: Vec::new(),
             status: "active".into(),
