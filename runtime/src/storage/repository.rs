@@ -603,6 +603,24 @@ pub fn delete_conversation(conn: &Connection, conversation_id: &str) -> rusqlite
     Ok(())
 }
 
+/// Deletes all conversations (and cascading messages/attachments) 
+/// that were last updated before the given Unix timestamp.
+pub fn delete_conversations_before(conn: &Connection, cutoff_timestamp: i64) -> rusqlite::Result<()>  {
+    // Ensure foreign key cascades are active on this connection
+    conn.execute("PRAGMA foreign_keys = ON;", [])?;
+
+    conn.execute(
+        "
+        DELETE FROM conversations
+        WHERE updated_at < ?1
+        ",
+        params![cutoff_timestamp],
+    )?;
+
+    Ok(())
+}
+
+
 pub fn get_attachments(conn: &Connection, message_id: i64) -> rusqlite::Result<Vec<Attachment>> {
     let mut stmt = conn.prepare(
         "
