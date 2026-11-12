@@ -620,6 +620,19 @@ pub fn delete_conversations_before(conn: &Connection, cutoff_timestamp: i64) -> 
     Ok(())
 }
 
+/// Deletes all logs recorded before the given Unix timestamp (in seconds).
+pub fn delete_logs_before(conn: &Connection, cutoff_timestamp: i64) -> rusqlite::Result<()> {
+    conn.execute(
+        "
+        DELETE FROM logs
+        WHERE unixepoch(timestamp) < ?1
+        ",
+        params![cutoff_timestamp],
+    )?;
+
+    Ok(())
+}
+
 
 pub fn get_attachments(conn: &Connection, message_id: i64) -> rusqlite::Result<Vec<Attachment>> {
     let mut stmt = conn.prepare(

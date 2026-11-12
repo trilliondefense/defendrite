@@ -13,4 +13,5 @@ pub use repository::{
     save_exchange,
     save_log,
     delete_conversations_before,
+    delete_logs_before,
 };
