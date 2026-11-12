@@ -1685,7 +1685,6 @@ name = "filesystem"
 version = "1.0.0"
 dependencies = [
  "anydoc",
- "base64 0.23.1",
  "chrono",
  "dirs 7.0.0",
  "rmcp",
