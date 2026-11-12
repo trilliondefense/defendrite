@@ -33,12 +33,10 @@
       messages = await invoke<Message[]>('get_chat_messages', {
         conversationId: targetId,
       });
-      consoleLogTerminal(messages.join(','));
 
       await scrollToBottom();
     } catch (err) {
       console.error('Failed to load conversation:', err);
-      consoleLogTerminal(`Failed to load conversation: ${err}`);
 
       error = 'Could not load this conversation.';
     }
@@ -85,17 +83,11 @@
       attachments = [...attachments, ...newAttachments];
     } catch (error) {
       console.error('Failed to select attachments:', error);
-      consoleLogTerminal(`Message ${error}`);
     } finally {
       isSelecting = false;
     }
   }
 
-  async function consoleLogTerminal(message: String) {
-    await invoke('log_to_terminal', {
-      message,
-    });
-  }
 
   function removeAttachment(id: string) {
     attachments = attachments.filter((attachment) => attachment.id !== id);

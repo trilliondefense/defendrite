@@ -1,5 +1,6 @@
 use anydoc::to_markdown_bytes;
 use base64::{Engine as _, engine::general_purpose::STANDARD};
+use chrono::Local;
 use rmcp::handler::server::wrapper::Json;
 use rmcp::{
     ServiceExt, handler::server::wrapper::Parameters, schemars, serde::Serialize, tool,
@@ -606,16 +607,10 @@ fn generate_report_pdf(args: GenerateReportArgs) -> Result<String, String> {
         return Err("Report title cannot be empty".to_string());
     }
 
-    let safe_case_id: String = case_id
-        .chars()
-        .map(|c| {
-            if c.is_ascii_alphanumeric() || c == '-' || c == '_' {
-                c
-            } else {
-                '_'
-            }
-        })
-        .collect();
+    let current_date = Local::now().format("%d_%b_%Y").to_string();
+    let unique_id = Uuid::new_v4();
+
+    let report_name = format!("{}_{}", current_date, unique_id);
 
     let base_directory = dirs::data_local_dir()
         .ok_or_else(|| "Could not resolve application data directory".to_string())?
@@ -645,7 +640,7 @@ fn generate_report_pdf(args: GenerateReportArgs) -> Result<String, String> {
         .map_err(|err| format!("Typst compilation failed: {err:#?}"))?;
     let pdf_bytes = typst_pdf::pdf(&document, &Default::default())
         .map_err(|err| format!("PDF generation failed: {err:#?}"))?;
-    let output_path = reports_directory.join(format!("{safe_case_id}_report.pdf"));
+    let output_path = reports_directory.join(format!("{report_name}_report.pdf"));
 
     fs::write(&output_path, pdf_bytes).map_err(|e| format!("Failed to save PDF: {e}"))?;
 
