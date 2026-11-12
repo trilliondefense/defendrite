@@ -358,9 +358,18 @@ pub fn list_conversations(conn: &Connection) -> rusqlite::Result<Vec<Conversatio
 pub fn list_active_conversations(conn: &Connection) -> rusqlite::Result<Vec<Conversation>> {
     let mut stmt = conn.prepare(
         "
-        SELECT id, title, chat_number, created_at, updated_at
-        FROM conversations
-        ORDER BY updated_at DESC, chat_number DESC
+        SELECT
+            c.id,
+            c.title,
+            c.chat_number,
+            c.created_at,
+            c.updated_at
+        FROM conversations c
+        INNER JOIN messages m
+            ON m.conversation_id = c.id
+        GROUP BY c.id
+        HAVING COUNT(m.id) > 1
+        ORDER BY c.updated_at DESC, c.chat_number DESC
         ",
     )?;
 
