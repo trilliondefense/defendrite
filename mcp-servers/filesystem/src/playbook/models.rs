@@ -1,5 +1,5 @@
-use serde::{Deserialize,Serialize};
 use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]

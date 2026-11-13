@@ -275,7 +275,6 @@ pub fn delete_logs_before(app_handle: &AppHandle, cutoff_timestamp: i64) -> Resu
         .map_err(|e| format!("Could not delete conversation: {e}"))
 }
 
-
 // --------------------------------------------------
 // DATABASE INITIALIZATION
 // --------------------------------------------------

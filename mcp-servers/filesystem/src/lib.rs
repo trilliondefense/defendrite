@@ -1,11 +1,8 @@
 use rmcp::handler::server::wrapper::Json;
-use rmcp::{
-    ServiceExt, handler::server::wrapper::Parameters, tool,
-    tool_router, transport::stdio,
-};
-mod report;
-mod playbook;
+use rmcp::{ServiceExt, handler::server::wrapper::Parameters, tool, tool_router, transport::stdio};
 mod file;
+mod playbook;
+mod report;
 
 #[derive(Clone)]
 struct FilesystemHandler;
@@ -21,10 +18,13 @@ impl FilesystemHandler {
         report::generate_report_pdf(args)
     }
     #[tool(description = "Extracts a local ZIP archive into a target destination directory.")]
-    fn unzip_file(&self, Parameters(args): Parameters<file::models::UnzipArgs>) -> Result<String, String> {
+    fn unzip_file(
+        &self,
+        Parameters(args): Parameters<file::models::UnzipArgs>,
+    ) -> Result<String, String> {
         file::unzip_file(args)
     }
-  
+
     #[tool(
         description = "Validate a local file and generate a lightweight reference ticket ('local-file://...'). Pass this exact reference string directly into any tool argument expecting file contents, media data, or Base64-encoded bytes—the host runtime automatically resolves and encodes the file during execution."
     )]
@@ -48,7 +48,7 @@ impl FilesystemHandler {
         &self,
         Parameters(args): Parameters<playbook::models::CreatePlaybookArgs>,
     ) -> Result<String, String> {
-       playbook::create_playbook(args)
+        playbook::create_playbook(args)
     }
 
     #[tool(
@@ -65,9 +65,7 @@ impl FilesystemHandler {
     ) -> Result<String, String> {
         playbook::get_playbook_content(args)
     }
-
 }
-
 
 pub async fn run() -> Result<(), Box<dyn std::error::Error>> {
     let service = FilesystemHandler.serve(stdio()).await?;

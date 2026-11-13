@@ -1,13 +1,10 @@
-
+use super::consts::REPORT_TEMPLATE;
+use super::models::GenerateReportArgs;
+use chrono::Local;
+use std::fs;
 use typst::foundations::{Dict, Str, Value};
 use typst_as_lib::TypstEngine;
-use chrono::Local;
 use uuid::Uuid;
-use std::fs;
-use super::models::GenerateReportArgs;
-use super::consts::REPORT_TEMPLATE;
-
-
 
 pub fn generate_report_pdf(args: GenerateReportArgs) -> Result<String, String> {
     let case_id = args.case_id.trim();

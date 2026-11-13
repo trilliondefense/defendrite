@@ -4,6 +4,8 @@ pub mod repository;
 pub use repository::{
     create_conversation,
     delete_conversation,
+    delete_conversations_before,
+    delete_logs_before,
     list_active_conversations,
     // save_message,
     list_conversations,
@@ -12,6 +14,4 @@ pub use repository::{
     open_db,
     save_exchange,
     save_log,
-    delete_conversations_before,
-    delete_logs_before,
 };

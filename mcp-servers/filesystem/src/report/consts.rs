@@ -1,7 +1,3 @@
-
-
-
-
 pub const REPORT_TEMPLATE: &str = r#"
 #import sys: inputs
 
