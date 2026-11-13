@@ -19,8 +19,9 @@ pub fn generate_report_pdf(args: GenerateReportArgs) -> Result<String, String> {
 
     let current_date = Local::now().format("%d_%b_%Y").to_string();
     let unique_id = Uuid::new_v4();
+    let short_id = &unique_id.simple().to_string()[..8];
 
-    let report_name = format!("{}_{}", current_date, unique_id);
+    let report_name = format!("{}_{}", current_date, short_id);
 
     let base_directory = dirs::data_local_dir()
         .ok_or_else(|| "Could not resolve application data directory".to_string())?
