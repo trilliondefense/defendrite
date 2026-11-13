@@ -212,9 +212,6 @@ pub fn save_log(
     storage::save_log(&mut db, &log).map_err(|err| err.to_string())?;
     Ok(())
 }
-// --------------------------------------------------
-// Playbooks
-// --------------------------------------------------
 
 /// Create a new Markdown playbook.
 pub fn create_new_playbook(
@@ -275,9 +272,6 @@ pub fn delete_logs_before(app_handle: &AppHandle, cutoff_timestamp: i64) -> Resu
         .map_err(|e| format!("Could not delete conversation: {e}"))
 }
 
-// --------------------------------------------------
-// DATABASE INITIALIZATION
-// --------------------------------------------------
 
 fn open_conversation_db(app_handle: &AppHandle) -> Result<rusqlite::Connection, String> {
     let mut storage_path = app_handle
@@ -334,10 +328,6 @@ pub fn delete_chat(app_handle: &AppHandle, conversation_id: &str) -> Result<(), 
         .map_err(|e| format!("Could not delete conversation: {e}"))
 }
 
-// --------------------------------------------------
-// GET ALL CONVERSATIONS
-// --------------------------------------------------
-
 pub fn get_conversations(app_handle: &AppHandle) -> Result<Vec<Conversation>, String> {
     let db = open_conversation_db(app_handle)?;
 
@@ -350,10 +340,6 @@ pub fn get_active_conversations(app_handle: &AppHandle) -> Result<Vec<Conversati
     storage::list_active_conversations(&db)
         .map_err(|e| format!("Could not retrieve conversations: {e}"))
 }
-
-// --------------------------------------------------
-// HANDLE AGENT REQUEST
-// --------------------------------------------------
 
 pub async fn handle_agent_request(
     prompt: &str,
@@ -465,20 +451,6 @@ pub async fn handle_agent_request(
         }
     }
 
-    // 8. Convert history into Gemini contents format.
-
-    // 8. Convert history into Gemini contents format.
-
-    // let mcp_tools = match crate::mcp::manager::discover_tools().await {
-    //     Ok(tools) => {
-    //         println!("Discovered MCP tools: {tools:#?}");
-    //         tools
-    //     }
-    //     Err(error) => {
-    //         eprintln!("MCP tool discovery failed: {error}");
-    //         Vec::new()
-    //     }
-    // };
 
     let mut contents: Vec<Value> = history
         .into_iter()
@@ -505,7 +477,6 @@ pub async fn handle_agent_request(
         })
         .collect();
 
-    // 9. Append current user prompt and attachment metadata.
 
     let mut user_prompt = prompt.to_string();
 
@@ -519,17 +490,6 @@ pub async fn handle_agent_request(
             ));
         }
     }
-    // if !mcp_tools.is_empty() {
-    //     user_prompt.push_str("\n\nAvailable filesystem tools:\n");
-
-    //     for tool in &mcp_tools {
-    //         user_prompt.push_str(&format!(
-    //             "- {}: {}\n",
-    //             tool.name,
-    //             tool.description
-    //         ));
-    //     }
-    // }
 
     contents.push(json!({
         "role": "user",
@@ -537,276 +497,6 @@ pub async fn handle_agent_request(
             { "text": user_prompt }
         ]
     }));
-
-    // --------------------------------------------------
-    // GEMINI STREAMING API REQUEST
-    // --------------------------------------------------
-
-    // let client = match reqwest::Client::builder()
-    //     .timeout(Duration::from_secs(120))
-    //     .build()
-    // {
-    //     Ok(client) => client,
-    //     Err(error) => {
-    //         eprintln!("HTTP client initialization failed: {error}");
-    //         return emit_error(
-    //             app_handle,
-    //             "Could not initialize the HTTP client.",
-    //         );
-    //     }
-    // };
-
-    // let url = format!(
-    //     "https://generativelanguage.googleapis.com/v1beta/models/{model}:streamGenerateContent?alt=sse"
-    // );
-
-    // let response = match client
-    //     .post(&url)
-    //     .header("x-goog-api-key", &api_key)
-    //     .header("Accept", "text/event-stream")
-    //     .json(&json!({
-    //         "contents": contents
-    //     }))
-    //     .send()
-    //     .await
-    // {
-    //     Ok(response) => response,
-    //     Err(error) => {
-    //         eprintln!("Gemini streaming request failed: {error}");
-
-    //         return emit_error(
-    //             app_handle,
-    //             "Could not connect to Gemini. Check your network.",
-    //         );
-    //     }
-    // };
-
-    // // --------------------------------------------------
-    // // HANDLE HTTP ERRORS
-    // // --------------------------------------------------
-
-    // let status = response.status();
-
-    // if !status.is_success() {
-    //     let details = response
-    //         .text()
-    //         .await
-    //         .unwrap_or_else(|_| {
-    //             "No error details available".to_string()
-    //         });
-
-    //     eprintln!("Gemini API returned {status}: {details}");
-
-    //     return emit_error(
-    //         app_handle,
-    //         &format!(
-    //             "Gemini API returned HTTP {status}. Check application logs."
-    //         ),
-    //     );
-    // }
-
-    // // --------------------------------------------------
-    // // READ GEMINI STREAMING RESPONSE
-    // // --------------------------------------------------
-
-    // let mut stream = response.bytes_stream();
-
-    // // Use bytes instead of String to safely handle
-    // // UTF-8 characters split across network chunks.
-    // let mut buffer: Vec<u8> = Vec::new();
-
-    // let mut answer = String::new();
-    // let mut last_event = String::new();
-
-    // while let Some(chunk_result) = stream.next().await {
-
-    //     let chunk = match chunk_result {
-    //         Ok(chunk) => chunk,
-    //         Err(error) => {
-    //             eprintln!("Gemini stream failed: {error}");
-
-    //             return emit_error(
-    //                 app_handle,
-    //                 "Gemini streaming connection was interrupted.",
-    //             );
-    //         }
-    //     };
-
-    //     // Append incoming network bytes.
-    //     buffer.extend_from_slice(&chunk);
-
-    //     // Process complete SSE lines.
-    //     while let Some(line_end) = buffer.iter().position(|b| *b == b'\n') {
-
-    //         let mut line: Vec<u8> =
-    //             buffer.drain(..=line_end).collect();
-
-    //         // Remove newline.
-    //         line.pop();
-
-    //         // Handle CRLF (\r\n) and LF (\n).
-    //         if line.last() == Some(&b'\r') {
-    //             line.pop();
-    //         }
-
-    //         let line = String::from_utf8_lossy(&line);
-
-    //         // Only process SSE data lines.
-    //         let Some(data) = line.strip_prefix("data:") else {
-    //             continue;
-    //         };
-
-    //         let data = data.trim();
-
-    //         if data.is_empty() || data == "[DONE]" {
-    //             continue;
-    //         }
-
-    //         last_event = data.to_string();
-
-    //         // Parse Gemini JSON event.
-    //         let parsed: Value = match serde_json::from_str(data) {
-    //             Ok(value) => value,
-    //             Err(error) => {
-    //                 eprintln!("Gemini SSE JSON parsing failed: {error}");
-    //                 eprintln!("Received event: {data}");
-    //                 continue;
-    //             }
-    //         };
-
-    //         // Extract generated text.
-    //         let text = parsed["candidates"][0]
-    //             ["content"]["parts"]
-    //             .as_array()
-    //             .map(|parts| {
-    //                 parts
-    //                     .iter()
-    //                     .filter_map(|part| {
-    //                         part["text"].as_str()
-    //                     })
-    //                     .collect::<String>()
-    //             })
-    //             .unwrap_or_default();
-
-    //         if text.is_empty() {
-    //             continue;
-    //         }
-
-    //         // Accumulate complete response.
-    //         answer.push_str(&text);
-
-    //         // Emit generated text immediately to frontend.
-    //         if let Err(error) =
-    //             app_handle.emit("agent-token", text.clone())
-    //         {
-    //             eprintln!("Failed to emit agent token: {error}");
-    //         }
-    //     }
-    // }
-
-    // // --------------------------------------------------
-    // // PROCESS FINAL INCOMPLETE SSE LINE
-    // // --------------------------------------------------
-
-    // // Some streams may end without a trailing newline.
-    // if !buffer.is_empty() {
-    //     buffer.push(b'\n');
-    // }
-
-    // while let Some(line_end) = buffer.iter().position(|b| *b == b'\n') {
-
-    //     let mut line: Vec<u8> =
-    //         buffer.drain(..=line_end).collect();
-
-    //     line.pop();
-
-    //     if line.last() == Some(&b'\r') {
-    //         line.pop();
-    //     }
-
-    //     let line = String::from_utf8_lossy(&line);
-
-    //     let Some(data) = line.strip_prefix("data:") else {
-    //         continue;
-    //     };
-
-    //     let data = data.trim();
-
-    //     if data.is_empty() || data == "[DONE]" {
-    //         continue;
-    //     }
-
-    //     last_event = data.to_string();
-
-    //     let parsed: Value = match serde_json::from_str(data) {
-    //         Ok(value) => value,
-    //         Err(error) => {
-    //             eprintln!("Final Gemini SSE parsing failed: {error}");
-    //             continue;
-    //         }
-    //     };
-
-    //     let text = parsed["candidates"][0]
-    //         ["content"]["parts"]
-    //         .as_array()
-    //         .map(|parts| {
-    //             parts
-    //                 .iter()
-    //                 .filter_map(|part| part["text"].as_str())
-    //                 .collect::<String>()
-    //         })
-    //         .unwrap_or_default();
-
-    //     if !text.is_empty() {
-    //         answer.push_str(&text);
-
-    //         if let Err(error) =
-    //             app_handle.emit("agent-token", text.clone())
-    //         {
-    //             eprintln!("Failed to emit agent token: {error}");
-    //         }
-    //     }
-    // }
-
-    // // --------------------------------------------------
-    // // VALIDATE COMPLETED RESPONSE
-    // // --------------------------------------------------
-
-    // if answer.trim().is_empty() {
-
-    //     eprintln!("Gemini returned no generated text.");
-    //     eprintln!("Last Gemini event: {last_event}");
-
-    //     return emit_error(
-    //         app_handle,
-    //         "Gemini returned an empty response.",
-    //     );
-    // }
-
-    // // --------------------------------------------------
-    // // SAVE CONVERSATION EXCHANGE
-    // // --------------------------------------------------
-
-    // if let Err(error) = storage::save_exchange(
-    //     &mut db,
-    //     conversation_id,
-    //     prompt,
-    //     &answer,
-    //     attachments,
-    // ) {
-    //     eprintln!(
-    //         "Failed to save conversation exchange: {error}"
-    //     );
-
-    //     return emit_error(
-    //         app_handle,
-    //         "Could not save conversation history.",
-    //     );
-    // }
-
-    // --------------------------------------------------
-    // RUN AGENT
-    // --------------------------------------------------
 
     let answer = match crate::agent::r#loop::run(contents, &api_key, &model, app_handle).await {
         Ok(answer) => answer,
@@ -832,10 +522,6 @@ pub async fn handle_agent_request(
         return emit_error(app_handle, "Gemini returned an empty response.");
     }
 
-    // --------------------------------------------------
-    // SAVE CONVERSATION EXCHANGE
-    // --------------------------------------------------
-
     if let Err(error) =
         storage::save_exchange(&mut db, conversation_id, prompt, &answer, attachments)
     {
@@ -846,10 +532,6 @@ pub async fn handle_agent_request(
 
     answer
 }
-
-// --------------------------------------------------
-// ERROR EVENT
-// --------------------------------------------------
 
 fn emit_error(app_handle: &AppHandle, message: &str) -> String {
     let display_message = format!("Error: {message}");
