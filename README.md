@@ -5,10 +5,14 @@
 <h1 align="center">Harness AI effectively to protect children</h1>
 
 <p align="center">
+  <img src=".github/assets/readme/art.png" alt="Art" width="800">
+</p>
+<p align="center">
   <b>The intelligent workspace for digital forensics.</b><br>
   Open-weights models. Local tools. Remote APIs. One Workbench.<br>
   Start with local data ingestion. Instantly classify illicit material, execute deep cross-case correlation, and deploy custom tools to generate courtroom-ready reports for global jurisdictions.
 </p>
+
 
 <p align="center">
   <a href="https://github.com/trilliondefense/defendrite/releases/tag/app-v1.0.0"><b>Download</b></a> ·
